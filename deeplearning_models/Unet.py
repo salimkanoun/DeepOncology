@@ -7,9 +7,7 @@ import tensorflow as tf
 
 class CustomUNet3D(object):
     """
-        Upgrade of version My_UNet3d_V10 in order to reduce overfitting
-
-        custom Unet implementation for multiclasse semantic segmentation
+    Implements UNet architecture https://arxiv.org/abs/1606.06650
     """
 
     def __init__(self,
