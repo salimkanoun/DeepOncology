@@ -5,15 +5,6 @@ import glob
 from sklearn.model_selection import train_test_split
 
 
-"""
-        PET_ids = np.sort(glob.glob(directory + '/*float*.nii'))
-        CT_ids = np.sort(glob.glob(directory + '/*ctUh*.nii'))
-        MASK_ids = np.sort(glob.glob(directory + '/*pmask*.nii'))
-
-        preprocessed_sets[folder] = list(zip(PET_ids, CT_ids, MASK_ids))
-
-"""
-
 class DataManager(object):
 
     def __init__(self, base_path):

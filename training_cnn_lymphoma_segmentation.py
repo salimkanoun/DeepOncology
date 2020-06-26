@@ -38,11 +38,6 @@ number_class = 2
 
 # CNN params
 architecture = 'vnet'  # 'unet' or 'vnet'
-# filters = (8, 16, 32)  # (8, 16, 32, 64, 128)
-# kernel = (3, 3, 3)
-# activation = tf.keras.layers.LeakyReLU()
-# padding = 'same'
-# pooling = (2, 2, 2)
 
 if architecture == 'unet':
     cnn_params = {'filters': (8, 16, 32),  # (8, 16, 32, 64, 128)
@@ -114,7 +109,7 @@ x_train, x_val, x_test, y_train, y_val, y_test = DM.get_train_val_test()
 train_generator = DataGenerator(x_train, y_train,
                                 batch_size=batch_size, shuffle=shuffle, augmentation=data_augment,
                                 target_shape=image_shape, target_voxel_spacing=voxel_spacing,
-                                resize=resize, normalize=normalize)  # pour l'instant resize, normalize ne changent rien
+                                resize=resize, normalize=normalize)
 
 val_generator = DataGenerator(x_val, y_val,
                               batch_size=batch_size, shuffle=False, augmentation=False,
@@ -123,20 +118,9 @@ val_generator = DataGenerator(x_val, y_val,
 
 # Define model
 if architecture == 'unet':
-    # model = CustomUNet3D(tuple(list(image_shape) + [number_channels]), number_class,
-    #                      filters=filters, kernel=kernel, activation=activation,
-    #                      padding=padding, pooling=pooling).get_model()
     model = CustomUNet3D(tuple(list(image_shape) + [number_channels]), number_class,  **cnn_params).create_model()
 
 elif architecture == 'vnet':
-    # model = VNet(tuple(list(image_shape) + [number_channels]), number_class,
-    #              keep_prob=1.0,
-    #              kernel_size=kernel,
-    #              num_channels=16,
-    #              num_levels=4,
-    #              num_convolutions=(1, 2, 3, 3),
-    #              bottom_convolutions=3,
-    #              activation_fn=tf.keras.layers.PReLU()).create_model()
     model = VNet(tuple(list(image_shape) + [number_channels]), number_class, **cnn_params).create_model()
 else:
     raise ValueError('Architecture ' + architecture + ' not supported. Please ' +
