@@ -6,7 +6,7 @@ from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping, T
 from deeplearning_models.Unet import CustomUNet3D
 # from deeplearning_models.Vnet import CustomVNet
 
-from deeplearning_tools.loss_functions import Tumoral_DSC
+from deeplearning_tools.loss_functions import Tumoral_DSC, Multiclass_DSC_Loss
 
 import os
 from datetime import datetime
@@ -14,19 +14,23 @@ from datetime import datetime
 # path
 now = datetime.now().strftime("%Y%m%d-%H%M%S")
 
-data_path = '/path/to/data'
+data_path = r'C:\\Users\\Rudy\\Documents\\Thales_stage\\data\\nifti_scan'  # '/path/to/data'
 
-trained_model_path = None  # if None, trained from scratch
-training_model_folder = '/path/to/folder'
-logdir = "logs/scalars/" + now  # tensorboard
+# trained_model_path = None  # if None, trained from scratch
+training_model_folder = os.path.join(r'C:\\Users\\Rudy\\Documents\\Thales_stage\\training', now)  # '/path/to/folder'
+if not os.path.exists(training_model_folder):
+    os.makedirs(training_model_folder)
+logdir = os.path.join(training_model_folder, 'logs')
+if not os.path.exists(logdir):
+    os.makedirs(logdir)
 
-generate_MIP_prediction = True
-result_path = '/path/to/folder'
+# generate_MIP_prediction = True
+# result_path = r'C:\\Users\\Rudy\\Documents\\Thales_stage\\training'
 
 # PET CT scan params
-image_shape = (368, 128, 128)
+image_shape = (128, 64, 64)  # (368, 128, 128)  # (z, y, x)
 number_channels = 2
-voxel_spacing = (4.8, 4.8, 4.8)  # in millimeter
+voxel_spacing = (4.8, 4.8, 4.8)  # in millimeter, (z, y, x)
 data_augment = True  # for training dataset only
 resize = True
 normalize = True
@@ -34,7 +38,7 @@ number_class = 2
 
 # CNN params
 architecture = 'unet'  # 'unet' or 'vnet'
-filters = (8, 16, 32, 64, 128)
+filters = (8, 16, 32)  # (8, 16, 32, 64, 128)
 kernel = (3, 3, 3)
 activation = tf.keras.layers.LeakyReLU()
 padding = 'same'
@@ -46,7 +50,7 @@ batch_size = 1
 shuffle = True
 
 # definition of loss, optimizer and metrics
-loss_object = Tumoral_DSC()
+loss_object = Multiclass_DSC_Loss()
 metrics = [Tumoral_DSC(), tf.keras.metrics.SparseCategoricalCrossentropy(name='SCCE')]
 optimizer = tf.keras.optimizers.SGD(learning_rate=1e-5, momentum=0.9)
 
@@ -116,11 +120,11 @@ history = model.fit_generator(generator=train_generator,
                               steps_per_epoch=len(train_generator),
                               validation_steps=len(val_generator),
                               callbacks=callbacks,
-                              verbose=0
+                              verbose=1
                               )
 
 # save model/history/performance
-model.save(os.path.join(training_model_folder, 'trained_model_{}.h5').format(now))
+# model.save(os.path.join(training_model_folder, 'trained_model_{}.h5').format(now))
 
 # # save hyper parameter and train, val, test performance
 # header = ['date', 'architecture', 'filters', 'kernel', 'activation', 'padding', 'pooling']

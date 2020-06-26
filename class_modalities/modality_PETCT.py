@@ -46,9 +46,12 @@ class DataGenerator(tf.keras.utils.Sequence):
         self.on_epoch_end()
         self.augment = augmentation
 
-        self.target_shape = target_shape
-        self.target_voxel_spacing = target_voxel_spacing
+        self.target_shape = target_shape[::-1]  # [z, y, x] to [
+        self.target_voxel_spacing = target_voxel_spacing[::-1]
         self.resize = resize
+        self.default_value = {'PET': 0.0,
+                              'CT': -1024.0,
+                              'MASK': 0}
         self.normalize = normalize
         self.dtypes = {'PET': sitk.sitkFloat32,
                        'CT': sitk.sitkFloat32,
@@ -82,7 +85,7 @@ class DataGenerator(tf.keras.utils.Sequence):
             PET_id, CT_id = self.images_paths[idx]
             MASK_id = self.labels_path[idx]
 
-            # load and preprocess images
+            # load and resample images
             PET_img, CT_img, MASK_img = self.preprocess_data(PET_id, CT_id, MASK_id)
 
             if self.augment:
@@ -92,6 +95,11 @@ class DataGenerator(tf.keras.utils.Sequence):
             PET_array = sitk.GetArrayFromImage(PET_img)
             CT_array = sitk.GetArrayFromImage(CT_img)
             MASK_img = sitk.GetArrayFromImage(MASK_img)
+
+            # normalize data
+            if self.normalize:
+                PET_array = self.normalize_PET(PET_array)
+                CT_array = self.normalize_CT(CT_array)
 
             # concatenate PET and CT
             PET_CT_array = np.stack((PET_array, CT_array), axis=-1)
@@ -114,10 +122,8 @@ class DataGenerator(tf.keras.utils.Sequence):
         CT_img = self.read_CT(CT_id)
         MASK_img = self.read_mask(MASK_id)
 
-        # normalize before resample (due to the default value)
-        PET_img = self.normalize_PET(PET_img)
-        CT_img = self.normalize_CT(CT_img)
-        MASK_img = self.normalize_MASK(MASK_img)
+        # transform to 3D binary mask
+        MASK_img = self.preprocess_MASK(MASK_img)
 
         return self.resample_PET_CT_MASK(PET_img, CT_img, MASK_img)
 
@@ -130,43 +136,45 @@ class DataGenerator(tf.keras.utils.Sequence):
     def read_mask(self, filename):
         return sitk.ReadImage(filename, self.dtypes['mask'])
 
-    def normalize_PET(self, PET_img):
-        return sitk.ShiftScale(PET_img, shift=0.0, scale=1. / 10.)
-
-    def normalize_CT(self, CT_img):
-        return sitk.ShiftScale(CT_img, shift=1000, scale=1. / 2000.)
-
-    def normalize_MASK(self, MASK_img):
-        return sitk.Threshold(MASK_img, lower=0.0, upper=1.0, outsideValue=1.0)
-
-    # def resample_PET(self, CT_img):
-    #     pass
-    #
-    # def resample_CT(self):
-    #     """
-    #     transformation = sitk.ResampleImageFilter()
-    #     transformation.SetOutputDirection(self.PET_img.GetDirection())
-    #     transformation.SetOutputOrigin(self.PET_img.GetOrigin())
-    #     transformation.SetOutputSpacing(self.PET_img.GetSpacing())
-    #     transformation.SetSize(self.PET_img.GetSize())
-    #     transformation.SetInterpolator(sitk.sitkBSpline)
-    #
-    #     # apply transformations on CT IMG
-    #     self.CT_img = transformation.Execute(self.CT_img)
-    #     """
-    #     pass
-    #
-    # def resample_MASK(self):
-    #     pass
-
-    def resample_PET_CT_MASK(self, PET_img, CT_img, MASK_img):
+    def preprocess_MASK(self, mask_img):
         """
-        vérifier que tout est bon au niveau du CT scan. Attention cela rajoute des zéros comme valeur par défault : après normalisation donc.
+        Transform 3D or 4D mask to 3D binary mask
+        :param mask_img: sitk img, the mask
+        :return: sitk img, 3D
         """
-        # compute transformation parameters
-        new_Origin = self.compute_new_Origin(PET_img)
-        new_Direction = PET_img.GetDirection()
+        n_dim = len(mask_img.GetSize())
+        if n_dim == 3:
+            # transform to binary
+            return sitk.Threshold(mask_img, lower=0.0, upper=1.0, outsideValue=1.0)
 
+        elif n_dim == 4:
+            mask_array = sitk.GetArrayFromImage(mask_img)
+
+            # transform to binary
+            mask_array = np.sum(mask_array, axis=0)
+            mask_array[mask_array > 0] = 1
+
+            # reconvert to sitk image and set to previous information
+            new_mask = sitk.GetImageFromArray(mask_array)
+            direction = tuple(el for i, el in enumerate(mask_img.GetDirection()[:12]) if not (i + 1) % 4 == 0)
+            new_mask.SetOrigin(mask_img.GetOrigin()[:-1])
+            new_mask.SetDirection(direction)
+            new_mask.SetSpacing(mask_img.GetSpacing()[:-1])
+
+            return new_mask
+
+    def normalize_PET(self, PET_array):
+        return PET_array/10.0
+        # return sitk.ShiftScale(PET_img, shift=0.0, scale=1. / 10.)
+
+    def normalize_CT(self, CT_array):
+        CT_array[CT_array < -1024] = -1024.0
+        CT_array[CT_array > 3000] = 3000.0
+
+        return (CT_array + 1000.0)/2000.0
+        # return sitk.ShiftScale(CT_img, shift=1000, scale=1. / 2000.)
+
+    def resample_PET(self, PET_img, new_Origin, new_Direction):
         # transformation parametrisation
         transformation = sitk.ResampleImageFilter()
         transformation.SetOutputDirection(new_Direction)
@@ -174,17 +182,49 @@ class DataGenerator(tf.keras.utils.Sequence):
         transformation.SetOutputSpacing(self.target_voxel_spacing)
         transformation.SetSize(self.target_shape)
 
-        # apply transformations on PET IMG
+        transformation.SetDefaultPixelValue(self.default_value['PET'])
         transformation.SetInterpolator(sitk.sitkBSpline)
-        PET_img = transformation.Execute(PET_img)
 
-        # apply transformations on CT IMG
+        return transformation.Execute(PET_img)
+
+    def resample_CT(self, CT_img, new_Origin, new_Direction):
+        # transformation parametrisation
+        transformation = sitk.ResampleImageFilter()
+        transformation.SetOutputDirection(new_Direction)
+        transformation.SetOutputOrigin(new_Origin)
+        transformation.SetOutputSpacing(self.target_voxel_spacing)
+        transformation.SetSize(self.target_shape)
+
+        transformation.SetDefaultPixelValue(self.default_value['CT'])
         transformation.SetInterpolator(sitk.sitkBSpline)
-        CT_img = transformation.Execute(CT_img)
 
-        # apply transformations on MASK
+        return transformation.Execute(CT_img)
+
+    def resample_MASK(self, MASK_img, new_Origin, new_Direction):
+        # transformation parametrisation
+        transformation = sitk.ResampleImageFilter()
+        transformation.SetOutputDirection(new_Direction)
+        transformation.SetOutputOrigin(new_Origin)
+        transformation.SetOutputSpacing(self.target_voxel_spacing)
+        transformation.SetSize(self.target_shape)
+
+        transformation.SetDefaultPixelValue(self.default_value['MASK'])
         transformation.SetInterpolator(sitk.sitkNearestNeighbor)
-        MASK_img = transformation.Execute(MASK_img)
+
+        return transformation.Execute(MASK_img)
+
+    def resample_PET_CT_MASK(self, PET_img, CT_img, MASK_img):
+        """
+        resample and reshape PET, CT and MASK to the same origin, direction, spacing and shape
+        """
+        # compute transformation parameters
+        new_Origin = self.compute_new_Origin(PET_img)
+        new_Direction = PET_img.GetDirection()
+
+        # apply transformation : resample and reshape
+        PET_img = self.resample_PET(PET_img, new_Origin, new_Direction)
+        CT_img = self.resample_CT(CT_img, new_Origin, new_Direction)
+        MASK_img = self.resample_MASK(MASK_img, new_Origin, new_Direction)
 
         return PET_img, CT_img, MASK_img
 
