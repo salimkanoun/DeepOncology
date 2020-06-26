@@ -86,7 +86,7 @@ class CustomUNet3D(object):
         layer3 = tf.keras.layers.BatchNormalization()(layer2)
         return layer3
 
-    def get_model(self):
+    def create_model(self):
         input_ = tf.keras.layers.Input(shape=self.image_shape, dtype=tf.float32, name="input")
 
         x = input_

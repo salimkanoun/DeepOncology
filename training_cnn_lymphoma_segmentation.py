@@ -4,7 +4,7 @@ from class_modalities.modality_PETCT import DataGenerator
 import tensorflow as tf
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping, TensorBoard
 from deeplearning_models.Unet import CustomUNet3D
-# from deeplearning_models.Vnet import CustomVNet
+from deeplearning_models.Vnet import VNet
 
 from deeplearning_tools.loss_functions import Tumoral_DSC, Multiclass_DSC_Loss
 
@@ -16,7 +16,7 @@ now = datetime.now().strftime("%Y%m%d-%H%M%S")
 
 data_path = r'C:\\Users\\Rudy\\Documents\\Thales_stage\\data\\nifti_scan'  # '/path/to/data'
 
-# trained_model_path = None  # if None, trained from scratch
+trained_model_path = None  # if None, trained from scratch
 training_model_folder = os.path.join(r'C:\\Users\\Rudy\\Documents\\Thales_stage\\training', now)  # '/path/to/folder'
 if not os.path.exists(training_model_folder):
     os.makedirs(training_model_folder)
@@ -32,20 +32,39 @@ image_shape = (128, 64, 64)  # (368, 128, 128)  # (z, y, x)
 number_channels = 2
 voxel_spacing = (4.8, 4.8, 4.8)  # in millimeter, (z, y, x)
 data_augment = True  # for training dataset only
-resize = True
-normalize = True
+resize = True  # not use yet
+normalize = True  # whether or not to normalize the inputs
 number_class = 2
 
 # CNN params
-architecture = 'unet'  # 'unet' or 'vnet'
-filters = (8, 16, 32)  # (8, 16, 32, 64, 128)
-kernel = (3, 3, 3)
-activation = tf.keras.layers.LeakyReLU()
-padding = 'same'
-pooling = (2, 2, 2)
+architecture = 'vnet'  # 'unet' or 'vnet'
+# filters = (8, 16, 32)  # (8, 16, 32, 64, 128)
+# kernel = (3, 3, 3)
+# activation = tf.keras.layers.LeakyReLU()
+# padding = 'same'
+# pooling = (2, 2, 2)
+
+if architecture == 'unet':
+    cnn_params = {'filters': (8, 16, 32),  # (8, 16, 32, 64, 128)
+                  'kernel': (3, 3, 3),
+                  'activation': tf.keras.layers.LeakyReLU(),
+                  'padding': 'same',
+                  'pooling': (2, 2, 2)}
+
+elif architecture == 'vnet':
+    cnn_params = {'keep_prob': 1.0,
+                  'kernel_size': (5, 5, 5),
+                  'num_channels': 16,
+                  'num_levels': 4,
+                  'num_convolutions': (1, 2, 3, 3),
+                  'bottom_convolutions': 3,
+                  'activation_fn': tf.keras.layers.ReLU()}
+else:
+    raise ValueError('Architecture ' + architecture + ' not supported. Please ' +
+                     'choose one of unet|vnet.')
 
 # Training params
-epochs = 20000
+epochs = 3
 batch_size = 1
 shuffle = True
 
@@ -67,7 +86,7 @@ learning_rate_reduction = ReduceLROnPlateau(monitor='val_loss',
 # stop training if no improvements are seen
 early_stop = EarlyStopping(monitor="val_loss",
                            mode="min",
-                           patience=int(patience//2),
+                           patience=int(patience // 2),
                            restore_best_weights=True)
 
 # saves model weights to file
@@ -104,12 +123,28 @@ val_generator = DataGenerator(x_val, y_val,
 
 # Define model
 if architecture == 'unet':
-    model = CustomUNet3D(tuple(list(image_shape)+[number_channels]), number_class,
-                         filters=filters, kernel=kernel, activation=activation,
-                         padding=padding, pooling=pooling).get_model()
+    # model = CustomUNet3D(tuple(list(image_shape) + [number_channels]), number_class,
+    #                      filters=filters, kernel=kernel, activation=activation,
+    #                      padding=padding, pooling=pooling).get_model()
+    model = CustomUNet3D(tuple(list(image_shape) + [number_channels]), number_class,  **cnn_params).create_model()
+
+elif architecture == 'vnet':
+    # model = VNet(tuple(list(image_shape) + [number_channels]), number_class,
+    #              keep_prob=1.0,
+    #              kernel_size=kernel,
+    #              num_channels=16,
+    #              num_levels=4,
+    #              num_convolutions=(1, 2, 3, 3),
+    #              bottom_convolutions=3,
+    #              activation_fn=tf.keras.layers.PReLU()).create_model()
+    model = VNet(tuple(list(image_shape) + [number_channels]), number_class, **cnn_params).create_model()
 else:
     raise ValueError('Architecture ' + architecture + ' not supported. Please ' +
                      'choose one of unet|vnet.')
+
+if trained_model_path is not None:
+    model.load_weights(trained_model_path)
+
 
 model.compile(loss=loss_object, optimizer=optimizer, metrics=metrics)
 
@@ -124,11 +159,8 @@ history = model.fit_generator(generator=train_generator,
                               )
 
 # save model/history/performance
-# model.save(os.path.join(training_model_folder, 'trained_model_{}.h5').format(now))
+model.save(os.path.join(training_model_folder, 'trained_model_{}.h5').format(now))
 
 # # save hyper parameter and train, val, test performance
 # header = ['date', 'architecture', 'filters', 'kernel', 'activation', 'padding', 'pooling']
 # row = [now, architecture, filters, kernel, activation, padding, pooling]
-
-
-

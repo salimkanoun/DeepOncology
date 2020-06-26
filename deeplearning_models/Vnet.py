@@ -93,7 +93,6 @@ class VNet(object):
         for l in range(self.num_levels):
             x = convolution_block(x, self.num_convolutions[l], keep_prob, activation_fn=self.activation_fn)
             forwards.append(x)
-
             x = down_convolution(x, factor=2, kernel_size=(2, 2, 2))
             # x = tf.keras.layers.BatchNormalization(axis=-1, momentum=0.99, epsilon=0.001, center=True, scale=True)(x)
             x = self.activation_fn(x)
@@ -113,7 +112,7 @@ class VNet(object):
 
         return logits
 
-    def get_model(self):
+    def create_model(self):
         input_ = tf.keras.layers.Input(shape=self.image_shape, dtype=tf.float32, name="input")
         logits = self.build_network(input_)
         output_ = tf.keras.layers.Softmax(name='output')(logits)
