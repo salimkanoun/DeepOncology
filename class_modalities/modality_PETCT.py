@@ -123,7 +123,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         MASK_img = self.read_mask(MASK_id)
 
         # transform to 3D binary mask
-        MASK_img = self.preprocess_MASK(MASK_img)
+        MASK_img = self.preprocess_MASK_4D(MASK_img, PET_img, threshold='auto')
 
         return self.resample_PET_CT_MASK(PET_img, CT_img, MASK_img)
 
@@ -136,32 +136,45 @@ class DataGenerator(tf.keras.utils.Sequence):
     def read_mask(self, filename):
         return sitk.ReadImage(filename, self.dtypes['mask'])
 
-    def preprocess_MASK(self, mask_img):
+    def preprocess_MASK_4D(self, mask_img, pet_img, threshold='auto'):
         """
-        Transform 3D or 4D mask to 3D binary mask
-        :param mask_img: sitk img, the mask
-        :return: sitk img, 3D
+        :param mask_img: sitk image, raw mask
+        :param pet_img: sitk image, the corresponding pet scan
+        :param threshold: threshold to apply to the ROI to get the tumor segmentation.
+                if set to 'auto', it will take 42% of the maximum
+        :return: sitk image, the ground truth segmentation
         """
-        n_dim = len(mask_img.GetSize())
-        if n_dim == 3:
-            # transform to binary
-            return sitk.Threshold(mask_img, lower=0.0, upper=1.0, outsideValue=1.0)
+        mask_array = sitk.GetArrayFromImage(mask_img)
+        pet_array = sitk.GetArrayFromImage(pet_img)
 
-        elif n_dim == 4:
-            mask_array = sitk.GetArrayFromImage(mask_img)
+        new_mask = np.zeros(mask_array.shape[1:], dtype=np.int8)
 
-            # transform to binary
-            mask_array = np.sum(mask_array, axis=0)
-            mask_array[mask_array > 0] = 1
+        for num_slice in range(mask_array.shape[0]):
 
-            # reconvert to sitk image and set to previous information
-            new_mask = sitk.GetImageFromArray(mask_array)
-            direction = tuple(el for i, el in enumerate(mask_img.GetDirection()[:12]) if not (i + 1) % 4 == 0)
-            new_mask.SetOrigin(mask_img.GetOrigin()[:-1])
-            new_mask.SetDirection(direction)
-            new_mask.SetSpacing(mask_img.GetSpacing()[:-1])
+            mask_slice = mask_array[num_slice]
 
-            return new_mask
+            if threshold == 'auto':
+                SUV_max = np.max(pet_array[mask_slice > 0])
+                threshold_suv = SUV_max * 0.42
+            else:
+                threshold_suv = 2.5
+
+            new_mask[np.where((pet_array > threshold_suv) & (mask_slice > 0))] = 1
+
+        # reconvert to sitk and restore information
+        new_mask = sitk.GetImageFromArray(new_mask)
+        direction = tuple(el for i, el in enumerate(mask_img.GetDirection()[:12]) if not (i + 1) % 4 == 0)
+        new_mask.SetOrigin(mask_img.GetOrigin()[:-1])
+        new_mask.SetDirection(direction)
+        new_mask.SetSpacing(mask_img.GetSpacing()[:-1])
+
+        return new_mask
+
+
+    def preprocess_MASK_3D(self, mask_img):
+        # transform to binary
+        return sitk.Threshold(mask_img, lower=0.0, upper=1.0, outsideValue=1.0)
+
 
     def normalize_PET(self, PET_array):
         return PET_array/10.0
