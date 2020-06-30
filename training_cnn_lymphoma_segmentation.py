@@ -5,6 +5,7 @@ import tensorflow as tf
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping, TensorBoard
 from deeplearning_models.Unet import CustomUNet3D
 from deeplearning_models.Vnet import VNet
+from deeplearning_models.Layers import prelu
 
 from deeplearning_tools.loss_functions import Tumoral_DSC, Multiclass_DSC_Loss
 
@@ -53,7 +54,7 @@ elif architecture == 'vnet':
                   'num_levels': 4,
                   'num_convolutions': (1, 2, 3, 3),
                   'bottom_convolutions': 3,
-                  'activation_fn': tf.keras.layers.ReLU()}
+                  'activation_fn': prelu}  # tf.keras.layers.ReLU()
 else:
     raise ValueError('Architecture ' + architecture + ' not supported. Please ' +
                      'choose one of unet|vnet.')

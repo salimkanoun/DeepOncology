@@ -9,8 +9,8 @@ import tensorflow as tf
 
 class DataGenerator(tf.keras.utils.Sequence):
     """
-    attention à l'ordre des dimensions : [x, y, z] ? [z, y, x]
-    attention à l'ordre : reshape puis norm pour l'instant
+    Read, preprocess and flow the PET scan, CT scan and mask
+
     """
 
     def __init__(self,
@@ -29,7 +29,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         :param batch_size:           int
         :param shuffle:              bool
         :param augmentation:         bool
-        :param target_shape:         tuple, shape of generated PET, CT or MASK scan: (368, 128, 128)
+        :param target_shape:         tuple, shape of generated PET, CT or MASK scan: (z, y, x) (368, 128, 128)
         :param target_voxel_spacing: tuple, resolution of the generated PET, CT or MASK scan : (4.8, 4.8, 4.8)
         :param resize:               bool
         :param normalize:            bool
@@ -66,6 +66,8 @@ class DataGenerator(tf.keras.utils.Sequence):
     def on_epoch_end(self):
         """Updates indexes after each epoch"""
         self.indexes = np.arange(len(self.images_paths))
+        if self.shuffle:
+            np.random.shuffle(self.indexes)
 
     def __getitem__(self, index):
         """
@@ -157,7 +159,7 @@ class DataGenerator(tf.keras.utils.Sequence):
                 SUV_max = np.max(pet_array[mask_slice > 0])
                 threshold_suv = SUV_max * 0.42
             else:
-                threshold_suv = 2.5
+                threshold_suv = threshold
 
             new_mask[np.where((pet_array > threshold_suv) & (mask_slice > 0))] = 1
 

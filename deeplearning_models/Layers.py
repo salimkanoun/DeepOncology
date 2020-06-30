@@ -26,7 +26,7 @@ def get_spatial_size(x):
 
 
 def prelu(x):
-    return tf.keras.layers.PReLU(input_shape=x.get_shape()[-1])(x)
+    return tf.keras.layers.PReLU(input_shape=x.shape)(x)
 
 
 def convolution(x, filters, kernel_size=(5, 5, 5), padding='same', strides=(1, 1, 1)):
