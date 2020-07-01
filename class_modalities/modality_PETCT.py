@@ -267,9 +267,9 @@ class DataGenerator(tf.keras.utils.Sequence):
         :return: dict with random deformation
         """
 
-        deformation = {'Translation': (random.uniform(-20, 20), random.uniform(-20, 20), random.uniform(-20, 20)),
-                       'Scaling': (random.uniform(0.8, 1.2), random.uniform(0.8, 1.2), random.uniform(0.8, 1.2)),
-                       'Rotation': random.uniform((-pi / 15), (pi / 15))}
+        deformation = {'Translation': (random.uniform(-10, 10), random.uniform(-10, 10), random.uniform(-10, 10)),
+                       'Scaling': (random.uniform(0.9, 1.1), random.uniform(0.9, 1.1), random.uniform(0.9, 1.1)),
+                       'Rotation': random.uniform((-pi / 30), (pi / 30))}
         return deformation
 
     def AffineTransformation(self, image, interpolator, deformations):
