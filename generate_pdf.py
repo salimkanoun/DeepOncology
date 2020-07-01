@@ -48,7 +48,7 @@ for subset_type in dataset.keys():
 
     # Define generator
     generator = DataGenerator(dataset[subset_type]['x'], dataset[subset_type]['y'],
-                              batch_size=batch_size, shuffle=shuffle, augmentation=data_augment,
+                              batch_size=batch_size, shuffle=False, augmentation=False,
                               target_shape=image_shape, target_voxel_spacing=voxel_spacing,
                               resize=resize, normalize=normalize)
 
