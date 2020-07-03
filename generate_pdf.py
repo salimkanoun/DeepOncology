@@ -10,8 +10,8 @@ from class_modalities.modality_PETCT import DataGenerator
 import collections
 
 # path
-data_path = r'C:\\Users\\Rudy\\Documents\\Thales_stage\\data\\nifti_scan'
-MIP_folder = r'C:\\Users\\Rudy\\Documents\\Thales_stage\\data\\MIP_dataset'
+data_path = '/media/sf_Deep_Oncopole/data/Dossier_Rudy' #r'C:\\Users\\Rudy\\Documents\\Thales_stage\\data\\nifti_scan'
+MIP_folder = '/media/sf_Deep_Oncopole/data/MIP_dataset'  # r'C:\\Users\\Rudy\\Documents\\Thales_stage\\data\\MIP_dataset'
 
 # PET CT scan params
 image_shape = (368, 128, 128)  # (z, y, x)
@@ -57,7 +57,7 @@ for subset_type in dataset.keys():
         # loop on files to get MIP visualisation
         for step, (X, Mask) in enumerate(generator):
             print(step)
-            _, suptitle = ntpath.split(dataset[subset_type]['x'][step][0])
+            _, suptitle = ntpath.split(dataset[subset_type]['x'][step][0]) # PET file name
             PET_scan = X[0, :, :, :, 0]
             CT_scan = X[0, :, :, :, 1]
             Mask = Mask[0]
@@ -70,10 +70,10 @@ for subset_type in dataset.keys():
             CT_scan = np.where(CT_scan > 1.0, 1.0, CT_scan)
             CT_scan = np.where(CT_scan < 0.0, 0.0, CT_scan)
 
-            # for correct visualisation
-            PET_scan = np.flip(PET_scan, axis=0)
-            CT_scan = np.flip(CT_scan, axis=0)
-            Mask = np.flip(Mask, axis=0)
+            # # for correct visualisation
+            # PET_scan = np.flip(PET_scan, axis=0)
+            # CT_scan = np.flip(CT_scan, axis=0)
+            # Mask = np.flip(Mask, axis=0)
 
             # stacked projections
             PET_scan = np.hstack((np.amax(PET_scan, axis=1), np.amax(PET_scan, axis=2)))

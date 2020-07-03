@@ -184,9 +184,9 @@ class DataGenerator(tf.keras.utils.Sequence):
 
     def normalize_CT(self, CT_array):
         CT_array[CT_array < -1024] = -1024.0
-        CT_array[CT_array > 3000] = 3000.0
+        CT_array[CT_array > 1024] = 1024.0
 
-        return (CT_array + 1000.0)/2000.0
+        return (CT_array + 1024.0)/2048.0
         # return sitk.ShiftScale(CT_img, shift=1000, scale=1. / 2000.)
 
     def resample_PET(self, PET_img, new_Origin, new_Direction):
