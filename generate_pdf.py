@@ -12,6 +12,7 @@ import collections
 # path
 data_path = '/media/sf_Deep_Oncopole/data/Dossier_Rudy' #r'C:\\Users\\Rudy\\Documents\\Thales_stage\\data\\nifti_scan'
 MIP_folder = '/media/sf_Deep_Oncopole/data/MIP_dataset'  # r'C:\\Users\\Rudy\\Documents\\Thales_stage\\data\\MIP_dataset'
+csv_path = ''
 
 # PET CT scan params
 image_shape = (368, 128, 128)  # (z, y, x)
@@ -34,7 +35,7 @@ color_MASK = plt.cm.Greys
 color_MASK.set_bad('white', 0.0)
 
 # Get Data
-DM = DataManager(base_path=data_path)
+DM = DataManager(csv_path=csv_path)
 dataset = collections.defaultdict(dict)
 dataset['train']['x'], dataset['val']['x'], dataset['test']['x'], dataset['train']['y'], dataset['val']['y'], \
 dataset['test']['y'] = DM.get_train_val_test()
