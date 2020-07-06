@@ -98,11 +98,6 @@ class DataGenerator(tf.keras.utils.Sequence):
             CT_array = sitk.GetArrayFromImage(CT_img)
             MASK_img = sitk.GetArrayFromImage(MASK_img)
 
-            # normalize data
-            if self.normalize:
-                PET_array = self.normalize_PET(PET_array)
-                CT_array = self.normalize_CT(CT_array)
-
             # concatenate PET and CT
             PET_CT_array = np.stack((PET_array, CT_array), axis=-1)
 
@@ -126,6 +121,11 @@ class DataGenerator(tf.keras.utils.Sequence):
 
         # transform to 3D binary mask
         MASK_img = self.preprocess_MASK_4D(MASK_img, PET_img, threshold='auto')
+
+        # normalize before resample
+        if self.normalize:
+            PET_img = self.normalize_PET(PET_img)
+            CT_img = self.normalize_CT(CT_img)
 
         return self.resample_PET_CT_MASK(PET_img, CT_img, MASK_img)
 
@@ -178,15 +178,23 @@ class DataGenerator(tf.keras.utils.Sequence):
         return sitk.Threshold(mask_img, lower=0.0, upper=1.0, outsideValue=1.0)
 
 
-    def normalize_PET(self, PET_array):
-        return PET_array/10.0
-        # return sitk.ShiftScale(PET_img, shift=0.0, scale=1. / 10.)
+    def normalize_PET(self, pet_img):
+        # return PET_array/10.0
+        return sitk.ShiftScale(pet_img, shift=0.0, scale=1. / 10.)
 
-    def normalize_CT(self, CT_array):
-        CT_array[CT_array < -1024] = -1024.0
-        CT_array[CT_array > 1024] = 1024.0
-
-        return (CT_array + 1024.0)/2048.0
+    def normalize_CT(self, ct_img):
+        intensityWindowingFilter = sitk.IntensityWindowingImageFilter()
+        intensityWindowingFilter.SetOutputMaximum(1)
+        intensityWindowingFilter.SetOutputMinimum(0)
+        windowMax = 1024
+        windowMin = -1024
+        intensityWindowingFilter.SetWindowMaximum(windowMax)
+        intensityWindowingFilter.SetWindowMinimum(windowMin)
+        return intensityWindowingFilter.Execute(ct_img)
+        # CT_array[CT_array < -1024] = -1024.0
+        # CT_array[CT_array > 1024] = 1024.0
+        #
+        # return (CT_array + 1024.0)/2048.0
         # return sitk.ShiftScale(CT_img, shift=1000, scale=1. / 2000.)
 
     def resample_PET(self, PET_img, new_Origin, new_Direction):
