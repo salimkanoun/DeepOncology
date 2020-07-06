@@ -10,9 +10,9 @@ from class_modalities.modality_PETCT import DataGenerator
 import collections
 
 # path
-data_path = '/media/sf_Deep_Oncopole/data/Dossier_Rudy' #r'C:\\Users\\Rudy\\Documents\\Thales_stage\\data\\nifti_scan'
-MIP_folder = '/media/sf_Deep_Oncopole/data/MIP_dataset'  # r'C:\\Users\\Rudy\\Documents\\Thales_stage\\data\\MIP_dataset'
-csv_path = ''
+# data_path = '/media/sf_Deep_Oncopole/data/Dossier_Rudy' #r'C:\\Users\\Rudy\\Documents\\Thales_stage\\data\\nifti_scan'
+MIP_folder = '/home/salim/Documents/DeepOncopole/MIP_dataset'  # r'C:\\Users\\Rudy\\Documents\\Thales_stage\\data\\MIP_dataset'
+csv_path = '/media/salim/DD 2To/AHL2011_NIFTI/AHL2011_PET0_NIFTI.csv'
 
 # PET CT scan params
 image_shape = (368, 128, 128)  # (z, y, x)
@@ -40,12 +40,16 @@ dataset = collections.defaultdict(dict)
 dataset['train']['x'], dataset['val']['x'], dataset['test']['x'], dataset['train']['y'], dataset['val']['y'], \
 dataset['test']['y'] = DM.get_train_val_test()
 
-for subset_type in dataset.keys():
+# for subset_type in dataset.keys():
+for subset_type in ['train', 'val', 'test']:
     print(subset_type)
     # path to pdf to generate
     filename = os.path.join(MIP_folder, subset_type, 'MIP_preprocessed_{}_data.pdf'.format(subset_type))
+    print('folder :', os.path.join(MIP_folder, subset_type))
+    print('filename :', filename)
     if not os.path.exists(os.path.join(MIP_folder, subset_type)):
         os.makedirs(os.path.join(MIP_folder, subset_type))
+        print(os.path.join(MIP_folder, subset_type), 'folder created')
 
     # Define generator
     generator = DataGenerator(dataset[subset_type]['x'], dataset[subset_type]['y'],

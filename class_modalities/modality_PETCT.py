@@ -149,15 +149,35 @@ class DataGenerator(tf.keras.utils.Sequence):
         mask_array = sitk.GetArrayFromImage(mask_img)
         pet_array = sitk.GetArrayFromImage(pet_img)
 
+        if len(mask_array.shape) == 3:
+            mask_array = np.expand_dims(mask_array, axis=0)
+
+            origin = mask_img.GetOrigin()
+            spacing = mask_img.GetSpacing()
+            direction = tuple(mask_img.GetDirection())
+
+        else:
+            origin = mask_img.GetOrigin()[:-1]
+            spacing = mask_img.GetSpacing()[:-1]
+            direction = tuple(el for i, el in enumerate(mask_img.GetDirection()[:12]) if not (i + 1) % 4 == 0)
+
+        # print('mask shape', mask_array.shape)
+        # print('pert shape', pet_array.shape)
+
         new_mask = np.zeros(mask_array.shape[1:], dtype=np.int8)
 
         for num_slice in range(mask_array.shape[0]):
 
             mask_slice = mask_array[num_slice]
+            # print('mask_slice shape', mask_slice.shape)
 
             if threshold == 'auto':
-                SUV_max = np.max(pet_array[mask_slice > 0])
-                threshold_suv = SUV_max * 0.42
+                roi = pet_array[mask_slice > 0]
+                if len(roi) > 0:
+                    SUV_max = np.max(roi)
+                    threshold_suv = SUV_max * 0.42
+                else:
+                    threshold_suv = 0.0
             else:
                 threshold_suv = threshold
 
@@ -165,10 +185,9 @@ class DataGenerator(tf.keras.utils.Sequence):
 
         # reconvert to sitk and restore information
         new_mask = sitk.GetImageFromArray(new_mask)
-        direction = tuple(el for i, el in enumerate(mask_img.GetDirection()[:12]) if not (i + 1) % 4 == 0)
-        new_mask.SetOrigin(mask_img.GetOrigin()[:-1])
+        new_mask.SetOrigin(origin)
         new_mask.SetDirection(direction)
-        new_mask.SetSpacing(mask_img.GetSpacing()[:-1])
+        new_mask.SetSpacing(spacing)
 
         return new_mask
 
