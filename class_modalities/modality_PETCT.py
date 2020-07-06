@@ -87,7 +87,7 @@ class DataGenerator(tf.keras.utils.Sequence):
             PET_id, CT_id = self.images_paths[idx]
             MASK_id = self.labels_path[idx]
 
-            # load and resample images
+            # load, normalize and resample images
             PET_img, CT_img, MASK_img = self.preprocess_data(PET_id, CT_id, MASK_id)
 
             if self.augment:
