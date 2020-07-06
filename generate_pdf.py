@@ -1,3 +1,6 @@
+import sys
+import json
+
 import os
 import ntpath
 import numpy as np
@@ -9,19 +12,34 @@ from class_modalities.datasets import DataManager
 from class_modalities.modality_PETCT import DataGenerator
 import collections
 
+
+# read arg values
+if len(sys.argv) == 2:
+    config_name = 'config/default_config.json'
+    MIP_folder = sys.argv[1]
+elif len(sys.argv) == 3:
+    config_name = sys.argv[1]
+    MIP_folder = sys.argv[2]
+else:
+    config_name = 'config/default_config.json'
+    MIP_folder = '/home/salim/Documents/DeepOncopole/MIP_dataset'  # r'C:\\Users\\Rudy\\Documents\\Thales_stage\\data\\MIP_dataset'
+
+# read config file
+with open(config_name) as f:
+    config = json.load(f)
+
+
 # path
-# data_path = '/media/sf_Deep_Oncopole/data/Dossier_Rudy' #r'C:\\Users\\Rudy\\Documents\\Thales_stage\\data\\nifti_scan'
-MIP_folder = '/home/salim/Documents/DeepOncopole/MIP_dataset'  # r'C:\\Users\\Rudy\\Documents\\Thales_stage\\data\\MIP_dataset'
-csv_path = '/media/salim/DD 2To/AHL2011_NIFTI/AHL2011_PET0_NIFTI.csv'
+csv_path = config['path']['csv_path']  # /media/salim/DD 2To/AHL2011_NIFTI/AHL2011_PET0_NIFTI.csv'
 
 # PET CT scan params
-image_shape = (368, 128, 128)  # (z, y, x)
-number_channels = 2
-voxel_spacing = (4.8, 4.8, 4.8)  # in millimeter, (z, y, x)
-data_augment = False  # for training dataset only
-resize = True  # not use yet
-normalize = True  # whether or not to normalize the inputs
-number_class = 2
+image_shape = tuple(config['preprocessing']['image_shape'])  # (128, 64, 64)  # (368, 128, 128)  # (z, y, x)
+number_channels = config['preprocessing']['numer_channels']
+voxel_spacing = tuple(config['preprocessing']['voxel_spacing'])  # (4.8, 4.8, 4.8)  # in millimeter, (z, y, x)
+data_augment = False
+resize = config['preprocessing']['resize']  # True  # not use yet
+normalize = config['preprocessing']['normalize']  # True  # whether or not to normalize the inputs
+number_class = config['preprocessing']['number_class']  # 2
 
 batch_size = 1
 shuffle = False

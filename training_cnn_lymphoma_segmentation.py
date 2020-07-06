@@ -1,3 +1,6 @@
+import sys
+import json
+
 from class_modalities.datasets import DataManager
 from class_modalities.modality_PETCT import DataGenerator
 
@@ -15,10 +18,20 @@ from datetime import datetime
 # path
 now = datetime.now().strftime("%Y%m%d-%H%M%S")
 
-data_path = r'C:\\Users\\Rudy\\Documents\\Thales_stage\\data\\nifti_scan'  # '/path/to/data'
+# import config file
+if len(sys.argv) == 2:
+    config_name = sys.argv[1]
+else:
+    config_name = 'config/default_config.json'
 
-trained_model_path = None  # if None, trained from scratch
-training_model_folder = os.path.join(r'C:\\Users\\Rudy\\Documents\\Thales_stage\\training', now)  # '/path/to/folder'
+with open(config_name) as f:
+    config = json.load(f)
+
+# path
+csv_path = config['path']['csv_path']
+
+trained_model_path = config['path']['trained_model_path']  # if None, trained from scratch
+training_model_folder = os.path.join(config['path']['trained_model_folder'], now)  # '/path/to/folder'
 if not os.path.exists(training_model_folder):
     os.makedirs(training_model_folder)
 logdir = os.path.join(training_model_folder, 'logs')
@@ -29,81 +42,96 @@ if not os.path.exists(logdir):
 # result_path = r'C:\\Users\\Rudy\\Documents\\Thales_stage\\training'
 
 # PET CT scan params
-image_shape = (128, 64, 64)  # (368, 128, 128)  # (z, y, x)
-number_channels = 2
-voxel_spacing = (4.8, 4.8, 4.8)  # in millimeter, (z, y, x)
-data_augment = True  # for training dataset only
-resize = True  # not use yet
-normalize = True  # whether or not to normalize the inputs
-number_class = 2
+image_shape = tuple(config['preprocessing']['image_shape'])  # (128, 64, 64)  # (368, 128, 128)  # (z, y, x)
+number_channels = config['preprocessing']['numer_channels']
+voxel_spacing = tuple(config['preprocessing']['voxel_spacing'])  # (4.8, 4.8, 4.8)  # in millimeter, (z, y, x)
+data_augment = config['preprocessing']['data_augment']  # True  # for training dataset only
+resize = config['preprocessing']['resize']  # True  # not use yet
+normalize = config['preprocessing']['normalize']  # True  # whether or not to normalize the inputs
+number_class = config['preprocessing']['number_class']  # 2
 
 # CNN params
-architecture = 'vnet'  # 'unet' or 'vnet'
+architecture = config['model']['architecture']  # 'unet' or 'vnet'
 
-if architecture == 'unet':
-    cnn_params = {'filters': (8, 16, 32),  # (8, 16, 32, 64, 128)
-                  'kernel': (3, 3, 3),
-                  'activation': tf.keras.layers.LeakyReLU(),
-                  'padding': 'same',
-                  'pooling': (2, 2, 2)}
+cnn_params = config['model']['architecture']['cnn_params']
+# transform list to tuple
+for key, value in cnn_params.items():
+    if isinstance(value, list) :
+        cnn_params[key] = tuple(value)
 
-elif architecture == 'vnet':
-    cnn_params = {'keep_prob': 1.0,
-                  'kernel_size': (5, 5, 5),
-                  'num_channels': 16,
-                  'num_levels': 4,
-                  'num_convolutions': (1, 2, 3, 3),
-                  'bottom_convolutions': 3,
-                  'activation_fn': prelu}  # tf.keras.layers.ReLU()
-else:
-    raise ValueError('Architecture ' + architecture + ' not supported. Please ' +
-                     'choose one of unet|vnet.')
+# if architecture == 'unet':
+#     cnn_params = {'filters': (8, 16, 32),  # (8, 16, 32, 64, 128)
+#                   'kernel': (3, 3, 3),
+#                   'activation': tf.keras.layers.LeakyReLU(),
+#                   'padding': 'same',
+#                   'pooling': (2, 2, 2)}
+#
+# elif architecture == 'vnet':
+#     cnn_params = {'keep_prob': 1.0,
+#                   'kernel_size': (5, 5, 5),
+#                   'num_channels': 16,
+#                   'num_levels': 4,
+#                   'num_convolutions': (1, 2, 3, 3),
+#                   'bottom_convolutions': 3,
+#                   'activation_fn': prelu}  # tf.keras.layers.ReLU()
+# else:
+#     raise ValueError('Architecture ' + architecture + ' not supported. Please ' +
+#                      'choose one of unet|vnet.')
 
 # Training params
-epochs = 3
-batch_size = 1
-shuffle = True
+epochs = config['training']['epochs']
+batch_size = config['training']['batch_size']
+shuffle = config['training']['shuffle']
 
 # definition of loss, optimizer and metrics
 loss_object = Multiclass_DSC_Loss()
 metrics = [Tumoral_DSC(), tf.keras.metrics.SparseCategoricalCrossentropy(name='SCCE')]
 optimizer = tf.keras.optimizers.SGD(learning_rate=1e-5, momentum=0.9)
 
-# callback
-patience = 50
+# callbacks
+callbacks = []
+if 'callbacks' in config['training']:
+    if config['training'].get('ReduceLROnPlateau', False):
 
-# reduces learning rate if no improvement are seen
-learning_rate_reduction = ReduceLROnPlateau(monitor='val_loss',
-                                            patience=patience,
-                                            verbose=1,
-                                            factor=0.5,
-                                            min_lr=0.0000001)
+        # reduces learning rate if no improvement are seen
+        learning_rate_reduction = ReduceLROnPlateau(monitor='val_loss',
+                                                    patience=config['training']['ReduceLROnPlateau']['patience'],
+                                                    verbose=1,
+                                                    factor=0.5,
+                                                    min_lr=0.0000001)
+        callbacks.append(learning_rate_reduction)
 
-# stop training if no improvements are seen
-early_stop = EarlyStopping(monitor="val_loss",
-                           mode="min",
-                           patience=int(patience // 2),
-                           restore_best_weights=True)
+    if config['training'].get('ReduceLROnPlateau', False):
+        # stop training if no improvements are seen
+        early_stop = EarlyStopping(monitor="val_loss",
+                                   mode="min",
+                                   patience=int(config['training']['ReduceLROnPlateau']['patience'] // 2),
+                                   restore_best_weights=True)
+        callbacks.append(early_stop)
 
-# saves model weights to file
-checkpoint = ModelCheckpoint(os.path.join(training_model_folder, 'model_weights.{epoch:02d}-{val_loss:.2f}.hdf5'),
-                             monitor='val_loss',
-                             verbose=1,
-                             save_best_only=True,
-                             mode='min',
-                             save_weights_only=True)
+    if config['training'].get('ModelCheckpoint', False):
+        # saves model weights to file
+        checkpoint = ModelCheckpoint(os.path.join(training_model_folder, 'model_weights.hdf5'),  # 'model_weights.{epoch:02d}-{val_loss:.2f}.hdf5'
+                                     monitor='val_loss',
+                                     verbose=1,
+                                     save_best_only=True,
+                                     mode='min',
+                                     save_weights_only=True)
+        callbacks.append(checkpoint)
 
-tensorboard_callback = TensorBoard(log_dir=logdir,
-                                   histogram_freq=0,
-                                   batch_size=batch_size,
-                                   write_graph=True,
-                                   write_grads=True,
-                                   write_images=False)
+    if config['training'].get('TensorBoard', False):
+        tensorboard_callback = TensorBoard(log_dir=logdir,
+                                           histogram_freq=0,
+                                           batch_size=batch_size,
+                                           write_graph=True,
+                                           write_grads=True,
+                                           write_images=False)
+        callbacks.append(tensorboard_callback)
 
-callbacks = [tensorboard_callback, learning_rate_reduction, early_stop, checkpoint]
+# callbacks = [tensorboard_callback, learning_rate_reduction, early_stop, checkpoint]
 
 # Get Data
-DM = DataManager(base_path=data_path)
+DM = DataManager(csv_path=csv_path)
 x_train, x_val, x_test, y_train, y_val, y_test = DM.get_train_val_test()
 
 # Define generator
