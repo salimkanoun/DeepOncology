@@ -6,10 +6,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import SimpleITK as sitk
-from sklearn.metrics import confusion_matrix
-import tensorflow as tf
 
-;
 def compute_metrics(ground_truth, prediction,
                     Conf, TruePos, GTsum, PRsum,
                     labels_names, labels_numbers

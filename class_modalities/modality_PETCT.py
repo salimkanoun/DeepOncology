@@ -46,8 +46,9 @@ class DataGenerator(tf.keras.utils.Sequence):
         self.on_epoch_end()
         self.augment = augmentation
 
-        self.target_shape = target_shape[::-1]  # [z, y, x] to [
+        self.target_shape = target_shape[::-1]  # [z, y, x] to [x, y, z]
         self.target_voxel_spacing = target_voxel_spacing[::-1]
+        self.target_direction = (1, 0, 0, 0, 1, 0, 0, 0, 1)
         self.resize = resize
         self.default_value = {'PET': 0.0,
                               'CT': -1024.0,
@@ -140,7 +141,7 @@ class DataGenerator(tf.keras.utils.Sequence):
 
     def preprocess_MASK_4D(self, mask_img, pet_img, threshold='auto'):
         """
-        :param mask_img: sitk image, raw mask
+        :param mask_img: sitk image, raw mask (i.e ROI)
         :param pet_img: sitk image, the corresponding pet scan
         :param threshold: threshold to apply to the ROI to get the tumor segmentation.
                 if set to 'auto', it will take 42% of the maximum
@@ -155,21 +156,15 @@ class DataGenerator(tf.keras.utils.Sequence):
             origin = mask_img.GetOrigin()
             spacing = mask_img.GetSpacing()
             direction = tuple(mask_img.GetDirection())
-
         else:
             origin = mask_img.GetOrigin()[:-1]
             spacing = mask_img.GetSpacing()[:-1]
             direction = tuple(el for i, el in enumerate(mask_img.GetDirection()[:12]) if not (i + 1) % 4 == 0)
 
-        # print('mask shape', mask_array.shape)
-        # print('pert shape', pet_array.shape)
-
         new_mask = np.zeros(mask_array.shape[1:], dtype=np.int8)
 
         for num_slice in range(mask_array.shape[0]):
-
             mask_slice = mask_array[num_slice]
-            # print('mask_slice shape', mask_slice.shape)
 
             if threshold == 'auto':
                 roi = pet_array[mask_slice > 0]
@@ -191,17 +186,18 @@ class DataGenerator(tf.keras.utils.Sequence):
 
         return new_mask
 
-
-    def preprocess_MASK_3D(self, mask_img):
+    @staticmethod
+    def preprocess_MASK_3D(mask_img):
         # transform to binary
         return sitk.Threshold(mask_img, lower=0.0, upper=1.0, outsideValue=1.0)
 
-
-    def normalize_PET(self, pet_img):
+    @staticmethod
+    def normalize_PET(pet_img):
         # return PET_array/10.0
         return sitk.ShiftScale(pet_img, shift=0.0, scale=1. / 10.)
 
-    def normalize_CT(self, ct_img):
+    @staticmethod
+    def normalize_CT(ct_img):
         intensityWindowingFilter = sitk.IntensityWindowingImageFilter()
         intensityWindowingFilter.SetOutputMaximum(1)
         intensityWindowingFilter.SetOutputMinimum(0)
@@ -216,10 +212,10 @@ class DataGenerator(tf.keras.utils.Sequence):
         # return (CT_array + 1024.0)/2048.0
         # return sitk.ShiftScale(CT_img, shift=1000, scale=1. / 2000.)
 
-    def resample_PET(self, PET_img, new_Origin, new_Direction):
+    def resample_PET(self, PET_img, new_Origin):
         # transformation parametrisation
         transformation = sitk.ResampleImageFilter()
-        transformation.SetOutputDirection(new_Direction)
+        transformation.SetOutputDirection(self.target_direction)
         transformation.SetOutputOrigin(new_Origin)
         transformation.SetOutputSpacing(self.target_voxel_spacing)
         transformation.SetSize(self.target_shape)
@@ -229,10 +225,10 @@ class DataGenerator(tf.keras.utils.Sequence):
 
         return transformation.Execute(PET_img)
 
-    def resample_CT(self, CT_img, new_Origin, new_Direction):
+    def resample_CT(self, CT_img, new_Origin):
         # transformation parametrisation
         transformation = sitk.ResampleImageFilter()
-        transformation.SetOutputDirection(new_Direction)
+        transformation.SetOutputDirection(self.target_direction)
         transformation.SetOutputOrigin(new_Origin)
         transformation.SetOutputSpacing(self.target_voxel_spacing)
         transformation.SetSize(self.target_shape)
@@ -242,11 +238,11 @@ class DataGenerator(tf.keras.utils.Sequence):
 
         return transformation.Execute(CT_img)
 
-    def resample_MASK(self, MASK_img, new_Origin, new_Direction):
+    def resample_MASK(self, MASK_img, new_origin):
         # transformation parametrisation
         transformation = sitk.ResampleImageFilter()
-        transformation.SetOutputDirection(new_Direction)
-        transformation.SetOutputOrigin(new_Origin)
+        transformation.SetOutputDirection(self.target_direction)
+        transformation.SetOutputOrigin(new_origin)
         transformation.SetOutputSpacing(self.target_voxel_spacing)
         transformation.SetSize(self.target_shape)
 
@@ -260,13 +256,12 @@ class DataGenerator(tf.keras.utils.Sequence):
         resample and reshape PET, CT and MASK to the same origin, direction, spacing and shape
         """
         # compute transformation parameters
-        new_Origin = self.compute_new_Origin(PET_img)
-        new_Direction = PET_img.GetDirection()
+        new_origin = self.compute_new_Origin(PET_img)
 
         # apply transformation : resample and reshape
-        PET_img = self.resample_PET(PET_img, new_Origin, new_Direction)
-        CT_img = self.resample_CT(CT_img, new_Origin, new_Direction)
-        MASK_img = self.resample_MASK(MASK_img, new_Origin, new_Direction)
+        PET_img = self.resample_PET(PET_img, new_origin)
+        CT_img = self.resample_CT(CT_img, new_origin)
+        MASK_img = self.resample_MASK(MASK_img, new_origin)
 
         return PET_img, CT_img, MASK_img
 
@@ -299,7 +294,8 @@ class DataGenerator(tf.keras.utils.Sequence):
                        'Rotation': random.uniform((-pi / 30), (pi / 30))}
         return deformation
 
-    def AffineTransformation(self, image, interpolator, deformations):
+    @staticmethod
+    def AffineTransformation(image, interpolator, deformations):
         """
         Apply deformation to the input image
         :param image: PET, CT or MASK
