@@ -174,7 +174,7 @@ history = model.fit_generator(generator=train_generator,
                               verbose=1
                               )
 
-# save model/history/performance
+# whole model saving
 model.save(os.path.join(training_model_folder, 'trained_model_{}.h5'.format(now)))
 
 # # save hyper parameter and train, val, test performance

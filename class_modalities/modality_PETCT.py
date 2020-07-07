@@ -193,8 +193,16 @@ class DataGenerator(tf.keras.utils.Sequence):
 
     @staticmethod
     def normalize_PET(pet_img):
+        intensityWindowingFilter = sitk.IntensityWindowingImageFilter()
+        intensityWindowingFilter.SetOutputMaximum(1)
+        intensityWindowingFilter.SetOutputMinimum(0)
+        windowMax = 50
+        windowMin = 0
+        intensityWindowingFilter.SetWindowMaximum(windowMax)
+        intensityWindowingFilter.SetWindowMinimum(windowMin)
+        return intensityWindowingFilter.Execute(pet_img)
         # return PET_array/10.0
-        return sitk.ShiftScale(pet_img, shift=0.0, scale=1. / 10.)
+        # return sitk.ShiftScale(pet_img, shift=0.0, scale=1. / 10.)
 
     @staticmethod
     def normalize_CT(ct_img):
