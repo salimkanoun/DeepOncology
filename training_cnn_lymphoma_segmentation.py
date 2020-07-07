@@ -38,9 +38,6 @@ logdir = os.path.join(training_model_folder, 'logs')
 if not os.path.exists(logdir):
     os.makedirs(logdir)
 
-# generate_MIP_prediction = True
-# result_path = r'C:\\Users\\Rudy\\Documents\\Thales_stage\\training'
-
 # PET CT scan params
 image_shape = tuple(config['preprocessing']['image_shape'])  # (128, 64, 64)  # (368, 128, 128)  # (z, y, x)
 number_channels = config['preprocessing']['numer_channels']
@@ -53,10 +50,10 @@ number_class = config['preprocessing']['number_class']  # 2
 # CNN params
 architecture = config['model']['architecture']  # 'unet' or 'vnet'
 
-cnn_params = config['model']['architecture']['cnn_params']
+cnn_params = config['model'][architecture]['cnn_params']
 # transform list to tuple
 for key, value in cnn_params.items():
-    if isinstance(value, list) :
+    if isinstance(value, list):
         cnn_params[key] = tuple(value)
 
 # if architecture == 'unet':
@@ -161,6 +158,12 @@ if trained_model_path is not None:
 
 model.compile(loss=loss_object, optimizer=optimizer, metrics=metrics)
 
+# serialize model to JSON
+# save model to JSON before training
+model_json = model.to_json()
+with open(os.path.join(training_model_folder, 'architecture_model_{}.h5'.format(now)), "w") as json_file:
+    json_file.write(model_json)
+
 # training model
 history = model.fit_generator(generator=train_generator,
                               validation_data=val_generator,
@@ -172,7 +175,7 @@ history = model.fit_generator(generator=train_generator,
                               )
 
 # save model/history/performance
-model.save(os.path.join(training_model_folder, 'trained_model_{}.h5').format(now))
+model.save(os.path.join(training_model_folder, 'trained_model_{}.h5'.format(now)))
 
 # # save hyper parameter and train, val, test performance
 # header = ['date', 'architecture', 'filters', 'kernel', 'activation', 'padding', 'pooling']
