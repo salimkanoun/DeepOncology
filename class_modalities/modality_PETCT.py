@@ -2,6 +2,7 @@ import numpy as np
 import SimpleITK as sitk
 
 import random
+from scipy.stats import truncnorm
 from math import pi
 
 import tensorflow as tf
@@ -53,6 +54,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         self.default_value = {'PET': 0.0,
                               'CT': -1024.0,
                               'MASK': 0}
+        self.default_threshold = 'auto'
         self.normalize = normalize
         self.dtypes = {'PET': sitk.sitkFloat32,
                        'CT': sitk.sitkFloat32,
@@ -120,8 +122,13 @@ class DataGenerator(tf.keras.utils.Sequence):
         CT_img = self.read_CT(CT_id)
         MASK_img = self.read_mask(MASK_id)
 
+        if self.augment:
+            threshold = self.generate_random_threshold()
+        else:
+            threshold = self.default_threshold
+
         # transform to 3D binary mask
-        MASK_img = self.preprocess_MASK_4D(MASK_img, PET_img, threshold='auto')
+        MASK_img = self.preprocess_MASK_4D(MASK_img, PET_img, threshold=threshold)
 
         # normalize before resample
         if self.normalize:
@@ -139,7 +146,8 @@ class DataGenerator(tf.keras.utils.Sequence):
     def read_mask(self, filename):
         return sitk.ReadImage(filename, self.dtypes['mask'])
 
-    def preprocess_MASK_4D(self, mask_img, pet_img, threshold='auto'):
+    @staticmethod
+    def preprocess_MASK_4D(mask_img, pet_img, threshold='auto'):
         """
         :param mask_img: sitk image, raw mask (i.e ROI)
         :param pet_img: sitk image, the corresponding pet scan
@@ -196,7 +204,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         intensityWindowingFilter = sitk.IntensityWindowingImageFilter()
         intensityWindowingFilter.SetOutputMaximum(1)
         intensityWindowingFilter.SetOutputMinimum(0)
-        windowMax = 50
+        windowMax = 25
         windowMin = 0
         intensityWindowingFilter.SetWindowMaximum(windowMax)
         intensityWindowingFilter.SetWindowMinimum(windowMin)
@@ -292,15 +300,47 @@ class DataGenerator(tf.keras.utils.Sequence):
     def save_MASK(self, MASK_img, filename):
         sitk.WriteImage(MASK_img, filename)
 
+    @staticmethod
+    def generate_random_bool(p):
+        """
+        :param p : float between 0-1, probability
+        :return: True if a probobility of p
+        """
+        return random.random() < p
+
+    @staticmethod
     def generate_random_DeformationRatios(self):
         """
         :return: dict with random deformation
         """
 
-        deformation = {'Translation': (random.uniform(-10, 10), random.uniform(-10, 10), random.uniform(-10, 10)),
-                       'Scaling': (random.uniform(0.9, 1.1), random.uniform(0.9, 1.1), random.uniform(0.9, 1.1)),
-                       'Rotation': random.uniform((-pi / 30), (pi / 30))}
+        deformation = dict()
+        if self.generate_random_bool(0.8):
+            deformation['Translation'] = (random.uniform(-10, 10), random.uniform(-10, 10), random.uniform(-10, 10))
+        else:
+            deformation['Translation'] = (0, 0, 0)
+
+        if self.generate_random_bool(0.8):
+            deformation['Scaling'] = (random.uniform(0.9, 1.1), random.uniform(0.9, 1.1), random.uniform(0.9, 1.1))
+        else :
+            deformation['Scaling'] = (1.0, 1.0, 1.0)
+
+        if self.generate_random_bool(0.8):
+            deformation['Rotation'] = random.uniform((-pi / 30), (pi / 30))
+        else:
+            deformation['Rotation'] = 0.0
+
         return deformation
+
+    def generate_random_threshold(self):
+        if self.generate_random_bool(0.5):
+            lower, upper = 2.5, 4.0
+            mu, std = 3.0, 0.5
+
+            a, b = (lower - mu) / std, (upper - mu) / std
+            return truncnorm.rvs(a, b, size=10, loc=mu, scale=std)
+        else:
+            return 'auto'
 
     @staticmethod
     def AffineTransformation(image, interpolator, deformations):
