@@ -2,7 +2,7 @@
     "path": {
         "csv_path": "/media/salim/DD 2To/AHL2011_NIFTI/AHL2011_PET0_NIFTI.csv",
         "trained_model_path": null,
-        "training_model_folder": "C:\\\\Users\\\\Rudy\\\\Documents\\\\Thales_stage\\\\training"
+        "training_model_folder": "/media/salim/DD 2To/RUDY_WEIGTH/training"
     },
     "preprocessing": {
         "image_shape": [

@@ -1,11 +1,11 @@
 import numpy as np
 import SimpleITK as sitk
 
-class preprocessor(object):
-    '''
-    preprocessor PET, CT, MASK scan
-    '''
 
+class preprocessor(object):
+    """
+    preprocessor PET, CT, MASK scan
+    """
 
     def __init__(self,
                  target_shape=None,
@@ -14,7 +14,7 @@ class preprocessor(object):
                  normalize=True
                  ):
 
-        self.target_shape = target_shape # [x, y, z]
+        self.target_shape = target_shape  # [x, y, z]
         self.target_voxel_spacing = target_voxel_spacing[::-1]
         self.target_direction = (1, 0, 0, 0, 1, 0, 0, 0, 1)
         self.resize = resize
@@ -44,7 +44,6 @@ class preprocessor(object):
 
         return {'pet_img': pet_img, 'ct_img': ct_img, 'mask_img': mask_img}
 
-
     @staticmethod
     def normalize_PET(pet_img):
         intensityWindowingFilter = sitk.IntensityWindowingImageFilter()
@@ -67,7 +66,6 @@ class preprocessor(object):
         intensityWindowingFilter.SetWindowMaximum(windowMax)
         intensityWindowingFilter.SetWindowMinimum(windowMin)
         return intensityWindowingFilter.Execute(ct_img)
-
 
     def resample_PET(self, PET_img, new_Origin):
         # transformation parametrisation
