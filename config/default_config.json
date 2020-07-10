@@ -7,8 +7,8 @@
     "preprocessing": {
         "image_shape": [
             384,
-            64,
-            64
+            128,
+            128
         ],
         "number_channels": 2,
         "voxel_spacing": [

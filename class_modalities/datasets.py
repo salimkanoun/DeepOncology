@@ -49,9 +49,9 @@ class DataManager(object):
             df_val = df[df['split'] == 'val']
             df_test = df[df['split'] == 'test']
 
-            X_train, y_train = list(zip(df_train['NIFTI_PET'], df_train['NIFTI_CT'])), df_train['NIFTI_MASK']
-            X_val, y_val = list(zip(df_val['NIFTI_PET'], df_val['NIFTI_CT'])), df_val['NIFTI_MASK']
-            X_test, y_test = list(zip(df_test['NIFTI_PET'], df_test['NIFTI_CT'])), df_test['NIFTI_MASK']
+            X_train, y_train = list(zip(df_train['NIFTI_PET'].values, df_train['NIFTI_CT'].values)), df_train['NIFTI_MASK'].values
+            X_val, y_val = list(zip(df_val['NIFTI_PET'].values, df_val['NIFTI_CT'].values)), df_val['NIFTI_MASK'].values
+            X_test, y_test = list(zip(df_test['NIFTI_PET'].values, df_test['NIFTI_CT'].values)), df_test['NIFTI_MASK'].values
 
             return X_train, X_val, X_test, y_train, y_val, y_test
 

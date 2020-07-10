@@ -341,7 +341,7 @@ class DataGenerator(tf.keras.utils.Sequence):
             mu, std = 3.0, 0.5
 
             a, b = (lower - mu) / std, (upper - mu) / std
-            return truncnorm.rvs(a, b, size=10, loc=mu, scale=std)
+            return truncnorm.rvs(a, b, loc=mu, scale=std)
         else:
             return 'auto'
 

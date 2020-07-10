@@ -71,7 +71,7 @@ opt_params = config['training']["optimizer"]["opt_params"]
 loss_object = Multiclass_DSC_Loss()
 metrics = [Tumoral_DSC(), tf.keras.metrics.SparseCategoricalCrossentropy(name='SCCE')]
 # optimizer = tf.keras.optimizers.SGD(learning_rate=1e-5, momentum=0.9)
-optimizer = tf.keras.optimizers.SGD(opt_params)
+optimizer = tf.keras.optimizers.SGD(**opt_params)
 
 # callbacks
 callbacks = []
