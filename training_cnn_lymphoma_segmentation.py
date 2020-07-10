@@ -31,7 +31,7 @@ with open(config_name) as f:
 csv_path = config['path']['csv_path']
 
 trained_model_path = config['path']['trained_model_path']  # if None, trained from scratch
-training_model_folder = os.path.join(config['path']['trained_model_folder'], now)  # '/path/to/folder'
+training_model_folder = os.path.join(config['path']['training_model_folder'], now)  # '/path/to/folder'
 if not os.path.exists(training_model_folder):
     os.makedirs(training_model_folder)
 logdir = os.path.join(training_model_folder, 'logs')
@@ -40,7 +40,7 @@ if not os.path.exists(logdir):
 
 # PET CT scan params
 image_shape = tuple(config['preprocessing']['image_shape'])  # (128, 64, 64)  # (368, 128, 128)  # (z, y, x)
-number_channels = config['preprocessing']['numer_channels']
+number_channels = config['preprocessing']['number_channels']
 voxel_spacing = tuple(config['preprocessing']['voxel_spacing'])  # (4.8, 4.8, 4.8)  # in millimeter, (z, y, x)
 data_augment = config['preprocessing']['data_augment']  # True  # for training dataset only
 resize = config['preprocessing']['resize']  # True  # not use yet
@@ -55,35 +55,23 @@ cnn_params = config['model'][architecture]['cnn_params']
 for key, value in cnn_params.items():
     if isinstance(value, list):
         cnn_params[key] = tuple(value)
-
-# if architecture == 'unet':
-#     cnn_params = {'filters': (8, 16, 32),  # (8, 16, 32, 64, 128)
-#                   'kernel': (3, 3, 3),
-#                   'activation': tf.keras.layers.LeakyReLU(),
-#                   'padding': 'same',
-#                   'pooling': (2, 2, 2)}
-#
-# elif architecture == 'vnet':
-#     cnn_params = {'keep_prob': 1.0,
-#                   'kernel_size': (5, 5, 5),
-#                   'num_channels': 16,
-#                   'num_levels': 4,
-#                   'num_convolutions': (1, 2, 3, 3),
-#                   'bottom_convolutions': 3,
-#                   'activation_fn': prelu}  # tf.keras.layers.ReLU()
-# else:
-#     raise ValueError('Architecture ' + architecture + ' not supported. Please ' +
-#                      'choose one of unet|vnet.')
+# get activation layer from name
+if cnn_params["activation"] == 'prelu':
+    cnn_params["activation"] = prelu
+else:
+    cnn_params["activation"] = tf.keras.activations.get(cnn_params["activation"])
 
 # Training params
 epochs = config['training']['epochs']
 batch_size = config['training']['batch_size']
 shuffle = config['training']['shuffle']
+opt_params = config['training']["optimizer"]["opt_params"]
 
 # definition of loss, optimizer and metrics
 loss_object = Multiclass_DSC_Loss()
 metrics = [Tumoral_DSC(), tf.keras.metrics.SparseCategoricalCrossentropy(name='SCCE')]
-optimizer = tf.keras.optimizers.SGD(learning_rate=1e-5, momentum=0.9)
+# optimizer = tf.keras.optimizers.SGD(learning_rate=1e-5, momentum=0.9)
+optimizer = tf.keras.optimizers.SGD(opt_params)
 
 # callbacks
 callbacks = []
@@ -158,8 +146,7 @@ if trained_model_path is not None:
 
 model.compile(loss=loss_object, optimizer=optimizer, metrics=metrics)
 
-# serialize model to JSON
-# save model to JSON before training
+# serialize model to JSON before training
 model_json = model.to_json()
 with open(os.path.join(training_model_folder, 'architecture_model_{}.h5'.format(now)), "w") as json_file:
     json_file.write(model_json)
@@ -176,7 +163,3 @@ history = model.fit_generator(generator=train_generator,
 
 # whole model saving
 model.save(os.path.join(training_model_folder, 'trained_model_{}.h5'.format(now)))
-
-# # save hyper parameter and train, val, test performance
-# header = ['date', 'architecture', 'filters', 'kernel', 'activation', 'padding', 'pooling']
-# row = [now, architecture, filters, kernel, activation, padding, pooling]

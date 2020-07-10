@@ -11,7 +11,7 @@ class DataManager(object):
     def __init__(self, base_path=None, csv_path=None):
         self.base_path = base_path
         self.csv_path = csv_path
-        self.seed = 42
+        self.seed = 42  # random state
         self.test_size = 0.15
         self.val_size = 0.15
 
@@ -32,10 +32,10 @@ class DataManager(object):
                 idx = np.arange(df['PATIENT NAME'].nunique())
                 split = np.empty(df['PATIENT NAME'].nunique(), dtype="<U6")
 
-                idx_train, idx_test = train_test_split(idx, test_size=self.test_size, random_state=self.random_state)
+                idx_train, idx_test = train_test_split(idx, test_size=self.test_size, random_state=self.seed)
 
                 size = self.val_size / (1 - self.test_size)
-                idx_train, idx_val = train_test_split(idx_train, test_size=size, random_state=self.random_state)
+                idx_train, idx_val = train_test_split(idx_train, test_size=size, random_state=self.seed)
 
                 split[idx_train] = 'train'
                 split[idx_val] = 'val'

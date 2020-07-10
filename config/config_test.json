@@ -1,12 +1,12 @@
 {
     "path": {
-        "csv_path": "/media/salim/DD 2To/AHL2011_NIFTI/AHL2011_PET0_NIFTI.csv",
+        "csv_path": "/media/sf_Deep_Oncopole/data/training/AHL2011_PET0_NIFTI.csv",
         "trained_model_path": null,
-        "training_model_folder": "C:\\\\Users\\\\Rudy\\\\Documents\\\\Thales_stage\\\\training"
+        "training_model_folder": "/media/sf_Deep_Oncopole/data/training"
     },
     "preprocessing": {
         "image_shape": [
-            384,
+            128,
             64,
             64
         ],
@@ -66,7 +66,7 @@
         }
     },
     "training": {
-        "epochs": 100,
+        "epochs": 3,
         "batch_size": 1,
         "shuffle": true,
         "optimizer": {
@@ -77,7 +77,7 @@
             }
         },
         "callbacks": {
-            "patience": 10,
+            "patience": 50,
             "ReduceLROnPlateau": true,
             "EarlyStopping": true,
             "ModelCheckpoint": true,

@@ -52,7 +52,7 @@ class VNet(object):
                  num_levels=4,
                  num_convolutions=(1, 2, 3, 3),
                  bottom_convolutions=3,
-                 activation_fn=tf.keras.layers.PReLU()):
+                 activation=tf.keras.layers.PReLU()):
         """
         :param image_shape: Shape of the input image
         :param num_classes: Number of output classes.
@@ -73,7 +73,7 @@ class VNet(object):
         self.num_levels = num_levels
         self.num_convolutions = num_convolutions
         self.bottom_convolutions = bottom_convolutions
-        self.activation_fn = activation_fn
+        self.activation_fn = activation
 
     def build_network(self, input_):
         x = input_

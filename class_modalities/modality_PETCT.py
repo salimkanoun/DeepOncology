@@ -158,6 +158,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         mask_array = sitk.GetArrayFromImage(mask_img)
         pet_array = sitk.GetArrayFromImage(pet_img)
 
+        # get 3D meta information
         if len(mask_array.shape) == 3:
             mask_array = np.expand_dims(mask_array, axis=0)
 
@@ -169,21 +170,24 @@ class DataGenerator(tf.keras.utils.Sequence):
             spacing = mask_img.GetSpacing()[:-1]
             direction = tuple(el for i, el in enumerate(mask_img.GetDirection()[:12]) if not (i + 1) % 4 == 0)
 
+        # generate mask from ROIs
         new_mask = np.zeros(mask_array.shape[1:], dtype=np.int8)
 
         for num_slice in range(mask_array.shape[0]):
             mask_slice = mask_array[num_slice]
 
+            # calculate threshold value of the roi
             if threshold == 'auto':
                 roi = pet_array[mask_slice > 0]
                 if len(roi) > 0:
                     SUV_max = np.max(roi)
-                    threshold_suv = SUV_max * 0.42
+                    threshold_suv = SUV_max * 0.41
                 else:
                     threshold_suv = 0.0
             else:
                 threshold_suv = threshold
 
+            # apply threshold
             new_mask[np.where((pet_array > threshold_suv) & (mask_slice > 0))] = 1
 
         # reconvert to sitk and restore information
@@ -308,7 +312,6 @@ class DataGenerator(tf.keras.utils.Sequence):
         """
         return random.random() < p
 
-    @staticmethod
     def generate_random_DeformationRatios(self):
         """
         :return: dict with random deformation
