@@ -30,8 +30,8 @@ class preprocessor(object):
         # read input
         pet_img, ct_img, mask_img = inputs['pet_img'], inputs['ct_img'], inputs['mask_img']
 
-        # get mask from ROI
         if threshold is not None:
+            # get mask from ROI
             mask_img = self.roi2mask(mask_img, pet_img, threshold=threshold)
 
         # normalize before resample

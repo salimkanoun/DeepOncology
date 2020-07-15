@@ -34,7 +34,7 @@ csv_path = config['path']['csv_path']  # /media/salim/DD 2To/AHL2011_NIFTI/AHL20
 
 # PET CT scan params
 image_shape = tuple(config['preprocessing']['image_shape'])  # (128, 64, 64)  # (368, 128, 128)  # (z, y, x)
-number_channels = config['preprocessing']['numer_channels']
+number_channels = config['preprocessing']['number_channels']
 voxel_spacing = tuple(config['preprocessing']['voxel_spacing'])  # (4.8, 4.8, 4.8)  # in millimeter, (z, y, x)
 data_augment = False
 resize = config['preprocessing']['resize']  # True  # not use yet

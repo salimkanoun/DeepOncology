@@ -11,6 +11,7 @@ from deeplearning_models.Vnet import VNet
 from deeplearning_models.Layers import prelu
 
 from deeplearning_tools.loss_functions import Tumoral_DSC, Multiclass_DSC_Loss
+from deeplearning_tools.Loss import CustomLoss
 
 import os
 from datetime import datetime
@@ -68,33 +69,40 @@ shuffle = config['training']['shuffle']
 opt_params = config['training']["optimizer"]["opt_params"]
 
 # definition of loss, optimizer and metrics
-loss_object = Multiclass_DSC_Loss()
-metrics = [Tumoral_DSC(), tf.keras.metrics.SparseCategoricalCrossentropy(name='SCCE')]
+loss_object = CustomLoss()  # Multiclass_DSC_Loss()
+
 # optimizer = tf.keras.optimizers.SGD(learning_rate=1e-5, momentum=0.9)
-optimizer = tf.keras.optimizers.SGD(**opt_params)
+# optimizer = tf.keras.optimizers.SGD(**opt_params)
+optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+
+metrics = [Tumoral_DSC(), tf.keras.metrics.SparseCategoricalCrossentropy(name='SCCE')]
+
+
+# multi gpu training strategy
+strategy = tf.distribute.MirroredStrategy()
 
 # callbacks
 callbacks = []
 if 'callbacks' in config['training']:
-    if config['training'].get('ReduceLROnPlateau', False):
+    if config['training']['callbacks'].get('ReduceLROnPlateau', False):
 
         # reduces learning rate if no improvement are seen
         learning_rate_reduction = ReduceLROnPlateau(monitor='val_loss',
-                                                    patience=config['training']['ReduceLROnPlateau']['patience'],
+                                                    patience=config['training']['callbacks']['patience'],
                                                     verbose=1,
                                                     factor=0.5,
                                                     min_lr=0.0000001)
         callbacks.append(learning_rate_reduction)
 
-    if config['training'].get('ReduceLROnPlateau', False):
+    if config['training']['callbacks'].get('EarlyStopping', False):
         # stop training if no improvements are seen
         early_stop = EarlyStopping(monitor="val_loss",
                                    mode="min",
-                                   patience=int(config['training']['ReduceLROnPlateau']['patience'] // 2),
+                                   patience=int(config['training']['callbacks']['patience'] // 2),
                                    restore_best_weights=True)
         callbacks.append(early_stop)
 
-    if config['training'].get('ModelCheckpoint', False):
+    if config['training']['callbacks'].get('ModelCheckpoint', False):
         # saves model weights to file
         checkpoint = ModelCheckpoint(os.path.join(training_model_folder, 'model_weights.hdf5'),  # 'model_weights.{epoch:02d}-{val_loss:.2f}.hdf5'
                                      monitor='val_loss',
@@ -104,7 +112,7 @@ if 'callbacks' in config['training']:
                                      save_weights_only=True)
         callbacks.append(checkpoint)
 
-    if config['training'].get('TensorBoard', False):
+    if config['training']['callbacks'].get('TensorBoard', False):
         tensorboard_callback = TensorBoard(log_dir=logdir,
                                            histogram_freq=0,
                                            batch_size=batch_size,
@@ -132,19 +140,20 @@ val_generator = DataGenerator(x_val, y_val,
 
 # Define model
 if architecture == 'unet':
-    model = CustomUNet3D(tuple(list(image_shape) + [number_channels]), number_class,  **cnn_params).create_model()
+    with strategy.scope():
+        model = CustomUNet3D(tuple(list(image_shape) + [number_channels]), number_class,  **cnn_params).create_model()
 
 elif architecture == 'vnet':
-    model = VNet(tuple(list(image_shape) + [number_channels]), number_class, **cnn_params).create_model()
+    with strategy.scope():
+        model = VNet(tuple(list(image_shape) + [number_channels]), number_class, **cnn_params).create_model()
 else:
     raise ValueError('Architecture ' + architecture + ' not supported. Please ' +
                      'choose one of unet|vnet.')
+with strategy.scope():
+    model.compile(loss=loss_object, optimizer=optimizer, metrics=metrics)
 
 if trained_model_path is not None:
     model.load_weights(trained_model_path)
-
-
-model.compile(loss=loss_object, optimizer=optimizer, metrics=metrics)
 
 # serialize model to JSON before training
 model_json = model.to_json()

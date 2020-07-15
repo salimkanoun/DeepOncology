@@ -62,7 +62,7 @@ class VNet(object):
         :param num_levels: The number of levels in the network. Default is 4 as in the paper.
         :param num_convolutions: An array with the number of convolutions at each level.
         :param bottom_convolutions: The number of convolutions at the bottom level of the network.
-        :param activation_fn: The activation function.
+        :param activation: The activation function.
         """
         self.image_shape = image_shape
         self.num_classes = num_classes
