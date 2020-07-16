@@ -10,8 +10,9 @@ from deeplearning_models.Unet import CustomUNet3D
 from deeplearning_models.Vnet import VNet
 from deeplearning_models.Layers import prelu
 
-from deeplearning_tools.loss_functions import Tumoral_DSC, Multiclass_DSC_Loss
+# from deeplearning_tools.loss_functions import Tumoral_DSC, Multiclass_DSC_Loss
 from deeplearning_tools.Loss import CustomLoss
+from deeplearning_tools.Loss import binary_dice_similarity_coefficient as dsc
 
 import os
 from datetime import datetime
@@ -75,7 +76,7 @@ loss_object = CustomLoss()  # Multiclass_DSC_Loss()
 # optimizer = tf.keras.optimizers.SGD(**opt_params)
 optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
 
-metrics = [Tumoral_DSC(), tf.keras.metrics.SparseCategoricalCrossentropy(name='SCCE')]
+metrics = [dsc, tf.keras.metrics.BinaryCrossentropy]
 
 
 # multi gpu training strategy

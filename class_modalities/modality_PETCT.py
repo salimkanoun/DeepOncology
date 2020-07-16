@@ -99,22 +99,27 @@ class DataGenerator(tf.keras.utils.Sequence):
             # convert to numpy array
             PET_array = sitk.GetArrayFromImage(PET_img)
             CT_array = sitk.GetArrayFromImage(CT_img)
-            MASK_img = sitk.GetArrayFromImage(MASK_img)
+            MASK_array = sitk.GetArrayFromImage(MASK_img)
 
             # concatenate PET and CT
             PET_CT_array = np.stack((PET_array, CT_array), axis=-1)
 
+            # add 1 channel to mask
+            MASK_array = np.expand_dims(MASK_array, axis=-1)
+
             # add it to the batch
             X_batch.append(PET_CT_array)
-            Y_batch.append(MASK_img)
+            Y_batch.append(MASK_array)
 
         return np.array(X_batch), np.array(Y_batch)
 
     def preprocess_data(self, PET_id, CT_id, MASK_id):
         """
-        :param PET_id: string, path to PET scan
-        :param CT_id: string, path to CT scan
-        :param MASK_id: string, path to MASK
+        Args :
+            :param PET_id: string, path to PET scan
+            :param CT_id: string, path to CT scan
+            :param MASK_id: string, path to MASK
+
         :return: return preprocessed PET, CT, MASK img
         """
 

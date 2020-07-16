@@ -5,8 +5,9 @@ def binary_dice_similarity_coefficient(y_true, y_pred):
     """
     Compute dice score
 
-    :param y_true: true label image of shape (batch_size, z, y, x)
-    :param y_pred: pred label image of shape (batch_size, z, y, x)
+    Args :
+        :param y_true: true label image of shape (batch_size, z, y, x)
+        :param y_pred: pred label image of shape (batch_size, z, y, x)
 
     :return: dice score
     """
@@ -58,15 +59,19 @@ def dice_loss(y_true, y_pred):
     return 1.0 - dice_similarity_coefficient(y_true, y_pred)
 
 
+def transform_to_onehot(y_true, y_pred):
+    num_classes = y_pred.shape[-1]
+
+    indices = tf.cast(y_true, dtype=tf.int32)
+    onehot_labels = tf.one_hot(indices=indices, depth=num_classes, dtype=tf.float32, name='onehot_labels')
+    return onehot_labels, y_pred
+
+
 class CustomLoss(tf.keras.losses.Loss):
     def call(self, y_true, y_pred):
-        num_classes = y_pred.shape[-1]
+        y_true = tf.cast(y_true, dtype=tf.float32)
 
-        indices = tf.cast(y_true, dtype=tf.int32)
-        onehot_labels = tf.one_hot(indices=indices, depth=num_classes, dtype=tf.float32, name='onehot_labels')
-
-        return binary_dice_loss(onehot_labels, y_pred) + tf.keras.losses.CategoricalCrossentropy(onehot_labels, y_pred)
-        # return binary_dice_loss(onehot_labels, y_pred) + tf.keras.losses.CategoricalCrossentropy(onehot_labels, y_pred)
+        return binary_dice_loss(y_true, y_pred) + tf.keras.losses.BinaryCrossentropy(y_true, y_pred)
 
 
 
