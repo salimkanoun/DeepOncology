@@ -12,10 +12,10 @@ def binary_dice_similarity_coefficient(y_true, y_pred):
     """
     smooth = 0.1
 
-    numerator = 2 * tf.reduce_sum(y_true * y_pred, axis=(1, 2, 3))
-    denominator = tf.reduce_sum(y_true + y_pred, axis=(1, 2, 3))
+    numerator = 2 * tf.math.reduce_sum(y_true * y_pred, axis=(1, 2, 3))
+    denominator = tf.math.reduce_sum(y_true + y_pred, axis=(1, 2, 3))
 
-    return tf.reduce_sum((numerator + smooth) / (denominator + smooth))
+    return tf.math.reduce_mean((numerator + smooth) / (denominator + smooth))
 
 
 def dice_similarity_coefficient(y_true, y_pred):
@@ -29,23 +29,23 @@ def dice_similarity_coefficient(y_true, y_pred):
     """
     smooth = 0.1
 
-    numerator = 2 * tf.reduce_sum(y_true * y_pred, axis=(1, 2, 3, 4))
-    denominator = tf.reduce_sum(y_true + y_pred, axis=(1, 2, 3, 4))
+    numerator = 2 * tf.math.reduce_sum(y_true * y_pred, axis=(1, 2, 3, 4))
+    denominator = tf.math.reduce_sum(y_true + y_pred, axis=(1, 2, 3, 4))
 
-    return tf.reduce_sum((numerator + smooth) / (denominator + smooth))
+    return tf.reduce_mean((numerator + smooth) / (denominator + smooth))
 
 
 def generalized_dice_loss(class_weight):
     def generalized_dice(y_true, y_pred):
         smooth = 0.1
 
-        numerator = 2 * tf.reduce_sum(y_true * y_pred, axis=(1, 2, 3))
-        denominator = tf.reduce_sum(y_true + y_pred, axis=(1, 2, 3))
+        numerator = 2 * tf.math.reduce_sum(y_true * y_pred, axis=(1, 2, 3))
+        denominator = tf.math.reduce_sum(y_true + y_pred, axis=(1, 2, 3))
 
-        numerator = tf.reduce_sum(class_weight * numerator, axis=-1)
-        denominator = tf.reduce_sum(class_weight * denominator, axis=-1)
+        numerator = tf.math.reduce_sum(class_weight * numerator, axis=-1)
+        denominator = tf.math.reduce_sum(class_weight * denominator, axis=-1)
 
-        return tf.reduce_sum((numerator + smooth) / (denominator + smooth))
+        return tf.math.reduce_mean((numerator + smooth) / (denominator + smooth))
 
     return 1.0 - generalized_dice
 

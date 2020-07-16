@@ -4,35 +4,34 @@ from .Layers import convolution, down_convolution, up_convolution, get_num_chann
 
 
 def dropout(x, keep_prob):
-    """
-    edit in the main
-    """
     # tf.keras.layers.Dropout(keep_prob)(x)
     return tf.keras.layers.SpatialDropout3D(keep_prob)(x)
 
 
-def convolution_block(layer_input, num_convolutions, keep_prob, activation_fn):
+def convolution_block(layer_input, num_convolutions, kernel_size, keep_prob, activation_fn):
     x = layer_input
     n_channels = get_num_channels(x)
     for i in range(num_convolutions):
-        x = convolution(x, n_channels, kernel_size=(5, 5, 5))
+        x = convolution(x, n_channels, kernel_size=kernel_size)
         # x = tf.keras.layers.BatchNormalization(axis=-1, momentum=0.99, epsilon=0.001, center=True, scale=True)(x)
         x = activation_fn(x)
-        # x = tf.keras.layers.Dropout(keep_prob)(x)
+        if keep_prob < 1.0:
+            x = dropout(x, keep_prob)
 
     x = x + layer_input
     return x
 
 
-def convolution_block_2(layer_input, fine_grained_features, num_convolutions, keep_prob, activation_fn):
+def convolution_block_2(layer_input, fine_grained_features, num_convolutions, kernel_size, keep_prob, activation_fn):
 
     x = tf.keras.layers.Concatenate()([layer_input, fine_grained_features])
     n_channels = get_num_channels(layer_input)
     for i in range(num_convolutions):
-        x = convolution(x, n_channels, kernel_size=(5, 5, 5))
+        x = convolution(x, n_channels, kernel_size=kernel_size)
         # x = tf.keras.layers.BatchNormalization(axis=-1, momentum=0.99, epsilon=0.001, center=True, scale=True)(x)
         x = activation_fn(x)
-        # x = tf.keras.layers.Dropout(keep_prob)(x)
+        if keep_prob < 1.0:
+            x = dropout(x, keep_prob)
 
     # layer_input = tf.keras.layers.BatchNormalization(axis=-1, momentum=0.99, epsilon=0.001, center=True, scale=True)(layer_input)
     x = x + layer_input
@@ -66,6 +65,7 @@ class VNet(object):
         """
         self.image_shape = image_shape
         self.num_classes = num_classes
+        self.out_channels = 1 if num_classes == 2 else num_classes
         self.kernel_size = kernel_size
         self.keep_prob = keep_prob
         self.num_channels = num_channels
@@ -91,13 +91,13 @@ class VNet(object):
 
         forwards = list()
         for l in range(self.num_levels):
-            x = convolution_block(x, self.num_convolutions[l], keep_prob, activation_fn=self.activation_fn)
+            x = convolution_block(x, self.num_convolutions[l], self.kernel_size, keep_prob, activation_fn=self.activation_fn)
             forwards.append(x)
             x = down_convolution(x, factor=2, kernel_size=(2, 2, 2))
             # x = tf.keras.layers.BatchNormalization(axis=-1, momentum=0.99, epsilon=0.001, center=True, scale=True)(x)
             x = self.activation_fn(x)
 
-        x = convolution_block(x, self.bottom_convolutions, keep_prob, activation_fn=self.activation_fn)
+        x = convolution_block(x, self.bottom_convolutions, self.kernel_size, keep_prob, activation_fn=self.activation_fn)
 
         for l in reversed(range(self.num_levels)):
             f = forwards[l]
@@ -105,17 +105,20 @@ class VNet(object):
             # x = tf.keras.layers.BatchNormalization(axis=-1, momentum=0.99, epsilon=0.001, center=True, scale=True)(x)
             x = self.activation_fn(x)
 
-            x = convolution_block_2(x, f, self.num_convolutions[l], keep_prob, activation_fn=self.activation_fn)
+            x = convolution_block_2(x, f, self.num_convolutions[l], self.kernel_size, keep_prob, activation_fn=self.activation_fn)
 
         # x = tf.keras.layers.BatchNormalization(axis=-1, momentum=0.99, epsilon=0.001, center=True, scale=True)(x)
-        logits = convolution(x, self.num_classes)
+        logits = convolution(x, self.out_channels)
 
         return logits
 
     def create_model(self):
         input_ = tf.keras.layers.Input(shape=self.image_shape, dtype=tf.float32, name="input")
         logits = self.build_network(input_)
-        output_ = tf.keras.layers.Softmax(name='output')(logits)
+        if self.num_classes == 2:
+            output_ = tf.keras.activations.sigmoid(name='output')(logits)
+        else:
+            output_ = tf.keras.layers.Softmax(name='output')(logits)
         model = tf.keras.models.Model(input_, output_, name='VNet')
         return model
 
