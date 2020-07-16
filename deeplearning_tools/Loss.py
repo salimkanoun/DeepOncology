@@ -56,6 +56,7 @@ def binary_dice_loss(y_true, y_pred):
 
 
 def dice_loss(y_true, y_pred):
+    y_true = tf.cast(y_true, dtype=tf.float32)
     return 1.0 - dice_similarity_coefficient(y_true, y_pred)
 
 
@@ -69,9 +70,8 @@ def transform_to_onehot(y_true, y_pred):
 
 class CustomLoss(tf.keras.losses.Loss):
     def call(self, y_true, y_pred):
-        y_true = tf.cast(y_true, dtype=tf.float32)
-
-        return binary_dice_loss(y_true, y_pred) + tf.keras.losses.BinaryCrossentropy(y_true, y_pred)
+        return dice_loss(y_true, y_pred)
+        # return binary_dice_loss(y_true, y_pred) + tf.keras.losses.BinaryCrossentropy(y_true, y_pred)
 
 
 

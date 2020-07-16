@@ -20,7 +20,7 @@
         "resize": true,
         "normalize": true,
         "number_class": 2
-    },
+    }
     "model": {
         "architecture": "vnet",
         "vnet": {

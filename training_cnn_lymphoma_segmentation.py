@@ -12,13 +12,13 @@ from deeplearning_models.Layers import prelu
 
 # from deeplearning_tools.loss_functions import Tumoral_DSC, Multiclass_DSC_Loss
 from deeplearning_tools.Loss import CustomLoss
-from deeplearning_tools.Loss import binary_dice_similarity_coefficient as dsc
+from deeplearning_tools.Loss import dice_similarity_coefficient as dsc
 
 import os
 from datetime import datetime
 
 # path
-now = datetime.now().strftime("%Y%m%d-%H%M%S")
+now = datetime.now().strftime("%Y%m%d-%H:%M:%S")
 
 # import config file
 if len(sys.argv) == 2:
