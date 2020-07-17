@@ -16,7 +16,7 @@ def hausdorff_distance(y_true, y_pred):
     true_vol_idx = np.where(y_true)
     pred_vol_idx = np.where(y_pred)
 
-    return max(directed_hausdorff(true_vol_idx , pred_vol_idx)[0], directed_hausdorff(pred_vol_idx, true_vol_idx)[0])
+    return max(directed_hausdorff(true_vol_idx, pred_vol_idx)[0], directed_hausdorff(pred_vol_idx, true_vol_idx)[0])
 
 
 def dice_similarity_coefficient(y_true, y_pred):

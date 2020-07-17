@@ -2,7 +2,7 @@ import numpy as np
 import SimpleITK as sitk
 
 
-class preprocessor(object):
+class preprocessor_pet_ct(object):
     """
     preprocessor PET, CT, MASK scan
     """
@@ -26,23 +26,41 @@ class preprocessor(object):
                        'CT': sitk.sitkFloat32,
                        'mask': sitk.sitkUInt8}
 
+    def __call__(self, inputs, threshold=None):
+        return self.transform(inputs, threshold)
+
     def transform(self, inputs, threshold=None):
-        # read input
-        pet_img, ct_img, mask_img = inputs['pet_img'], inputs['ct_img'], inputs['mask_img']
+        if len(inputs) == 3:
+            # read input
+            pet_img, ct_img, mask_img = inputs['pet_img'], inputs['ct_img'], inputs['mask_img']
 
-        if threshold is not None:
-            # get mask from ROI
-            mask_img = self.roi2mask(mask_img, pet_img, threshold=threshold)
+            if threshold is not None:
+                # get mask from ROI
+                mask_img = self.roi2mask(mask_img, pet_img, threshold=threshold)
 
-        # normalize before resample
-        if self.normalize:
-            pet_img = self.normalize_PET(ct_img)
-            ct_img = self.normalize_CT(ct_img)
+            # normalize before resample
+            if self.normalize:
+                pet_img = self.normalize_PET(ct_img)
+                ct_img = self.normalize_CT(ct_img)
 
-        # resample to sample shape and spacing resolution
-        pet_img, ct_img, mask_img = self.resample_PET_CT_MASK(pet_img, ct_img, mask_img)
+            # resample to sample shape and spacing resolution
+            pet_img, ct_img, mask_img = self.resample_PET_CT_MASK(pet_img, ct_img, mask_img)
 
-        return {'pet_img': pet_img, 'ct_img': ct_img, 'mask_img': mask_img}
+            return {'pet_img': pet_img, 'ct_img': ct_img, 'mask_img': mask_img}
+        else:
+            # read input
+            pet_img, ct_img = inputs['pet_img'], inputs['ct_img']
+
+            # normalize before resample
+            if self.normalize:
+                pet_img = self.normalize_PET(ct_img)
+                ct_img = self.normalize_CT(ct_img)
+
+            # resample to sample shape and spacing resolution
+            pet_img, ct_img, mask_img = self.resample_PET_CT(pet_img, ct_img)
+
+            return {'pet_img': pet_img, 'ct_img': ct_img}
+
 
     @staticmethod
     def normalize_PET(pet_img):
@@ -105,6 +123,20 @@ class preprocessor(object):
         transformation.SetInterpolator(sitk.sitkNearestNeighbor)
 
         return transformation.Execute(MASK_img)
+
+    def resample_PET_CT(self, PET_img, CT_img):
+        """
+        resample and reshape PET, CT and MASK to the same origin, direction, spacing and shape
+        """
+        # compute transformation parameters
+        new_origin = self.compute_new_Origin(PET_img)
+
+        # apply transformation : resample and reshape
+        PET_img = self.resample_PET(PET_img, new_origin)
+        CT_img = self.resample_CT(CT_img, new_origin)
+
+        return PET_img, CT_img
+
 
     def resample_PET_CT_MASK(self, PET_img, CT_img, MASK_img):
         """
