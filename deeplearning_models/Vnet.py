@@ -116,7 +116,7 @@ class VNet(object):
         input_ = tf.keras.layers.Input(shape=self.image_shape, dtype=tf.float32, name="input")
         logits = self.build_network(input_)
         if self.num_classes == 2:
-            output_ = tf.keras.activations.sigmoid(name='output')(logits)
+            output_ = tf.keras.activations.sigmoid(logits)
         else:
             output_ = tf.keras.layers.Softmax(name='output')(logits)
         model = tf.keras.models.Model(input_, output_, name='VNet')

@@ -72,9 +72,9 @@ opt_params = config['training']["optimizer"]["opt_params"]
 # definition of loss, optimizer and metrics
 loss_object = CustomLoss()  # Multiclass_DSC_Loss()
 
-# optimizer = tf.keras.optimizers.SGD(learning_rate=1e-5, momentum=0.9)
+optimizer = tf.keras.optimizers.SGD(learning_rate=1e-3, momentum=0.99)
 # optimizer = tf.keras.optimizers.SGD(**opt_params)
-optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+# optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
 
 metrics = [dsc, tf.keras.metrics.BinaryCrossentropy]
 
@@ -155,6 +155,8 @@ with strategy.scope():
 
 if trained_model_path is not None:
     model.load_weights(trained_model_path)
+
+print(model.summary())
 
 # serialize model to JSON before training
 model_json = model.to_json()
