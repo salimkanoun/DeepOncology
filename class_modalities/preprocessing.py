@@ -18,13 +18,17 @@ class preprocessor_pet_ct(object):
         self.target_voxel_spacing = target_voxel_spacing[::-1]
         self.target_direction = (1, 0, 0, 0, 1, 0, 0, 0, 1)
         self.resize = resize
-        self.default_value = {'PET': 0.0,
-                              'CT': -1024.0,
-                              'MASK': 0}
+        self.default_value = {'pet_img': 0.0,
+                              'ct_img': -1024.0,
+                              'mask_img': 0}
         self.normalize = normalize
-        self.dtypes = {'PET': sitk.sitkFloat32,
-                       'CT': sitk.sitkFloat32,
-                       'mask': sitk.sitkUInt8}
+        self.dtypes = {'pet_img': sitk.sitkFloat32,
+                       'ct_img': sitk.sitkFloat32,
+                       'mask_img': sitk.sitkUInt8}
+
+        # self.interpolator = {'pet_img': sitk.sitkBSpline,
+        #                      'ct_img': sitk.sitkBSpline,
+        #                      'mask_img': sitk.sitkNearestNeighbor}
 
     def __call__(self, inputs, threshold=None):
         return self.transform(inputs, threshold)
@@ -85,31 +89,31 @@ class preprocessor_pet_ct(object):
         intensityWindowingFilter.SetWindowMinimum(windowMin)
         return intensityWindowingFilter.Execute(ct_img)
 
-    def resample_PET(self, PET_img, new_Origin):
+    def resample_PET(self, pet_img, new_origin):
         # transformation parametrisation
         transformation = sitk.ResampleImageFilter()
         transformation.SetOutputDirection(self.target_direction)
-        transformation.SetOutputOrigin(new_Origin)
+        transformation.SetOutputOrigin(new_origin)
         transformation.SetOutputSpacing(self.target_voxel_spacing)
         transformation.SetSize(self.target_shape)
 
-        transformation.SetDefaultPixelValue(self.default_value['PET'])
+        transformation.SetDefaultPixelValue(self.default_value['pet_img'])
         transformation.SetInterpolator(sitk.sitkBSpline)
 
-        return transformation.Execute(PET_img)
+        return transformation.Execute(pet_img)
 
-    def resample_CT(self, CT_img, new_Origin):
+    def resample_CT(self, ct_img, new_origin):
         # transformation parametrisation
         transformation = sitk.ResampleImageFilter()
         transformation.SetOutputDirection(self.target_direction)
-        transformation.SetOutputOrigin(new_Origin)
+        transformation.SetOutputOrigin(new_origin)
         transformation.SetOutputSpacing(self.target_voxel_spacing)
         transformation.SetSize(self.target_shape)
 
-        transformation.SetDefaultPixelValue(self.default_value['CT'])
+        transformation.SetDefaultPixelValue(self.default_value['ct_img'])
         transformation.SetInterpolator(sitk.sitkBSpline)
 
-        return transformation.Execute(CT_img)
+        return transformation.Execute(ct_img)
 
     def resample_MASK(self, MASK_img, new_origin):
         # transformation parametrisation
@@ -119,7 +123,7 @@ class preprocessor_pet_ct(object):
         transformation.SetOutputSpacing(self.target_voxel_spacing)
         transformation.SetSize(self.target_shape)
 
-        transformation.SetDefaultPixelValue(self.default_value['MASK'])
+        transformation.SetDefaultPixelValue(self.default_value['mask_img'])
         transformation.SetInterpolator(sitk.sitkNearestNeighbor)
 
         return transformation.Execute(MASK_img)
@@ -129,7 +133,7 @@ class preprocessor_pet_ct(object):
         resample and reshape PET, CT and MASK to the same origin, direction, spacing and shape
         """
         # compute transformation parameters
-        new_origin = self.compute_new_Origin(PET_img)
+        new_origin = self.compute_new_origin(PET_img)
 
         # apply transformation : resample and reshape
         PET_img = self.resample_PET(PET_img, new_origin)
@@ -143,7 +147,7 @@ class preprocessor_pet_ct(object):
         resample and reshape PET, CT and MASK to the same origin, direction, spacing and shape
         """
         # compute transformation parameters
-        new_origin = self.compute_new_Origin(PET_img)
+        new_origin = self.compute_new_origin(PET_img)
 
         # apply transformation : resample and reshape
         PET_img = self.resample_PET(PET_img, new_origin)
@@ -152,11 +156,11 @@ class preprocessor_pet_ct(object):
 
         return PET_img, CT_img, MASK_img
 
-    def compute_new_Origin(self, PET_img):
+    def compute_new_origin(self, pet_img):
 
-        origin = np.asarray(PET_img.GetOrigin())
-        shape = np.asarray(PET_img.GetSize())
-        spacing = np.asarray(PET_img.GetSpacing())
+        origin = np.asarray(pet_img.GetOrigin())
+        shape = np.asarray(pet_img.GetSize())
+        spacing = np.asarray(pet_img.GetSpacing())
         new_shape = np.asarray(self.target_shape)
         new_spacing = np.asarray(self.target_voxel_spacing)
 
@@ -165,10 +169,12 @@ class preprocessor_pet_ct(object):
     @staticmethod
     def roi2mask(mask_img, pet_img, threshold='auto'):
         """
-        :param mask_img: sitk image, raw mask (i.e ROI)
-        :param pet_img: sitk image, the corresponding pet scan
-        :param threshold: threshold to apply to the ROI to get the tumor segmentation.
-                if set to 'auto', it will take 42% of the maximum
+        Generate the mask from the ROI of the pet scan
+        Args:
+            :param mask_img: sitk image, raw mask (i.e ROI)
+            :param pet_img: sitk image, the corresponding pet scan
+            :param threshold: threshold to apply to the ROI to get the tumor segmentation.
+                    if set to 'auto', it will take 42% of the maximum
         :return: sitk image, the ground truth segmentation
         """
         # transform to numpy

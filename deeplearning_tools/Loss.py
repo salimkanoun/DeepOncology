@@ -57,6 +57,7 @@ def binary_dice_loss(y_true, y_pred):
 
 def dice_loss(y_true, y_pred):
     y_true = tf.cast(y_true, dtype=tf.float32)
+    y_pred = tf.cast(y_pred, dtype=tf.float32)
     return 1.0 - dice_similarity_coefficient(y_true, y_pred)
 
 

@@ -13,8 +13,13 @@ class DataAugmentor(object):
         self.scaling = scaling if isinstance(scaling, tuple) else (scaling, scaling, scaling)
         self.rotation = rotation
 
-        self.default_value = {'pet': 0, 'ct': 0, 'mask': 0}
+        self.default_value = {'pet': 0.0, 'ct': 0.0, 'mask': 0}
         self.interpolator = {'pet': sitk.sitkBSpline, 'ct': sitk.sitkBSpline, 'mask': sitk.sitkNearestNeighbor}
+
+    def __call__(self, inputs):
+        pet_img, ct_img, mask_img = inputs['pet_img'], inputs['ct_img'], inputs['mask_img']
+        pet_img, ct_img, mask_img = self.data_augmentor(pet_img, ct_img, mask_img)
+        return {'pet_img': pet_img, 'ct_img': ct_img, 'mask_img': mask_img}
 
     @staticmethod
     def generate_random_bool(p):
