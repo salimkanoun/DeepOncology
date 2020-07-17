@@ -61,10 +61,9 @@ class preprocessor_pet_ct(object):
                 ct_img = self.normalize_CT(ct_img)
 
             # resample to sample shape and spacing resolution
-            pet_img, ct_img, mask_img = self.resample_PET_CT(pet_img, ct_img)
+            pet_img, ct_img = self.resample_PET_CT(pet_img, ct_img)
 
             return {'pet_img': pet_img, 'ct_img': ct_img}
-
 
     @staticmethod
     def normalize_PET(pet_img):
@@ -140,7 +139,6 @@ class preprocessor_pet_ct(object):
         CT_img = self.resample_CT(CT_img, new_origin)
 
         return PET_img, CT_img
-
 
     def resample_PET_CT_MASK(self, PET_img, CT_img, MASK_img):
         """
