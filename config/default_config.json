@@ -6,21 +6,22 @@
     },
     "preprocessing": {
         "image_shape": [
-            384,
+            256,
             128,
             128
         ],
         "number_channels": 2,
         "voxel_spacing": [
-            4.8,
+            4.0,
             4.8,
             4.8
         ],
         "data_augment": true,
         "resize": true,
+        "origin": "head",
         "normalize": true,
         "number_class": 2
-    }
+    },
     "model": {
         "architecture": "vnet",
         "vnet": {

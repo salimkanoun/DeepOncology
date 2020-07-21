@@ -2,7 +2,7 @@ import numpy as np
 import SimpleITK as sitk
 
 
-class preprocessor_pet_ct(object):
+class PreprocessorPETCT(object):
     """
     preprocessor PET, CT, MASK scan
     """
@@ -11,17 +11,19 @@ class preprocessor_pet_ct(object):
                  target_shape=None,
                  target_voxel_spacing=None,
                  resize=True,
-                 normalize=True
+                 normalize=True,
+                 origin='head'
                  ):
 
-        self.target_shape = target_shape  # [x, y, z]
-        self.target_voxel_spacing = target_voxel_spacing[::-1]
+        self.target_shape = target_shape[::-1]  # [z, y, x] to [x, y, z]
+        self.target_voxel_spacing = target_voxel_spacing[::-1]  # [z, y, x] to [x, y, z]
         self.target_direction = (1, 0, 0, 0, 1, 0, 0, 0, 1)
         self.resize = resize
-        self.default_value = {'pet_img': 0.0,
-                              'ct_img': -1024.0,
+        self.default_value = {'pet_img': 0.0,  # after normalize
+                              'ct_img': 0.0,
                               'mask_img': 0}
         self.normalize = normalize
+        self.origin = origin  # 'head' or 'middle'
         self.dtypes = {'pet_img': sitk.sitkFloat32,
                        'ct_img': sitk.sitkFloat32,
                        'mask_img': sitk.sitkUInt8}
@@ -44,9 +46,8 @@ class preprocessor_pet_ct(object):
 
             # normalize before resample
             if self.normalize:
-                pet_img = self.normalize_PET(ct_img)
+                pet_img = self.normalize_PET(pet_img)
                 ct_img = self.normalize_CT(ct_img)
-
             # resample to sample shape and spacing resolution
             pet_img, ct_img, mask_img = self.resample_PET_CT_MASK(pet_img, ct_img, mask_img)
 
@@ -57,7 +58,7 @@ class preprocessor_pet_ct(object):
 
             # normalize before resample
             if self.normalize:
-                pet_img = self.normalize_PET(ct_img)
+                pet_img = self.normalize_PET(pet_img)
                 ct_img = self.normalize_CT(ct_img)
 
             # resample to sample shape and spacing resolution
@@ -154,8 +155,18 @@ class preprocessor_pet_ct(object):
 
         return PET_img, CT_img, MASK_img
 
-    def compute_new_origin(self, pet_img):
+    def compute_new_origin_head2hip(self, pet_img):
+        new_shape = self.target_shape
+        new_spacing = self.target_voxel_spacing
+        pet_size = pet_img.GetSize()
+        pet_spacing = pet_img.GetSpacing()
+        pet_origin = pet_img.GetOrigin()
+        new_origin = (pet_origin[0] + 0.5 * pet_size[0] * pet_spacing[0] - 0.5 * new_shape[0] * new_spacing[0],
+                      pet_origin[1] + 0.5 * pet_size[1] * pet_spacing[1] - 0.5 * new_shape[1] * new_spacing[1],
+                      pet_origin[2] + 1.0 * pet_size[2] * pet_spacing[2] - 1.0 * new_shape[2] * new_spacing[2])
+        return new_origin
 
+    def compute_new_origin_centered_img(self, pet_img):
         origin = np.asarray(pet_img.GetOrigin())
         shape = np.asarray(pet_img.GetSize())
         spacing = np.asarray(pet_img.GetSpacing())
@@ -163,6 +174,12 @@ class preprocessor_pet_ct(object):
         new_spacing = np.asarray(self.target_voxel_spacing)
 
         return tuple(origin + 0.5 * (shape * spacing - new_shape * new_spacing))
+
+    def compute_new_origin(self, pet_img):
+        if self.origin == 'middle':
+            return self.compute_new_origin_centered_img(pet_img)
+        elif self.origin == 'head':
+            return self.compute_new_origin_head2hip(pet_img)
 
     @staticmethod
     def roi2mask(mask_img, pet_img, threshold='auto'):
@@ -186,16 +203,24 @@ class preprocessor_pet_ct(object):
             origin = mask_img.GetOrigin()
             spacing = mask_img.GetSpacing()
             direction = tuple(mask_img.GetDirection())
+            size = mask_img.GetSize()
         else:
             origin = mask_img.GetOrigin()[:-1]
             spacing = mask_img.GetSpacing()[:-1]
             direction = tuple(el for i, el in enumerate(mask_img.GetDirection()[:12]) if not (i + 1) % 4 == 0)
+            size = mask_img.GetSize()[:-1]
+
+        # print(pet_img.GetOrigin(), origin)
+        # print(pet_img.GetSpacing(), spacing)
+        # print(pet_img.GetDirection(), direction)
+        # print(pet_img.GetSize(), size)
+        # print(mask_array.shape)
 
         # assert meta-info roi == meta-info pet
         assert pet_img.GetOrigin() == origin
         assert pet_img.GetSpacing() == spacing
         assert pet_img.GetDirection() == direction
-        assert pet_img.GetSize() == mask_img.GetSize()
+        assert pet_img.GetSize() == size
 
         # generate mask from ROIs
         new_mask = np.zeros(mask_array.shape[1:], dtype=np.int8)

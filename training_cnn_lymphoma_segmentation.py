@@ -46,6 +46,7 @@ number_channels = config['preprocessing']['number_channels']
 voxel_spacing = tuple(config['preprocessing']['voxel_spacing'])  # (4.8, 4.8, 4.8)  # in millimeter, (z, y, x)
 data_augment = config['preprocessing']['data_augment']  # True  # for training dataset only
 resize = config['preprocessing']['resize']  # True  # not use yet
+origin = config['preprocessing']['origin']  # how to set the new origin
 normalize = config['preprocessing']['normalize']  # True  # whether or not to normalize the inputs
 number_class = config['preprocessing']['number_class']  # 2
 

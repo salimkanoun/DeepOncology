@@ -13,8 +13,8 @@ class DataAugmentor(object):
         self.scaling = scaling if isinstance(scaling, tuple) else (scaling, scaling, scaling)
         self.rotation = rotation
 
-        self.default_value = {'pet': 0.0, 'ct': 0.0, 'mask': 0}
-        self.interpolator = {'pet': sitk.sitkBSpline, 'ct': sitk.sitkBSpline, 'mask': sitk.sitkNearestNeighbor}
+        self.default_value = {'pet_img': 0.0, 'ct_img': 0.0, 'mask_img': 0}
+        self.interpolator = {'pet_img': sitk.sitkBSpline, 'ct_img': sitk.sitkBSpline, 'mask_img': sitk.sitkNearestNeighbor}
 
     def __call__(self, inputs):
         pet_img, ct_img, mask_img = inputs['pet_img'], inputs['ct_img'], inputs['mask_img']
@@ -93,16 +93,16 @@ class DataAugmentor(object):
         def_ratios = self.generate_random_deformation_ratios()
 
         # apply deformation
-        new_PET_img = self.AffineTransformation(image=PET_img,
-                                                interpolator=self.interpolator['pet'],
+        new_pet_img = self.AffineTransformation(image=PET_img,
+                                                interpolator=self.interpolator['pet_img'],
                                                 deformations=def_ratios,
-                                                default_value=self.default_value['pet'])
-        new_CT_img = self.AffineTransformation(image=CT_img,
-                                               interpolator=self.interpolator['ct'],
+                                                default_value=self.default_value['pet_img'])
+        new_ct_img = self.AffineTransformation(image=CT_img,
+                                               interpolator=self.interpolator['ct_img'],
                                                deformations=def_ratios,
-                                               default_value=self.default_value['ct'])
-        new_MASK_img = self.AffineTransformation(image=MASK_img,
-                                                 interpolator=self.interpolator['mask'],
+                                               default_value=self.default_value['ct_img'])
+        new_mask_img = self.AffineTransformation(image=MASK_img,
+                                                 interpolator=self.interpolator['mask_img'],
                                                  deformations=def_ratios,
-                                                 default_value=self.default_value['mask'])
-        return new_PET_img, new_CT_img, new_MASK_img
+                                                 default_value=self.default_value['mask_img'])
+        return new_pet_img, new_ct_img, new_mask_img
