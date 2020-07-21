@@ -55,6 +55,17 @@ class DataManager(object):
 
             return X_train, X_val, X_test, y_train, y_val, y_test
 
+    @staticmethod
+    def wrap_in_dict(df):
+        # df.T.to_dict().values()
+        return {'pet_img': df['NIFTI_PET'].values,
+                'ct_img': df['NIFTI_CT'].values,
+                'mask_img': df['NIFTI_MASK'].values}
+
+    @staticmethod
+    def wrap_in_list_of_dict(df):
+        # retur df[['NIFTI_PET', 'NIFTI_CT', 'NIFTI_MASK']].T.to_dict().values()
+        return df[['NIFTI_PET', 'NIFTI_CT', 'NIFTI_MASK']].to_dict('records')
 
     @staticmethod
     def split_train_val_test_split(X, y, test_size=0.15, val_size=0.15, random_state=42):
