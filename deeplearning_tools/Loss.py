@@ -37,6 +37,9 @@ def dice_similarity_coefficient(y_true, y_pred):
 
 
 def vnet_dice(y_true, y_pred):
+    """
+    https://arxiv.org/abs/1606.04797
+    """
     smooth = 0.1
 
     numerator = 2.0 * tf.math.reduce_sum(y_true * y_pred, axis=(1, 2, 3, 4))
@@ -58,6 +61,28 @@ def generalized_dice_loss(class_weight):
         return tf.math.reduce_mean((numerator + smooth) / (denominator + smooth))
 
     return 1.0 - generalized_dice
+
+
+def tversky_loss(beta):
+    """
+    https://arxiv.org/abs/1706.05721
+    """
+    def loss(y_true, y_pred):
+        smooth = 0.1
+        numerator = tf.reduce_sum(y_true * y_pred, axis=(1, 2, 3, 4))
+        denominator = y_true * y_pred + beta * (1 - y_true) * y_pred + (1 - beta) * y_true * (1 - y_pred)
+
+        return 1.0 - tf.reduce_sum((numerator + smooth) / (tf.reduce_sum(denominator, axis=(1, 2, 3, 4)) + smooth))
+
+    return loss
+
+
+def FocalLoss(alpha, gamma):
+    """
+    https://www.tensorflow.org/addons/api_docs/python/tfa/losses/SigmoidFocalCrossEntropy
+    https://arxiv.org/pdf/1708.02002.pdf
+    """
+    return tf.keras.losses.SigmoidFocalCrossEntropy(alpha=alpha, gamma=gamma)
 
 
 def binary_dice_loss(y_true, y_pred):

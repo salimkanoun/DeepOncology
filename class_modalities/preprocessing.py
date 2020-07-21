@@ -28,9 +28,9 @@ class PreprocessorPETCT(object):
                        'ct_img': sitk.sitkFloat32,
                        'mask_img': sitk.sitkUInt8}
 
-        # self.interpolator = {'pet_img': sitk.sitkBSpline,
-        #                      'ct_img': sitk.sitkBSpline,
-        #                      'mask_img': sitk.sitkNearestNeighbor}
+        self.interpolator = {'pet_img': sitk.sitkBSpline,
+                             'ct_img': sitk.sitkBSpline,
+                             'mask_img': sitk.sitkNearestNeighbor}
 
     def __call__(self, inputs, threshold=None):
         return self.transform(inputs, threshold)
@@ -154,6 +154,28 @@ class PreprocessorPETCT(object):
         MASK_img = self.resample_MASK(MASK_img, new_origin)
 
         return PET_img, CT_img, MASK_img
+
+    def resample_img(self, img, new_origin, default_value, interpolator):
+        # transformation parametrisation
+        transformation = sitk.ResampleImageFilter()
+        transformation.SetOutputDirection(self.target_direction)
+        transformation.SetOutputOrigin(new_origin)
+        transformation.SetOutputSpacing(self.target_voxel_spacing)
+        transformation.SetSize(self.target_shape)
+
+        transformation.SetDefaultPixelValue(default_value)
+        transformation.SetInterpolator(interpolator)
+
+        return transformation.Execute(img)
+
+    def resample_images(self, inputs):
+        # compute transformation parameters
+        new_origin = self.compute_new_origin(inputs['pet_img'])
+
+        output = dict()
+        for key, img in inputs:
+            output[key] = self.resample_img(img, new_origin, self.default_value[key], self.interpolator[key])
+        return output
 
     def compute_new_origin_head2hip(self, pet_img):
         new_shape = self.target_shape

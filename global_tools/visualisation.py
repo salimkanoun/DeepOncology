@@ -25,22 +25,29 @@ def create_gif(filenames, duration, output_file):
     imageio.mimsave(output_file, images, duration=duration)
 
 
-def create_MIP_projection(img, filename_gif, mask=None, vmax=1.0, duration=0.1, number_of_img=60):
+def generate_gif_MIP(img, filename_gif, mask=None, vmax=1.0, duration=0.1, number_of_img=60):
     """
     Create a gif of rotating 3D img
 
-    :param img: image, simple itk image or path/to/image.nii
-    :param mask: image, simple itk image, or path/to/image.nii
+    :param img: numy array or path/to/image.nii or image.npy
+    :param mask: numpy array or path/to/image.nii or image.npy
     :param filename_gif: path/to/file.gif
     :param vmax: max value for plotting
-    :param duration: duration of the gif in seconds ?
+    :param duration: duration of the gif in seconds
     :param number_of_img: number images of the gif i.e number of rotation of the img
     """
     if isinstance(img, str):
-        img = sitk.GetArrayFromImage(sitk.ReadImage(img))
+        if img.endswith('.npy'):
+            img = np.load(img)
+        elif img.endswith('.nii.gz') or img.endswith('.nii'):
+            img = sitk.GetArrayFromImage(sitk.ReadImage(img))
+
     if mask is not None:
         if isinstance(img, str):
-            mask = sitk.GetArrayFromImage(sitk.ReadImage(mask))
+            if mask.endswith('.npy'):
+                mask = np.load(mask)
+            elif mask.endswith('.nii.gz') or mask.endswith('.nii'):
+                mask = sitk.GetArrayFromImage(sitk.ReadImage(mask))
 
     path_gif = os.path.dirname(filename_gif)
     if not os.path.exists(os.path.join(path_gif, 'temp')):
@@ -48,7 +55,7 @@ def create_MIP_projection(img, filename_gif, mask=None, vmax=1.0, duration=0.1, 
 
     angle_filenames = []
 
-    for i, angle in enumerate(np.linspace(0, 360, number_of_img)):
+    for i, angle in enumerate(np.linspace(0, 360, number_of_img, endpoint=False)):
         # definition of loading bar
         length = round((i + 1) / number_of_img * 30)
         loading_bar = "[" + "=" * length + ">" + "-" * (30 - length) + "]"
@@ -64,10 +71,14 @@ def create_MIP_projection(img, filename_gif, mask=None, vmax=1.0, duration=0.1, 
         f = plt.figure(figsize=(10, 10))
         axes = plt.gca()
         plt.imshow(MIP, cmap='Greys', origin='lower', vmax=vmax)
+        del vol_angle
+        del MIP
         if mask is not None:
             vol_angle_mask = scipy.ndimage.interpolation.rotate(mask, angle, reshape=False, axes=(2, 1))
             MIP_mask = np.max(vol_angle_mask, axis=1)
             plt.imshow(MIP_mask, cmap='jet', alpha=0.5, origin='lower')
+            del vol_angle_mask
+            del MIP_mask
         axes.set_axis_off()
         angle_filename = os.path.join(path_gif, 'temp', os.path.basename(filename_gif) + "_" + str(int(angle)) + ".png")
         angle_filenames.append(angle_filename)
@@ -75,7 +86,7 @@ def create_MIP_projection(img, filename_gif, mask=None, vmax=1.0, duration=0.1, 
 
         plt.close()
 
-    create_gif(angle_filenames, duration, path_gif)
+    create_gif(angle_filenames, duration, filename_gif)
 
 #
 # def plot_MIP_pdf(PET_scan, CT_scan, Mask):

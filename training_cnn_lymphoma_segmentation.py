@@ -10,7 +10,6 @@ from deeplearning_models.Unet import CustomUNet3D
 from deeplearning_models.Vnet import VNet
 from deeplearning_models.Layers import prelu
 
-# from deeplearning_tools.loss_functions import Tumoral_DSC, Multiclass_DSC_Loss
 from deeplearning_tools.Loss import vnet_dice_loss
 from deeplearning_tools.Loss import dice_similarity_coefficient as dsc
 
@@ -75,7 +74,7 @@ strategy = tf.distribute.MirroredStrategy()
 
 with strategy.scope():
     # definition of loss, optimizer and metrics
-    loss_object = vnet_dice_loss  # Multiclass_DSC_Loss()
+    loss_object = vnet_dice_loss
 
     optimizer = tf.keras.optimizers.SGD(learning_rate=1e-3, momentum=0.99)
     # optimizer = tf.keras.optimizers.SGD(**opt_params)
