@@ -1,6 +1,9 @@
 import numpy as np
 import SimpleITK as sitk
 
+import os
+import re
+
 
 def resample_img(img,
                  target_direction, new_origin,
@@ -54,3 +57,7 @@ def get_info(img):
     print('\t Size      :', img.GetSize())
     print('\t Spacing   :', img.GetSpacing())
     print('\t Direction :', img.GetDirection())
+
+
+def get_study_uid(img_path):
+    return re.sub('_nifti_(PT|mask|CT)\.nii(\.gz)?', '', os.path.basename(img_path))

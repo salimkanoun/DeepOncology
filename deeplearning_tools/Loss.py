@@ -68,6 +68,10 @@ def dice_loss(y_true, y_pred):
     return 1.0 - dice_similarity_coefficient(y_true, y_pred)
 
 
+def vnet_dice_loss(y_true, y_pred):
+    return 1.0 - vnet_dice(y_true, y_pred)
+
+
 def transform_to_onehot(y_true, y_pred):
     num_classes = y_pred.shape[-1]
 

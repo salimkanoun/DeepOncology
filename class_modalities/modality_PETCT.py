@@ -37,6 +37,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         :param target_voxel_spacing: tuple, resolution of the generated PET, CT or MASK scan : (4.8, 4.8, 4.8)
         :param resize:               bool
         :param normalize:            bool
+        :param origin                str, 'head' or 'middle'
         """
         self.images_paths = images_paths
         self.number_channels = 2  # PET + CT scan

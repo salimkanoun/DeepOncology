@@ -11,7 +11,7 @@ from deeplearning_models.Vnet import VNet
 from deeplearning_models.Layers import prelu
 
 # from deeplearning_tools.loss_functions import Tumoral_DSC, Multiclass_DSC_Loss
-from deeplearning_tools.Loss import CustomLoss
+from deeplearning_tools.Loss import vnet_dice_loss
 from deeplearning_tools.Loss import dice_similarity_coefficient as dsc
 
 import os
@@ -70,18 +70,18 @@ batch_size = config['training']['batch_size']
 shuffle = config['training']['shuffle']
 opt_params = config['training']["optimizer"]["opt_params"]
 
-# definition of loss, optimizer and metrics
-loss_object = CustomLoss()  # Multiclass_DSC_Loss()
-
-optimizer = tf.keras.optimizers.SGD(learning_rate=1e-3, momentum=0.99)
-# optimizer = tf.keras.optimizers.SGD(**opt_params)
-# optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
-
-metrics = [dsc, tf.keras.metrics.BinaryCrossentropy]
-
-
 # multi gpu training strategy
 strategy = tf.distribute.MirroredStrategy()
+
+with strategy.scope():
+    # definition of loss, optimizer and metrics
+    loss_object = vnet_dice_loss  # Multiclass_DSC_Loss()
+
+    optimizer = tf.keras.optimizers.SGD(learning_rate=1e-3, momentum=0.99)
+    # optimizer = tf.keras.optimizers.SGD(**opt_params)
+    # optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
+
+    metrics = [dsc, 'BinaryCrossentropy']
 
 # callbacks
 callbacks = []
@@ -133,12 +133,12 @@ x_train, x_val, x_test, y_train, y_val, y_test = DM.get_train_val_test()
 train_generator = DataGenerator(x_train, y_train,
                                 batch_size=batch_size, shuffle=shuffle, augmentation=data_augment,
                                 target_shape=image_shape, target_voxel_spacing=voxel_spacing,
-                                resize=resize, normalize=normalize)
+                                resize=resize, normalize=normalize, origin=origin)
 
 val_generator = DataGenerator(x_val, y_val,
                               batch_size=batch_size, shuffle=False, augmentation=False,
                               target_shape=image_shape, target_voxel_spacing=voxel_spacing,
-                              resize=resize, normalize=normalize)
+                              resize=resize, normalize=normalize, origin=origin)
 
 # Define model
 if architecture == 'unet':
