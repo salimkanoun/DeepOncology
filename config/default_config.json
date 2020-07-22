@@ -67,8 +67,8 @@
         }
     },
     "training": {
-        "epochs": 100,
-        "batch_size": 1,
+        "epochs": 24,
+        "batch_size": 2,
         "shuffle": true,
         "optimizer": {
             "opt": "SGD",

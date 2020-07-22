@@ -16,7 +16,10 @@ Implemented model :
 
 ### Segmentation of tumour on PET/CT scan
 
-Trained model available: ```/master/deeplearning_models/trained_model_09241142.h5```
+**Results :**
+> V-Net : 
+
+Trained model available: ```No model avaible for now```
 
 <p align="center">
 <img style="display: block; margin: auto;" alt="photo" src="./GIF_example_segmentation.gif">
@@ -24,7 +27,7 @@ Trained model available: ```/master/deeplearning_models/trained_model_09241142.h
 
 
 ### Train model
-- To train V-net, run :
-`python3 training_cnn_lymphoma_segmentation.py` 
+- To train V-net run `python3 training_cnn_lymphoma_segmentation.py` 
+
 
 
