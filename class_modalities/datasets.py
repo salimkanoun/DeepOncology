@@ -28,9 +28,12 @@ class DataManager(object):
             return self.split_train_val_test_split(X, y, random_state=self.seed)
         else:
             df = pd.read_csv(self.csv_path)
+            df = df[df['PET'] == 'pet0']  # select only pet 0 exam
+
             if 'split' not in df.columns:
-                idx = np.arange(df['PATIENT NAME'].nunique())
-                split = np.empty(df['PATIENT NAME'].nunique(), dtype="<U6")
+                key_split = 'PATIENT ID'  # unique id
+                idx = np.arange(df[key_split].nunique())
+                split = np.empty(df[key_split].nunique(), dtype="<U6")
 
                 idx_train, idx_test = train_test_split(idx, test_size=self.test_size, random_state=self.seed)
 
@@ -41,9 +44,9 @@ class DataManager(object):
                 split[idx_val] = 'val'
                 split[idx_test] = 'test'
 
-                df_patient = pd.DataFrame(data={'PATIENT NAME': df['PATIENT NAME'].unique(),
+                df_patient = pd.DataFrame(data={key_split: df[key_split].unique(),
                                                 'split': split})
-                df = df.merge(df_patient, on='PATIENT NAME', how='left')
+                df = df.merge(df_patient, on=key_split, how='left')
 
             df_train = df[df['split'] == 'train']
             df_val = df[df['split'] == 'val']
@@ -57,6 +60,11 @@ class DataManager(object):
 
     @staticmethod
     def wrap_in_dict(df):
+        """
+        :return: {'pet_img': [pet_img0, pet_img1, ...],
+                  'ct_img': [ct_img0, ct_img1, ..],
+                  'mask_img': [mask_img0, mask_img1, ...]}
+        """
         # df.T.to_dict().values()
         return {'pet_img': df['NIFTI_PET'].values,
                 'ct_img': df['NIFTI_CT'].values,
@@ -64,6 +72,11 @@ class DataManager(object):
 
     @staticmethod
     def wrap_in_list_of_dict(df):
+        """
+        :return: [ {'pet_img': pet_img0, 'ct_img': ct_img0, 'mask_img': mask_img0},
+                    {'pet_img': pet_img1, 'ct_img': ct_img1, 'mask_img': mask_img1},
+                    {'pet_img': pet_img2, 'ct_img': ct_img2, 'mask_img': mask_img2}, ...]
+        """
         # retur df[['NIFTI_PET', 'NIFTI_CT', 'NIFTI_MASK']].T.to_dict().values()
         return df[['NIFTI_PET', 'NIFTI_CT', 'NIFTI_MASK']].to_dict('records')
 
