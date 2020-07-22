@@ -4,7 +4,7 @@ import numpy as np
 import os
 import re
 
-from .preprocessing import preprocessor_pet_ct as pp
+from .preprocessing import PreprocessorPETCT as pp
 
 
 class Pipeline(object):

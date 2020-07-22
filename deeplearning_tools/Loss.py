@@ -1,6 +1,13 @@
 import tensorflow as tf
 
 
+def sensitivity(y_true, y_pred):
+    y_pred = tf.math.round(y_pred)
+
+    tp = tf.keras.backend.sum(y_pred * y_true, axis=(1, 2, 3))
+    denominator = tf.keras.backend.sum(y_true, axis=(1, 2, 3))
+    return tf.keras.backend.mean(tp/denominator)
+
 def binary_dice_similarity_coefficient(y_true, y_pred):
     """
     Compute dice score

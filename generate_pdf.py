@@ -80,7 +80,7 @@ for subset_type in ['train', 'val', 'test']:
         # loop on files to get MIP visualisation
         for step, (X, Mask) in enumerate(generator):
             print(step)
-            _, suptitle = ntpath.split(dataset[subset_type]['x'][step][0]) # PET file name
+            _, suptitle = ntpath.split(dataset[subset_type]['x'][step][0])  # PET file name
             PET_scan = X[0, :, :, :, 0]
             CT_scan = X[0, :, :, :, 1]
             Mask = Mask[0]
