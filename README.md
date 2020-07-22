@@ -26,8 +26,16 @@ Trained model available: ```No model avaible for now```
 </p>
 
 
-### Train model
-- To train V-net run `python3 training_cnn_lymphoma_segmentation.py` 
+### Train new model
+- To train V-net :
+> `python3 training_cnn_lymphoma_segmentation.py config/default_config.json` 
+
+### Check data
+- To generate 2D MIP :
+> 'python3 generate_pdf.py'
+
+- To transform raw data to preprocessed numpy array :
+> 'python3 prep_data.py'
 
 
 
