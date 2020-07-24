@@ -2,11 +2,38 @@ import tensorflow as tf
 
 
 def sensitivity(y_true, y_pred):
+    """
+    sensitivity = tp/(tp+fn)
+    """
     y_pred = tf.math.round(y_pred)
 
     tp = tf.keras.backend.sum(y_pred * y_true, axis=(1, 2, 3))
     denominator = tf.keras.backend.sum(y_true, axis=(1, 2, 3))
     return tf.keras.backend.mean(tp/denominator)
+
+
+def specificity(y_true, y_pred):
+    """
+    specifity = tn/(tn+fp)
+    """
+    y_pred = tf.math.round(y_pred)
+    pass
+
+
+def ppv(y_true, y_pred):
+    """
+    Positive Predictive value
+    ppv = tp /(tp +fp)
+    """
+    smooth = 1.0
+
+    y_pred = tf.math.round(y_pred)
+
+    tp = tf.math.reduce_sum(y_true * y_pred, axis=(1, 2, 3, 4))
+    P = tf.math.reduce_sum(y_pred, axis=(1, 2, 3, 4))
+
+    return tf.math.reduce_mean((tp + smooth)/(P + smooth))
+
 
 def binary_dice_similarity_coefficient(y_true, y_pred):
     """
@@ -30,8 +57,8 @@ def dice_similarity_coefficient(y_true, y_pred):
     """
     compute dice score for multi-class prediction
 
-    :param y_true: true label image of shape (batch_size, z, y, x, num_class)
-    :param y_pred: pred label image of shape (batch_size, z, y, x, num_class)
+    :param y_true: true label image of shape (batch_size, z, y, x, num_class) or (batch_size, z, y, x, 1)
+    :param y_pred: pred label image of shape (batch_size, z, y, x, num_class) or (batch_size, z, y, x, 1)
 
     :return: dice score
     """
@@ -59,6 +86,8 @@ def generalized_dice_loss(class_weight):
     def generalized_dice(y_true, y_pred):
         smooth = 0.1
 
+        y_true = tf.cast(y_true, dtype=tf.float32)
+
         numerator = 2.0 * tf.math.reduce_sum(y_true * y_pred, axis=(1, 2, 3))
         denominator = tf.math.reduce_sum(y_true + y_pred, axis=(1, 2, 3))
 
@@ -76,6 +105,8 @@ def tversky_loss(beta):
     """
     def loss(y_true, y_pred):
         smooth = 0.1
+        y_true = tf.cast(y_true, dtype=tf.float32)
+
         numerator = tf.reduce_sum(y_true * y_pred, axis=(1, 2, 3, 4))
         denominator = y_true * y_pred + beta * (1 - y_true) * y_pred + (1 - beta) * y_true * (1 - y_pred)
 
@@ -93,14 +124,50 @@ def FocalLoss(alpha, gamma):
 
 
 def binary_dice_loss(y_true, y_pred):
+    y_true = tf.cast(y_true, dtype=tf.float32)
     return 1.0 - binary_dice_similarity_coefficient(y_true, y_pred)
 
 
 def dice_loss(y_true, y_pred):
+    y_true = tf.cast(y_true, dtype=tf.float32)
     return 1.0 - dice_similarity_coefficient(y_true, y_pred)
 
 
+def custom_loss3D_roche(y_true, y_pred):
+    """
+    https://doi.org/10.1007/s10278-020-00341-1
+    """
+    smooth = 1.0
+
+    y_true = tf.cast(y_true, dtype=tf.float32)
+
+    intersection = tf.math.reduce_sum(y_true * y_pred, axis=(1, 2, 3, 4))
+    P = tf.math.reduce_sum(y_pred, axis=(1, 2, 3, 4))
+    T = tf.math.reduce_sum(y_true, axis=(1, 2, 3, 4))
+
+    dice_coef = (2.0 * intersection + smooth)/( P + T + smooth)
+    sensitivity_coef = (intersection + smooth)/(T + smooth)
+    mean_abs = tf.reduce_sum(tf.math.abs(y_true, y_pred), axis=(1, 2, 3, 4))
+
+    return tf.reduce_sum(mean_abs - dice_coef - sensitivity_coef)
+
+
+def custom_loss_DenseX(y_true, y_pred):
+    """
+    https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8946601
+    """
+    alpha, gamma = 0.9, 3
+
+    y_true = tf.cast(y_true, dtype=tf.float32)
+
+    loss_f = FocalLoss(alpha, gamma)
+    loss_d = vnet_dice_loss(y_true, y_pred)
+
+    return loss_d + loss_f(y_true, y_pred)
+
+
 def vnet_dice_loss(y_true, y_pred):
+    y_true = tf.cast(y_true, dtype=tf.float32)
     return 1.0 - vnet_dice(y_true, y_pred)
 
 
