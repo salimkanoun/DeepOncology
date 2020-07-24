@@ -1,7 +1,7 @@
 {
     "path": {
-        "csv_path": "/media/salim/DD 2To/AHL2011_NIFTI/AHL2011_PET0_NIFTI.csv",
-        "trained_model_path": null,
+        "csv_path": "/home/salim/Documents/DeepOncopole/AHL2011_NIFTI.csv",
+        "trained_model_path": "/media/salim/DD 2To/RUDY_WEIGTH/training/20200723-16:59:26/model_weights.hdf5",
         "training_model_folder": "/media/salim/DD 2To/RUDY_WEIGTH/training"
     },
     "preprocessing": {
@@ -67,8 +67,8 @@
         }
     },
     "training": {
-        "epochs": 100,
-        "batch_size": 2,
+        "epochs": 36,
+        "batch_size": 4,
         "shuffle": true,
         "optimizer": {
             "opt": "SGD",

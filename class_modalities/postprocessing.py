@@ -4,7 +4,7 @@ import numpy as np
 from skimage.measure import label
 
 
-def vol_lymphoma(mask_img) :
+def vol_lymphoma(mask_img):
     spacing = mask_img.GetSpacing()
     vol_spacing = 1.0
     for el in spacing:

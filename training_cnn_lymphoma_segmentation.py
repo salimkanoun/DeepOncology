@@ -76,7 +76,7 @@ with strategy.scope():
     # definition of loss, optimizer and metrics
     loss_object = vnet_dice_loss
 
-    optimizer = tf.keras.optimizers.SGD(learning_rate=1e-3, momentum=0.99)
+    optimizer = tf.keras.optimizers.SGD(learning_rate=1e-3, momentum=0.90)
     # optimizer = tf.keras.optimizers.SGD(**opt_params)
     # optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
 
@@ -154,7 +154,8 @@ with strategy.scope():
     model.compile(loss=loss_object, optimizer=optimizer, metrics=metrics)
 
 if trained_model_path is not None:
-    model.load_weights(trained_model_path)
+    with strategy.scope():
+        model.load_weights(trained_model_path)
 
 print(model.summary())
 
