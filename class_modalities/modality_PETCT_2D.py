@@ -226,12 +226,18 @@ class DataGenerator(object):
                        'ct_img': sitk.sitkFloat32,
                        'mask_img': sitk.sitkUInt8}
         self.default_threshold = 'auto'
+        if augmentation:
+            augment = DataAugmentor(translation=(10, 10, 0), scaling=(0.1, 0.1, 0.0), rotation=(pi/30, pi/30, 0.0),
+                                    default_value={'pet_img': 0.0, 'ct_img': -1000.0, 'mask_img': 0})
+        else:
+            augment = None
+
         self.preprocessor = InputPipeline(target_shape=target_shape,
                                           target_voxel_spacing=target_voxel_spacing,
                                           normalize=True,
-                                          augment=True)
+                                          augment=augment)
 
-    def _genetator(self):
+    def _generator(self):
 
         for img_path in self.images_paths:
             # read images
@@ -248,14 +254,6 @@ class DataGenerator(object):
 
             images = self.preprocessor({'pet_img': pet_img, 'ct_img': ct_img, 'mask_img': mask_img},
                                        threshold=threshold)
-            # output['pet_img'], output['ct_img'], output['mask_img']
-
-            if self.augment:
-                images = self.data_augmentor(images)
-
-            if self.normalize:
-                images['pet_img'] = self.normalize_PET(images['pet_img'])
-                images['ct_img'] = self.normalize_CT(images['ct_img'])
 
             # convert to numpy array
             pet_array = sitk.GetArrayFromImage(images['pet_img'])
@@ -274,11 +272,10 @@ class DataGenerator(object):
                 yield pet_ct_slices, mask_array_slice
 
     def get_dataset(self):
-        return tf.data.Dataset.from_generator(
-            self._genetator,
-            (tf.float32, tf.int8),
-            (tf.TensorShape((list(self.images_shape), list(self.images_shape))))
-        )
+        return tf.data.Dataset.from_generator(self._generator,
+                                              (tf.float32, tf.int8),
+                                              (tf.TensorShape((list(self.images_shape), list(self.images_shape))))
+                                              )
 
     def read_PET(self, filename):
         return sitk.ReadImage(filename, self.dtypes['pet_img'])
@@ -313,27 +310,3 @@ class DataGenerator(object):
             return truncnorm.rvs(a, b, loc=mu, scale=std)
         else:
             return 'auto'
-
-
-    @staticmethod
-    def normalize_PET(pet_img):
-        intensityWindowingFilter = sitk.IntensityWindowingImageFilter()
-        intensityWindowingFilter.SetOutputMaximum(1)
-        intensityWindowingFilter.SetOutputMinimum(0)
-        windowMax = 25
-        windowMin = 0
-        intensityWindowingFilter.SetWindowMaximum(windowMax)
-        intensityWindowingFilter.SetWindowMinimum(windowMin)
-        return intensityWindowingFilter.Execute(pet_img)
-        # return sitk.ShiftScale(pet_img, shift=0.0, scale=1. / 25.0)
-
-    @staticmethod
-    def normalize_CT(ct_img):
-        intensityWindowingFilter = sitk.IntensityWindowingImageFilter()
-        intensityWindowingFilter.SetOutputMaximum(1)
-        intensityWindowingFilter.SetOutputMinimum(0)
-        windowMax = 1024
-        windowMin = -1024
-        intensityWindowingFilter.SetWindowMaximum(windowMax)
-        intensityWindowingFilter.SetWindowMinimum(windowMin)
-        return intensityWindowingFilter.Execute(ct_img)
