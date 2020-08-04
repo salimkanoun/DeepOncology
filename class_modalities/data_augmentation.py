@@ -7,7 +7,7 @@ from math import pi
 
 class DataAugmentor(object):
 
-    def __init__(self, translation=10, scaling=0.1, rotation=pi/30,
+    def __init__(self, translation=10, scaling=0.1, rotation=(0.0, pi/30, 0.0),
                  default_value=None, interpolator=None):
 
         if interpolator is None:
@@ -18,7 +18,7 @@ class DataAugmentor(object):
 
         self.translation = translation if isinstance(translation, tuple) else (translation, translation, translation)
         self.scaling = scaling if isinstance(scaling, tuple) else (scaling, scaling, scaling)
-        self.rotation = rotation
+        self.rotation = rotation if isinstance(rotation, tuple) else (rotation, rotation, rotation)
 
         self.default_value = default_value
         self.interpolator = interpolator
@@ -57,9 +57,11 @@ class DataAugmentor(object):
             deformation['scaling'] = (1.0, 1.0, 1.0)
 
         if self.generate_random_bool(0.8):
-            deformation['rotation'] = random.uniform(-1.0*self.rotation, self.rotation)
+            deformation['rotation'] = (random.uniform(-1.0 * self.rotation[0], self.rotation[0]),
+                                       random.uniform(-1.0 * self.rotation[1], self.rotation[1]),
+                                       random.uniform(-1.0 * self.rotation[2], self.rotation[2]))
         else:
-            deformation['rotation'] = 0.0
+            deformation['rotation'] = (0.0, 0.0, 0.0)
 
         return deformation
 
@@ -81,7 +83,9 @@ class DataAugmentor(object):
         transformation = sitk.AffineTransform(3)
         transformation.SetCenter(center)
         transformation.Scale(deformations['scaling'])
-        transformation.Rotate(axis1=0, axis2=2, angle=deformations['rotation'])
+        transformation.Rotate(axis1=1, axis2=2, angle=deformations['rotation'][0])
+        transformation.Rotate(axis1=0, axis2=2, angle=deformations['rotation'][1])
+        transformation.Rotate(axis1=0, axis2=1, angle=deformations['rotation'][2])
         transformation.Translate(deformations['translation'])
         reference_image = image
 

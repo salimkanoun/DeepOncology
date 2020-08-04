@@ -117,7 +117,7 @@ class InputPipeline(object):
         new_origin = self.compute_new_origin_head2hip(inputs_img['pet_img'])
         z_size, z_spacing = inputs_img['pet_img'].GetSize()[2], inputs_img['pet_img'].GetSpacing()[2]
         height = min(z_size * z_spacing, 1228.8)  # 256*4.8 = 1228.8 mm
-        target_shape = (self.target_shape[0], self.target_shape[1], height/self.target_voxel_spacing[2])
+        target_shape = (self.target_shape[0], self.target_shape[1], int(height/self.target_voxel_spacing[2]))
 
         # apply transformation : resample and reshape
         resampled_img = dict()

@@ -8,13 +8,12 @@ from sklearn.model_selection import train_test_split
 
 class DataManager(object):
 
-    def __init__(self, base_path=None, csv_path=None, wrap_with_dict=False):
+    def __init__(self, base_path=None, csv_path=None):
         self.base_path = base_path
         self.csv_path = csv_path
         self.seed = 42  # random state
         self.test_size = 0.15
         self.val_size = 0.15
-        self.wrap = wrap_with_dict
 
     def get_data(self):
 
@@ -23,7 +22,7 @@ class DataManager(object):
         MASK_ids = np.sort(glob.glob(os.path.join(self.base_path, '*_nifti_mask.nii')))
         return list(zip(PET_ids, CT_ids)), MASK_ids
 
-    def get_train_val_test(self):
+    def get_train_val_test(self, wrap_with_dict=False):
         if self.csv_path is None:
             X, y = self.get_data()
             return self.split_train_val_test_split(X, y, random_state=self.seed)
@@ -53,7 +52,7 @@ class DataManager(object):
             df_val = df[df['split'] == 'val']
             df_test = df[df['split'] == 'test']
 
-            if self.wrap:
+            if wrap_with_dict:
                 return self.wrap_in_list_of_dict(df_train), self.wrap_in_list_of_dict(df_val), self.wrap_in_list_of_dict(df_test)
             else:
                 X_train, y_train = list(zip(df_train['NIFTI_PET'].values, df_train['NIFTI_CT'].values)), df_train['NIFTI_MASK'].values
@@ -81,8 +80,9 @@ class DataManager(object):
                     {'pet_img': pet_img1, 'ct_img': ct_img1, 'mask_img': mask_img1},
                     {'pet_img': pet_img2, 'ct_img': ct_img2, 'mask_img': mask_img2}, ...]
         """
-        # retur df[['NIFTI_PET', 'NIFTI_CT', 'NIFTI_MASK']].T.to_dict().values()
-        return df[['NIFTI_PET', 'NIFTI_CT', 'NIFTI_MASK']].to_dict('records')
+        # return df[['NIFTI_PET', 'NIFTI_CT', 'NIFTI_MASK']].T.to_dict().values()
+        mapper = {'NIFTI_PET': 'pet_img', 'NIFTI_CT': 'ct_img', 'NIFTI_MASK': 'mask_img'}
+        return df[['NIFTI_PET', 'NIFTI_CT', 'NIFTI_MASK']].rename(columns=mapper).to_dict('records')
 
     @staticmethod
     def split_train_val_test_split(X, y, test_size=0.15, val_size=0.15, random_state=42):
