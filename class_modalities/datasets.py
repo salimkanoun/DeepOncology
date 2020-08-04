@@ -8,12 +8,13 @@ from sklearn.model_selection import train_test_split
 
 class DataManager(object):
 
-    def __init__(self, base_path=None, csv_path=None):
+    def __init__(self, base_path=None, csv_path=None, wrap_with_dict=False):
         self.base_path = base_path
         self.csv_path = csv_path
         self.seed = 42  # random state
         self.test_size = 0.15
         self.val_size = 0.15
+        self.wrap = wrap_with_dict
 
     def get_data(self):
 
@@ -52,11 +53,14 @@ class DataManager(object):
             df_val = df[df['split'] == 'val']
             df_test = df[df['split'] == 'test']
 
-            X_train, y_train = list(zip(df_train['NIFTI_PET'].values, df_train['NIFTI_CT'].values)), df_train['NIFTI_MASK'].values
-            X_val, y_val = list(zip(df_val['NIFTI_PET'].values, df_val['NIFTI_CT'].values)), df_val['NIFTI_MASK'].values
-            X_test, y_test = list(zip(df_test['NIFTI_PET'].values, df_test['NIFTI_CT'].values)), df_test['NIFTI_MASK'].values
+            if self.wrap:
+                return self.wrap_in_list_of_dict(df_train), self.wrap_in_list_of_dict(df_val), self.wrap_in_list_of_dict(df_test)
+            else:
+                X_train, y_train = list(zip(df_train['NIFTI_PET'].values, df_train['NIFTI_CT'].values)), df_train['NIFTI_MASK'].values
+                X_val, y_val = list(zip(df_val['NIFTI_PET'].values, df_val['NIFTI_CT'].values)), df_val['NIFTI_MASK'].values
+                X_test, y_test = list(zip(df_test['NIFTI_PET'].values, df_test['NIFTI_CT'].values)), df_test['NIFTI_MASK'].values
 
-            return X_train, X_val, X_test, y_train, y_val, y_test
+                return X_train, X_val, X_test, y_train, y_val, y_test
 
     @staticmethod
     def wrap_in_dict(df):

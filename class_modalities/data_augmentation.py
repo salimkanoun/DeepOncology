@@ -7,14 +7,21 @@ from math import pi
 
 class DataAugmentor(object):
 
-    def __init__(self, translation=10, scaling=0.1, rotation=pi/30):
+    def __init__(self, translation=10, scaling=0.1, rotation=pi/30,
+                 default_value=None, interpolator=None):
+
+        if interpolator is None:
+            interpolator = {'pet_img': sitk.sitkBSpline, 'ct_img': sitk.sitkBSpline,
+                            'mask_img': sitk.sitkNearestNeighbor}
+        if default_value is None:
+            default_value = {'pet_img': 0.0, 'ct_img': 0.0, 'mask_img': 0}
 
         self.translation = translation if isinstance(translation, tuple) else (translation, translation, translation)
         self.scaling = scaling if isinstance(scaling, tuple) else (scaling, scaling, scaling)
         self.rotation = rotation
 
-        self.default_value = {'pet_img': 0.0, 'ct_img': 0.0, 'mask_img': 0}
-        self.interpolator = {'pet_img': sitk.sitkBSpline, 'ct_img': sitk.sitkBSpline, 'mask_img': sitk.sitkNearestNeighbor}
+        self.default_value = default_value
+        self.interpolator = interpolator
 
     def __call__(self, inputs):
         pet_img, ct_img, mask_img = inputs['pet_img'], inputs['ct_img'], inputs['mask_img']
@@ -36,9 +43,9 @@ class DataAugmentor(object):
 
         deformation = dict()
         if self.generate_random_bool(0.8):
-            deformation['translation'] = (random.uniform(-1.0*self.translation[0], self.translation[0]),
-                                          random.uniform(-1.0*self.translation[1], self.translation[1]),
-                                          random.uniform(-1.0*self.translation[2], self.translation[2]))
+            deformation['translation'] = (random.uniform(-1.0 * self.translation[0], self.translation[0]),
+                                          random.uniform(-1.0 * self.translation[1], self.translation[1]),
+                                          random.uniform(-1.0 * self.translation[2], self.translation[2]))
         else:
             deformation['translation'] = (0, 0, 0)
 

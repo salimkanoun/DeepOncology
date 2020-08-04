@@ -1,0 +1,48 @@
+{
+    "path": {
+        "csv_path": "/media/salim/DD 2To/AHL2011_NIFTI/AHL2011_PET0_NIFTI.csv",
+        "trained_model_path": null,
+        "training_model_folder": "/media/salim/DD 2To/RUDY_WEIGTH/training"
+    },
+    "preprocessing": {
+        "image_shape": [
+            -1,
+            256,
+            256
+        ],
+        "number_channels": 2,
+        "voxel_spacing": [
+            4.0,
+            2.4,
+            2.4
+        ],
+        "data_augment": true,
+        "resize": true,
+        "normalize": true,
+        "number_class": 2
+    },
+    "model": {
+        "architecture": "densexnet",
+        "densexnet": {
+            "cnn_params": {
+                "num_levels": 5,
+                "kernel_size": 3,
+                "filters_block": 8,
+                "num_conv_block": 8,
+                "activation_fn": "relu"
+        }
+    },
+    "training": {
+        "epochs": 100,
+        "batch_size": 8,
+        "shuffle": true
+        },
+        "callbacks": {
+            "patience": 30,
+            "ReduceLROnPlateau": true,
+            "EarlyStopping": true,
+            "ModelCheckpoint": true,
+            "TensorBoard": true
+        }
+    }
+}
