@@ -120,14 +120,14 @@ train_generator = DataGenerator(train_images_paths,
                                 shuffle=shuffle,
                                 augmentation=data_augment,
                                 target_shape=image_shape,
-                                target_voxel_spacing=voxel_spacing).get_dataset()
+                                target_voxel_spacing=voxel_spacing)
 
 val_generator = DataGenerator(val_images_paths,
                               batch_size=batch_size,
                               shuffle=False,
                               augmentation=False,
                               target_shape=image_shape,
-                              target_voxel_spacing=voxel_spacing).get_dataset()
+                              target_voxel_spacing=voxel_spacing)
 
 # Define model
 with strategy.scope():
@@ -149,12 +149,14 @@ with open(os.path.join(training_model_folder, 'architecture_model_{}.h5'.format(
     json_file.write(model_json)
 
 # training model
-history = model.fit(train_generator,
-                    validation_data=val_generator,
-                    epochs=epochs,
-                    callbacks=callbacks,
-                    verbose=1
-                    )
+history = model.fit_generator(generator=train_generator,
+                              validation_data=val_generator,
+                              epochs=epochs,
+                              steps_per_epoch=len(train_generator),
+                              validation_steps=len(val_generator),
+                              callbacks=callbacks,
+                              verbose=1
+                              )
 
 # whole model saving
 model.save(os.path.join(training_model_folder, 'trained_model_{}.h5'.format(now)))
