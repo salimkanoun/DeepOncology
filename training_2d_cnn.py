@@ -53,17 +53,11 @@ cnn_params = config['model'][architecture]['cnn_params']
 for key, value in cnn_params.items():
     if isinstance(value, list):
         cnn_params[key] = tuple(value)
-# get activation layer from name
-if cnn_params["activation"] == 'prelu':
-    cnn_params["activation"] = prelu
-else:
-    cnn_params["activation"] = tf.keras.activations.get(cnn_params["activation"])
 
 # Training params
 epochs = config['training']['epochs']
 batch_size = config['training']['batch_size']
 shuffle = config['training']['shuffle']
-opt_params = config['training']["optimizer"]["opt_params"]
 
 # multi gpu training strategy
 strategy = tf.distribute.MirroredStrategy()
@@ -73,7 +67,8 @@ with strategy.scope():
     loss_object = densexnet_loss
 
     optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
-    metrics = [metric_dice, 'BinaryCrossentropy', 'recall', 'precision']
+    metrics = [metric_dice, 'BinaryCrossentropy', 'Recall', 'Precision']
+    # tf.keras.metrics.Recall(),
 
 # callbacks
 callbacks = []

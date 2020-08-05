@@ -32,13 +32,13 @@
                 "filters_block": 8,
                 "num_conv_block": 8,
                 "activation_fn": "relu"
+            }
         }
     },
     "training": {
         "epochs": 100,
         "batch_size": 64,
-        "shuffle": true
-        },
+        "shuffle": true,
         "callbacks": {
             "patience": 30,
             "ReduceLROnPlateau": false,

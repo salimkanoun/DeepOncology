@@ -8,7 +8,7 @@ def metric_dice(y_true, y_pred):
 
 def dice_similarity_coefficient(y_true, y_pred):
     smooth = 1.0
-    axis = tuple(range(1, len(y_pred.shape)))  # all axis except first
+    axis = (1, 2, 3)  # tuple(range(1, len(y_pred.shape)))  # all axis except first
 
     numerator = 2.0 * tf.math.reduce_sum(y_true * y_pred, axis=axis)
     denominator = tf.math.reduce_sum(y_true + y_pred, axis=axis)
@@ -21,7 +21,7 @@ def vnet_dice(y_true, y_pred):
     https://arxiv.org/abs/1606.04797
     """
     smooth = 1.0
-    axis = tuple(range(1, len(y_pred.shape)))  # all axis except first
+    axis = (1, 2, 3)  # tuple(range(1, len(y_pred.shape)))  # all axis except first
 
     numerator = 2.0 * tf.math.reduce_sum(y_true * y_pred, axis=axis)
     denominator = tf.math.reduce_sum(tf.math.square(y_true) + tf.math.square(y_pred), axis=axis)

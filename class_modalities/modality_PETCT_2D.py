@@ -190,7 +190,7 @@ class InputPipeline(object):
         return new_mask
 
 
-class DataGenerator(object):
+class DataGenerator(tf.keras.utils.Sequence):
     """
     Read, preprocess and flow the PET scan, CT scan and mask
 
@@ -222,6 +222,8 @@ class DataGenerator(object):
         self.shuffle = shuffle
         self.augment = augmentation
 
+        self.on_epoch_end()
+
         self.dtypes = {'pet_img': sitk.sitkFloat32,
                        'ct_img': sitk.sitkFloat32,
                        'mask_img': sitk.sitkUInt8}
@@ -237,50 +239,67 @@ class DataGenerator(object):
                                           normalize=normalize,
                                           augment=augment)
 
-    def _generator(self):
+    def __len__(self):
+        """
+        :return: int, the number of batches per epoch
+        """
+        return int(np.floor(len(self.images_paths)))
 
-        for img_path in self.images_paths:
-            # read images
-            pet_path, ct_path, mask_path = img_path['pet_img'], img_path['ct_img'], img_path['mask_img']
-
-            pet_img = self.read_PET(pet_path)
-            ct_img = self.read_CT(ct_path)
-            mask_img = self.read_MASK(mask_path)
-
-            if self.augment:
-                threshold = self.generate_random_threshold()
-            else:
-                threshold = self.default_threshold
-
-            images = self.preprocessor({'pet_img': pet_img, 'ct_img': ct_img, 'mask_img': mask_img},
-                                       threshold=threshold)
-
-            # convert to numpy array
-            pet_array = sitk.GetArrayFromImage(images['pet_img'])
-            ct_array = sitk.GetArrayFromImage(images['ct_img'])
-            mask_array = sitk.GetArrayFromImage(images['mask_img'])
-
-            n_slice = self.number_channels//2
-            for i in range(0, pet_array.shape[0] - n_slice):
-                # select slices
-                pet_ct_slices = np.vstack((pet_array[i:i + n_slice], ct_array[i:i + n_slice]))
-                pet_ct_slices = np.transpose(pet_ct_slices, (1, 2, 0))
-                mask_array_slice = mask_array[i + n_slice//2]
-
-                # add one channel
-                mask_array_slice = np.expand_dims(mask_array_slice, axis=-1)
-
-                yield pet_ct_slices, mask_array_slice
-
-    def get_dataset(self):
-        buffer_size = 100
-
-        dataset = tf.data.Dataset.from_generator(self._generator,
-                                              (tf.float32, tf.int8))
+    def on_epoch_end(self):
+        """Updates indexes after each epoch"""
+        self.indexes = np.arange(len(self.images_paths))
         if self.shuffle:
-            dataset = dataset.shuffle(buffer_size)
+            np.random.shuffle(self.indexes)
 
-        return dataset.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+    def __getitem__(self, index):
+        """
+        Generate one batch of data
+        :param index: int, position of the batch in the Sequence
+        :return: tuple of numpy array, (X_batch, Y_batch) of shape (batch_size, ...)
+        """
+
+        # select indices of data for next batch
+        indexes = self.indexes[index * self.batch_size: (index + 1) * self.batch_size]
+        img_path = self.images_paths[self.indexes[index]]
+
+        # prepare the batch
+        X_batch = []
+        Y_batch = []
+
+        # read images
+        pet_path, ct_path, mask_path = img_path['pet_img'], img_path['ct_img'], img_path['mask_img']
+
+        pet_img = self.read_PET(pet_path)
+        ct_img = self.read_CT(ct_path)
+        mask_img = self.read_MASK(mask_path)
+
+        if self.augment:
+            threshold = self.generate_random_threshold()
+        else:
+            threshold = self.default_threshold
+
+        images = self.preprocessor({'pet_img': pet_img, 'ct_img': ct_img, 'mask_img': mask_img},
+                                   threshold=threshold)
+
+        # convert to numpy array
+        pet_array = sitk.GetArrayFromImage(images['pet_img'])
+        ct_array = sitk.GetArrayFromImage(images['ct_img'])
+        mask_array = sitk.GetArrayFromImage(images['mask_img'])
+
+        n_slice = self.number_channels // 2
+        for i in random.sample(range(0, pet_array.shape[0] - n_slice), self.batch_size):
+            # select slices
+            pet_ct_slices = np.vstack((pet_array[i:i + n_slice], ct_array[i:i + n_slice]))
+            pet_ct_slices = np.transpose(pet_ct_slices, (1, 2, 0))
+            mask_array_slice = mask_array[i + n_slice // 2]
+
+            # add one channel
+            mask_array_slice = np.expand_dims(mask_array_slice, axis=-1)
+
+            X_batch.append(pet_ct_slices)
+            Y_batch.append(mask_array_slice)
+
+        return np.array(X_batch), np.array(Y_batch)
 
     def read_PET(self, filename):
         return sitk.ReadImage(filename, self.dtypes['pet_img'])
@@ -315,3 +334,130 @@ class DataGenerator(object):
             return truncnorm.rvs(a, b, loc=mu, scale=std)
         else:
             return 'auto'
+
+#
+# class DataGenerator(object):
+#     """
+#     Read, preprocess and flow the PET scan, CT scan and mask
+#
+#     """
+#
+#     def __init__(self,
+#                  images_paths,
+#                  target_shape=None,
+#                  target_voxel_spacing=None,
+#                  augmentation=False,
+#                  normalize=True,
+#                  batch_size=1,
+#                  shuffle=True):
+#         """
+#         :param images_paths:         list of tuple : [{'pet_img': pet_path, 'ct_img': ct_path, 'mask_img': mask_path}, ...]
+#         :param batch_size:           int
+#         :param shuffle:              bool
+#         :param augmentation:         bool
+#         :param target_shape:         tuple, shape of generated PET, CT or MASK scan: (z, y, x) (368, 128, 128) for ex.
+#         :param target_voxel_spacing: tuple, resolution of the generated PET, CT or MASK scan : (z, y, x) (4.8, 4.8, 4.8) for ex.
+#
+#         """
+#         self.images_paths = images_paths
+#         self.number_channels = 6  # PET + CT scan
+#
+#         # self.images_shape = tuple(list(target_shape[1:]) + [self.number_channels])
+#
+#         self.batch_size = batch_size
+#         self.shuffle = shuffle
+#         self.augment = augmentation
+#
+#         self.dtypes = {'pet_img': sitk.sitkFloat32,
+#                        'ct_img': sitk.sitkFloat32,
+#                        'mask_img': sitk.sitkUInt8}
+#         self.default_threshold = 'auto'
+#         if augmentation:
+#             augment = DataAugmentor(translation=(10, 10, 0), scaling=(0.1, 0.1, 0.0), rotation=(pi/30, pi/30, 0.0),
+#                                     default_value={'pet_img': 0.0, 'ct_img': -1000.0, 'mask_img': 0})
+#         else:
+#             augment = None
+#
+#         self.preprocessor = InputPipeline(target_shape=target_shape,
+#                                           target_voxel_spacing=target_voxel_spacing,
+#                                           normalize=normalize,
+#                                           augment=augment)
+#
+#     def _generator(self):
+#
+#         for img_path in self.images_paths:
+#             # read images
+#             pet_path, ct_path, mask_path = img_path['pet_img'], img_path['ct_img'], img_path['mask_img']
+#
+#             pet_img = self.read_PET(pet_path)
+#             ct_img = self.read_CT(ct_path)
+#             mask_img = self.read_MASK(mask_path)
+#
+#             if self.augment:
+#                 threshold = self.generate_random_threshold()
+#             else:
+#                 threshold = self.default_threshold
+#
+#             images = self.preprocessor({'pet_img': pet_img, 'ct_img': ct_img, 'mask_img': mask_img},
+#                                        threshold=threshold)
+#
+#             # convert to numpy array
+#             pet_array = sitk.GetArrayFromImage(images['pet_img'])
+#             ct_array = sitk.GetArrayFromImage(images['ct_img'])
+#             mask_array = sitk.GetArrayFromImage(images['mask_img'])
+#
+#             n_slice = self.number_channels//2
+#             for i in range(0, pet_array.shape[0] - n_slice):
+#                 # select slices
+#                 pet_ct_slices = np.vstack((pet_array[i:i + n_slice], ct_array[i:i + n_slice]))
+#                 pet_ct_slices = np.transpose(pet_ct_slices, (1, 2, 0))
+#                 mask_array_slice = mask_array[i + n_slice//2]
+#
+#                 # add one channel
+#                 mask_array_slice = np.expand_dims(mask_array_slice, axis=-1)
+#
+#                 yield pet_ct_slices, mask_array_slice
+#
+#     def get_dataset(self):
+#         buffer_size = 100
+#
+#         dataset = tf.data.Dataset.from_generator(self._generator,
+#                                               (tf.float32, tf.int8))
+#         if self.shuffle:
+#             dataset = dataset.shuffle(buffer_size)
+#
+#         return dataset.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+#
+#     def read_PET(self, filename):
+#         return sitk.ReadImage(filename, self.dtypes['pet_img'])
+#
+#     def read_CT(self, filename):
+#         return sitk.ReadImage(filename, self.dtypes['ct_img'])
+#
+#     def read_MASK(self, filename):
+#         return sitk.ReadImage(filename, self.dtypes['mask_img'])
+#
+#     def save_img(self, img, filename):
+#         """
+#         :param img: image, simple itk image
+#         :param filename: path/to/file.nii, where to save the image
+#         """
+#         sitk.WriteImage(img, filename)
+#
+#     @staticmethod
+#     def generate_random_bool(p):
+#         """
+#         :param p : float between 0-1, probability
+#         :return: True if a probobility of p
+#         """
+#         return random.random() < p
+#
+#     def generate_random_threshold(self):
+#         if self.generate_random_bool(0.5):
+#             lower, upper = 2.5, 4.0
+#             mu, std = 3.0, 0.5
+#
+#             a, b = (lower - mu) / std, (upper - mu) / std
+#             return truncnorm.rvs(a, b, loc=mu, scale=std)
+#         else:
+#             return 'auto'
