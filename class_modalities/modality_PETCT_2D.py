@@ -6,7 +6,6 @@ import SimpleITK as sitk
 from scipy.stats import truncnorm
 import random
 
-from .preprocessing import PreprocessorPETCT
 from .data_augmentation import DataAugmentor
 from math import pi
 
@@ -103,7 +102,7 @@ class InputPipeline(object):
         pet_size = pet_img.GetSize()
         pet_spacing = pet_img.GetSpacing()
         pet_origin = pet_img.GetOrigin()
-        height = min(pet_size[2] * pet_spacing[2], 1228.8)  # 256*4.8 = 1228.8 mm
+        height = min(pet_size[2] * pet_spacing[2], self.target_shape[0] * self.target_voxel_spacing[0])  # 256*4.8 = 1228.8 mm
         new_origin = (pet_origin[0] + 0.5 * pet_size[0] * pet_spacing[0] - 0.5 * new_shape[0] * new_spacing[0],
                       pet_origin[1] + 0.5 * pet_size[1] * pet_spacing[1] - 0.5 * new_shape[1] * new_spacing[1],
                       pet_origin[2] + 1.0 * pet_size[2] * pet_spacing[2] - 1.0 * height)
@@ -116,7 +115,7 @@ class InputPipeline(object):
         # compute transformation parameters
         new_origin = self.compute_new_origin_head2hip(inputs_img['pet_img'])
         z_size, z_spacing = inputs_img['pet_img'].GetSize()[2], inputs_img['pet_img'].GetSpacing()[2]
-        height = min(z_size * z_spacing, 1228.8)  # 256*4.8 = 1228.8 mm
+        height = min(z_size * z_spacing, self.target_shape[0] * self.target_voxel_spacing[0])  # 256*4.8 = 1228.8 mm
         target_shape = (self.target_shape[0], self.target_shape[1], int(height/self.target_voxel_spacing[2]))
 
         # apply transformation : resample and reshape
@@ -199,13 +198,14 @@ class DataGenerator(object):
 
     def __init__(self,
                  images_paths,
-                 batch_size=1,
-                 shuffle=True,
-                 augmentation=False,
                  target_shape=None,
-                 target_voxel_spacing=None):
+                 target_voxel_spacing=None,
+                 augmentation=False,
+                 normalize=True,
+                 batch_size=1,
+                 shuffle=True):
         """
-        :param images_paths:         list of tuple : [({'pet_img': pet_path, 'ct_img': ct_path, 'mask_img': mask_path), ...]
+        :param images_paths:         list of tuple : [{'pet_img': pet_path, 'ct_img': ct_path, 'mask_img': mask_path}, ...]
         :param batch_size:           int
         :param shuffle:              bool
         :param augmentation:         bool
@@ -216,7 +216,7 @@ class DataGenerator(object):
         self.images_paths = images_paths
         self.number_channels = 6  # PET + CT scan
 
-        self.images_shape = target_shape[1:]  # 2D target shape
+        # self.images_shape = tuple(list(target_shape[1:]) + [self.number_channels])
 
         self.batch_size = batch_size
         self.shuffle = shuffle
@@ -234,7 +234,7 @@ class DataGenerator(object):
 
         self.preprocessor = InputPipeline(target_shape=target_shape,
                                           target_voxel_spacing=target_voxel_spacing,
-                                          normalize=True,
+                                          normalize=normalize,
                                           augment=augment)
 
     def _generator(self):
@@ -263,7 +263,8 @@ class DataGenerator(object):
             n_slice = self.number_channels//2
             for i in range(0, pet_array.shape[0] - n_slice):
                 # select slices
-                pet_ct_slices = np.stack((pet_array[i:i + n_slice], ct_array[i:i + n_slice]), axis=-1)
+                pet_ct_slices = np.vstack((pet_array[i:i + n_slice], ct_array[i:i + n_slice]))
+                pet_ct_slices = np.transpose(pet_ct_slices, (1, 2, 0))
                 mask_array_slice = mask_array[i + n_slice//2]
 
                 # add one channel
@@ -272,10 +273,14 @@ class DataGenerator(object):
                 yield pet_ct_slices, mask_array_slice
 
     def get_dataset(self):
-        return tf.data.Dataset.from_generator(self._generator,
-                                              (tf.float32, tf.int8),
-                                              (tf.TensorShape((list(self.images_shape), list(self.images_shape))))
-                                              )
+        buffer_size = 100
+
+        dataset = tf.data.Dataset.from_generator(self._generator,
+                                              (tf.float32, tf.int8))
+        if self.shuffle:
+            dataset = dataset.shuffle(buffer_size)
+
+        return dataset.batch(self.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
 
     def read_PET(self, filename):
         return sitk.ReadImage(filename, self.dtypes['pet_img'])

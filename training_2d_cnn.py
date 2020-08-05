@@ -2,7 +2,7 @@ import sys
 import json
 
 from class_modalities.datasets import DataManager
-from class_modalities.modality_PETCT import DataGenerator
+from class_modalities.modality_PETCT_2D import DataGenerator
 
 import tensorflow as tf
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping, TensorBoard
@@ -38,16 +38,15 @@ if not os.path.exists(logdir):
     os.makedirs(logdir)
 
 # PET CT scan params
-image_shape = tuple(config['preprocessing']['image_shape'])  # (128, 64, 64)  # (368, 128, 128)  # (z, y, x)
-in_channels, out_channels = 6, 1
+image_shape = tuple(config['preprocessing']['image_shape'])  # (300, 128, 128)  # (z, y, x)
+in_channels, out_channels = config['model']['in_channels'], config['model']['out_channels']  # 6, 1
 voxel_spacing = tuple(config['preprocessing']['voxel_spacing'])  # (4.8, 4.8, 4.8)  # in millimeter, (z, y, x)
 data_augment = config['preprocessing']['data_augment']  # True  # for training dataset only
 resize = config['preprocessing']['resize']  # True  # not use yet
-# origin = config['preprocessing']['origin']  # how to set the new origin
 normalize = config['preprocessing']['normalize']  # True  # whether or not to normalize the inputs
 
 # CNN params
-architecture = config['model']['architecture']  
+architecture = config['model']['architecture']
 
 cnn_params = config['model'][architecture]['cnn_params']
 # transform list to tuple
@@ -80,7 +79,6 @@ with strategy.scope():
 callbacks = []
 if 'callbacks' in config['training']:
     if config['training']['callbacks'].get('ReduceLROnPlateau', False):
-
         # reduces learning rate if no improvement are seen
         learning_rate_reduction = ReduceLROnPlateau(monitor='val_loss',
                                                     patience=config['training']['callbacks']['patience'],
@@ -99,7 +97,8 @@ if 'callbacks' in config['training']:
 
     if config['training']['callbacks'].get('ModelCheckpoint', False):
         # saves model weights to file
-        checkpoint = ModelCheckpoint(os.path.join(training_model_folder, 'model_weights.hdf5'),  # 'model_weights.{epoch:02d}-{val_loss:.2f}.hdf5'
+        checkpoint = ModelCheckpoint(os.path.join(training_model_folder, 'model_weights.hdf5'),
+                                     # 'model_weights.{epoch:02d}-{val_loss:.2f}.hdf5'
                                      monitor='val_loss',
                                      verbose=1,
                                      save_best_only=True,
@@ -118,22 +117,26 @@ if 'callbacks' in config['training']:
 
 # Get Data
 DM = DataManager(csv_path=csv_path)
-x_train, x_val, x_test, y_train, y_val, y_test = DM.get_train_val_test()
+train_images_paths, val_images_paths, test_images_paths = DM.get_train_val_test(wrap_with_dict=True)
 
 # Define generator
-train_generator = DataGenerator(x_train, y_train,
-                                batch_size=batch_size, shuffle=shuffle, augmentation=data_augment,
-                                target_shape=image_shape, target_voxel_spacing=voxel_spacing,
-                                resize=resize, normalize=normalize, origin=origin)
+train_generator = DataGenerator(train_images_paths,
+                                batch_size=batch_size,
+                                shuffle=shuffle,
+                                augmentation=data_augment,
+                                target_shape=image_shape,
+                                target_voxel_spacing=voxel_spacing).get_dataset()
 
-val_generator = DataGenerator(x_val, y_val,
-                              batch_size=batch_size, shuffle=False, augmentation=False,
-                              target_shape=image_shape, target_voxel_spacing=voxel_spacing,
-                              resize=resize, normalize=normalize, origin=origin)
+val_generator = DataGenerator(val_images_paths,
+                              batch_size=batch_size,
+                              shuffle=False,
+                              augmentation=False,
+                              target_shape=image_shape,
+                              target_voxel_spacing=voxel_spacing).get_dataset()
 
 # Define model
 with strategy.scope():
-    model = cnn(image_shape, in_channels, out_channels,  **cnn_params).create_model()
+    model = cnn(image_shape[1:], in_channels, out_channels, **cnn_params).create_model()
     model.compile(loss=loss_object, optimizer=optimizer, metrics=metrics)
 
     if trained_model_path is not None:
@@ -151,14 +154,12 @@ with open(os.path.join(training_model_folder, 'architecture_model_{}.h5'.format(
     json_file.write(model_json)
 
 # training model
-history = model.fit_generator(generator=train_generator,
-                              validation_data=val_generator,
-                              epochs=epochs,
-                              steps_per_epoch=len(train_generator),
-                              validation_steps=len(val_generator),
-                              callbacks=callbacks,
-                              verbose=1
-                              )
+history = model.fit(train_generator,
+                    validation_data=val_generator,
+                    epochs=epochs,
+                    callbacks=callbacks,
+                    verbose=1
+                    )
 
 # whole model saving
 model.save(os.path.join(training_model_folder, 'trained_model_{}.h5'.format(now)))
