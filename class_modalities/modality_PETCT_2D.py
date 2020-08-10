@@ -259,7 +259,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         """
 
         # select indices of data for next batch
-        indexes = self.indexes[index * self.batch_size: (index + 1) * self.batch_size]
+        # indexes = self.indexes[index * self.batch_size: (index + 1) * self.batch_size]
         img_path = self.images_paths[self.indexes[index]]
 
         # prepare the batch

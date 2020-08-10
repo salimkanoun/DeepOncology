@@ -1,4 +1,5 @@
 import tensorflow as tf
+import tensorflow_addons as tfa
 
 
 def metric_dice(y_true, y_pred):
@@ -34,10 +35,11 @@ def focal_loss(alpha, gamma):
     https://www.tensorflow.org/addons/api_docs/python/tfa/losses/SigmoidFocalCrossEntropy
     https://arxiv.org/pdf/1708.02002.pdf
     """
-    return tf.keras.losses.SigmoidFocalCrossEntropy(alpha=alpha, gamma=gamma)
+    return tfa.losses.SigmoidFocalCrossEntropy(alpha=alpha, gamma=gamma)
 
 
 def densexnet_loss(y_true, y_pred):
     alpha, gamma = 0.9, 3
+    y_true = tf.cast(y_true, dtype=tf.float32)
     return focal_loss(alpha, gamma)(y_true, y_pred) - vnet_dice(y_true, y_pred)
 
