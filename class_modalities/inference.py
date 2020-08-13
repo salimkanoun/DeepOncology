@@ -78,7 +78,7 @@ class Pipeline(object):
 
         # transform numpy array to simple itk image / nifti format
         mask_img = sitk.GetImageFromArray(mask_array)
-        mask_img.SetOrigin(pp.compute_new_Origin(pet_img))
+        mask_img.SetOrigin(self.preprocessor.compute_new_origin(pet_img))
         mask_img.SetDirection(self.target_direction)
         mask_img.SetSpacing(self.target_voxel_spacing)
 

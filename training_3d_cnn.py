@@ -161,7 +161,7 @@ print(model.summary())
 
 # serialize model to JSON before training
 model_json = model.to_json()
-with open(os.path.join(training_model_folder, 'architecture_model_{}.h5'.format(now)), "w") as json_file:
+with open(os.path.join(training_model_folder, 'architecture_{}_model_{}.json'.format(architecture, now)), "w") as json_file:
     json_file.write(model_json)
 
 # training model
