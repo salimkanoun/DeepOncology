@@ -2,9 +2,11 @@ import tensorflow as tf
 
 import numpy as np
 import SimpleITK as sitk
+from skimage import filters
 
-from scipy.stats import truncnorm
 import random
+from scipy.stats import truncnorm
+
 
 from .data_augmentation import DataAugmentor
 from math import pi
@@ -96,13 +98,19 @@ class InputPipeline(object):
 
         return transformation.Execute(img)
 
+    def get_max_height(self, pet_size, pet_spacing):
+        # pet_spacing = pet_img.GetSpacing()
+        # pet_origin = pet_img.GetOrigin()
+
+        return min(pet_size[2] * pet_spacing[2], self.target_shape[2] * self.target_voxel_spacing[2])
+
     def compute_new_origin_head2hip(self, pet_img):
         new_shape = self.target_shape
         new_spacing = self.target_voxel_spacing
         pet_size = pet_img.GetSize()
         pet_spacing = pet_img.GetSpacing()
         pet_origin = pet_img.GetOrigin()
-        height = min(pet_size[2] * pet_spacing[2], self.target_shape[2] * self.target_voxel_spacing[2])  # 256*4.8 = 1228.8 mm
+        height = self.get_max_height(pet_size, pet_spacing)
         new_origin = (pet_origin[0] + 0.5 * pet_size[0] * pet_spacing[0] - 0.5 * new_shape[0] * new_spacing[0],
                       pet_origin[1] + 0.5 * pet_size[1] * pet_spacing[1] - 0.5 * new_shape[1] * new_spacing[1],
                       pet_origin[2] + 1.0 * pet_size[2] * pet_spacing[2] - 1.0 * height)
@@ -114,8 +122,7 @@ class InputPipeline(object):
         """
         # compute transformation parameters
         new_origin = self.compute_new_origin_head2hip(inputs_img['pet_img'])
-        z_size, z_spacing = inputs_img['pet_img'].GetSize()[2], inputs_img['pet_img'].GetSpacing()[2]
-        height = min(z_size * z_spacing, self.target_shape[0] * self.target_voxel_spacing[0])  # 256*4.8 = 1228.8 mm
+        height = self.get_max_height(inputs_img['pet_img'].GetSize(), inputs_img['pet_img'].GetSpacing())
         target_shape = (self.target_shape[0], self.target_shape[1], int(height/self.target_voxel_spacing[2]))
 
         # apply transformation : resample and reshape
@@ -173,6 +180,12 @@ class InputPipeline(object):
                 if len(roi) > 0:
                     SUV_max = np.max(roi)
                     threshold_suv = SUV_max * 0.41
+                else:
+                    threshold_suv = 0.0
+            elif threshold == 'otsu':
+                roi = pet_array[mask_slice > 0]
+                if len(roi) > 0:
+                    threshold_suv = filters.threshold_otsu(roi)
                 else:
                     threshold_suv = 0.0
             else:

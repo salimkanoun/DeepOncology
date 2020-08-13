@@ -1,5 +1,6 @@
 import numpy as np
 import SimpleITK as sitk
+from skimage import filters
 
 
 class PreprocessorPETCT(object):
@@ -256,6 +257,12 @@ class PreprocessorPETCT(object):
                 if len(roi) > 0:
                     SUV_max = np.max(roi)
                     threshold_suv = SUV_max * 0.41
+                else:
+                    threshold_suv = 0.0
+            elif threshold == 'otsu':
+                roi = pet_array[mask_slice > 0]
+                if len(roi) > 0:
+                    threshold_suv = filters.threshold_otsu(roi)
                 else:
                     threshold_suv = 0.0
             else:
