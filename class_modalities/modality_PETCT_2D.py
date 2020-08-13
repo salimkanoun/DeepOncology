@@ -102,7 +102,7 @@ class InputPipeline(object):
         pet_size = pet_img.GetSize()
         pet_spacing = pet_img.GetSpacing()
         pet_origin = pet_img.GetOrigin()
-        height = min(pet_size[2] * pet_spacing[2], self.target_shape[0] * self.target_voxel_spacing[0])  # 256*4.8 = 1228.8 mm
+        height = min(pet_size[2] * pet_spacing[2], self.target_shape[2] * self.target_voxel_spacing[2])  # 256*4.8 = 1228.8 mm
         new_origin = (pet_origin[0] + 0.5 * pet_size[0] * pet_spacing[0] - 0.5 * new_shape[0] * new_spacing[0],
                       pet_origin[1] + 0.5 * pet_size[1] * pet_spacing[1] - 0.5 * new_shape[1] * new_spacing[1],
                       pet_origin[2] + 1.0 * pet_size[2] * pet_spacing[2] - 1.0 * height)
