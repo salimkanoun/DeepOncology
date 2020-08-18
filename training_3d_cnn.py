@@ -165,14 +165,16 @@ with open(os.path.join(training_model_folder, 'architecture_{}_model_{}.json'.fo
     json_file.write(model_json)
 
 # training model
-history = model.fit_generator(generator=train_generator,
-                              validation_data=val_generator,
-                              epochs=epochs,
-                              steps_per_epoch=len(train_generator),
-                              validation_steps=len(val_generator),
-                              callbacks=callbacks,
-                              verbose=1
-                              )
+history = model.fit(train_generator,
+                    steps_per_epoch=len(train_generator),
+                    validation_data=val_generator,
+                    validation_steps=len(val_generator),
+                    epochs=epochs,
+                    callbacks=callbacks,  # initial_epoch=0,
+                    verbose=1,
+                    workers=2, use_multiprocessing=True
+                    )
+
 
 # whole model saving
 model.save(os.path.join(training_model_folder, 'trained_model_{}.h5'.format(now)))

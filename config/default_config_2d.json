@@ -1,18 +1,18 @@
 {
     "path": {
-        "csv_path": "/home/salim/Documents/DeepOncopole/AHL2011_NIFTI.csv",
+        "csv_path": "/home/salim/Documents/DeepOncopole/MIP_dataset/DB_PATH_NIFTI.csv",
         "trained_model_path": null,
         "training_model_folder": "/media/salim/DD 2To/RUDY_WEIGTH/training"
     },
     "preprocessing": {
         "image_shape": [
-            300,
+            500,
             256,
             256
         ],
         "number_channels": 2,
         "voxel_spacing": [
-            4.0,
+            2.4,
             2.4,
             2.4
         ],
@@ -29,15 +29,15 @@
             "cnn_params": {
                 "num_levels": 5,
                 "kernel_size": 3,
-                "filters_block": 8,
-                "num_conv_block": 8,
+                "filters_block": 4,
+                "num_conv_block": 4,
                 "activation_fn": "relu"
             }
         }
     },
     "training": {
-        "epochs": 100,
-        "batch_size": 64,
+        "epochs": 40,
+        "batch_size": 32,
         "shuffle": true,
         "callbacks": {
             "patience": 30,

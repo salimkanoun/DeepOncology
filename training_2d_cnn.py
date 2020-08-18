@@ -2,7 +2,7 @@ import sys
 import json
 
 from class_modalities.datasets import DataManager
-from class_modalities.modality_PETCT_2D_tf_dataset import DataGenerator
+from class_modalities.modality_PETCT_2D import DataGenerator
 
 import tensorflow as tf
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping, TensorBoard
@@ -115,35 +115,20 @@ DM = DataManager(csv_path=csv_path)
 train_images_paths, val_images_paths, test_images_paths = DM.get_train_val_test(wrap_with_dict=True)
 
 # Define generator
-# train_generator = DataGenerator(train_images_paths,
-#                                 batch_size=batch_size,
-#                                 shuffle=shuffle,
-#                                 augmentation=data_augment,
-#                                 target_shape=image_shape,
-#                                 target_voxel_spacing=voxel_spacing)
-#
-# val_generator = DataGenerator(val_images_paths,
-#                               batch_size=batch_size,
-#                               shuffle=False,
-#                               augmentation=False,
-#                               target_shape=image_shape,
-#                               target_voxel_spacing=voxel_spacing)
+train_generator = DataGenerator(train_images_paths,
+                                batch_size=batch_size,
+                                shuffle=shuffle,
+                                augmentation=data_augment,
+                                target_shape=image_shape,
+                                target_voxel_spacing=voxel_spacing)
 
-train_dataset = DataGenerator(train_images_paths,
-                              target_shape=image_shape,
-                              target_voxel_spacing=voxel_spacing,
-                              number_channels=in_channels,
-                              augmentation=data_augment,
+val_generator = DataGenerator(val_images_paths,
                               batch_size=batch_size,
-                              shuffle=shuffle).get_dataset()
+                              shuffle=False,
+                              augmentation=False,
+                              target_shape=image_shape,
+                              target_voxel_spacing=voxel_spacing)
 
-val_dataset = DataGenerator(val_images_paths,
-                            target_shape=image_shape,
-                            target_voxel_spacing=voxel_spacing,
-                            number_channels=in_channels,
-                            augmentation=False,
-                            batch_size=batch_size,
-                            shuffle=False).get_dataset()
 
 # Define model
 with strategy.scope():
@@ -151,10 +136,6 @@ with strategy.scope():
     model.compile(loss=loss_object, optimizer=optimizer, metrics=metrics)
 
     if trained_model_path is not None:
-        model.load_weights(trained_model_path)
-
-if trained_model_path is not None:
-    with strategy.scope():
         model.load_weights(trained_model_path)
 
 print(model.summary())
@@ -166,11 +147,14 @@ with open(os.path.join(training_model_folder, 'architecture_{}_model_{}.json'.fo
     json_file.write(model_json)
 
 # training model
-history = model.fit(train_dataset,
-                    validation_data=val_dataset,
+history = model.fit(train_generator,
+                    steps_per_epoch=len(train_generator),
+                    validation_data=val_generator,
+                    validation_steps=len(val_generator),
                     epochs=epochs,
-                    callbacks=callbacks,
-                    verbose=1
+                    callbacks=callbacks,  # initial_epoch=0,
+                    verbose=1,
+                    workers=2, use_multiprocessing=True
                     )
 
 # whole model saving

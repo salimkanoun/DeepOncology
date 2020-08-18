@@ -286,11 +286,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         ct_img = self.read_CT(ct_path)
         mask_img = self.read_MASK(mask_path)
 
-        if self.augment:
-            threshold = self.generate_random_threshold()
-        else:
-            threshold = self.default_threshold
-
+        threshold = self.default_threshold
         images = self.preprocessor({'pet_img': pet_img, 'ct_img': ct_img, 'mask_img': mask_img},
                                    threshold=threshold)
 
@@ -300,7 +296,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         mask_array = sitk.GetArrayFromImage(images['mask_img'])
 
         n_slice = self.number_channels // 2
-        for i in random.sample(range(0, pet_array.shape[0] - n_slice), self.batch_size):
+        for i in random.sample(range(0, pet_array.shape[0] + 1 - n_slice), self.batch_size):
             # select slices
             pet_ct_slices = np.vstack((pet_array[i:i + n_slice], ct_array[i:i + n_slice]))
             pet_ct_slices = np.transpose(pet_ct_slices, (1, 2, 0))
