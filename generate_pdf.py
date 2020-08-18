@@ -22,7 +22,7 @@ elif len(sys.argv) == 3:
     MIP_folder = sys.argv[2]
 else:
     config_name = 'config/default_config.json'
-    MIP_folder = '/home/salim/Documents/DeepOncopole/MIP_dataset'  # r'C:\\Users\\Rudy\\Documents\\Thales_stage\\data\\MIP_dataset'
+    MIP_folder = '/home/salim/Documents/DeepOncopole/MIP_dataset'
 
 # read config file
 with open(config_name) as f:
@@ -40,6 +40,7 @@ data_augment = False
 resize = config['preprocessing']['resize']  # True  # not use yet
 normalize = config['preprocessing']['normalize']  # True  # whether or not to normalize the inputs
 number_class = config['preprocessing']['number_class']  # 2
+threshold = config['preprocessing']['threshold']
 
 batch_size = 1
 shuffle = False
@@ -62,7 +63,7 @@ dataset['test']['y'] = DM.get_train_val_test()
 for subset_type in ['train', 'val', 'test']:
     print(subset_type)
     # path to pdf to generate
-    filename = os.path.join(MIP_folder, subset_type, 'MIP_preprocessed_{}_data.pdf'.format(subset_type))
+    filename = os.path.join(MIP_folder, subset_type, 'MIP_preprocessed_{}_data_threshold_{}.pdf'.format(subset_type, str(threshold)))
     print('folder :', os.path.join(MIP_folder, subset_type))
     print('filename :', filename)
     if not os.path.exists(os.path.join(MIP_folder, subset_type)):
@@ -73,7 +74,7 @@ for subset_type in ['train', 'val', 'test']:
     generator = DataGenerator(dataset[subset_type]['x'], dataset[subset_type]['y'],
                               batch_size=batch_size, shuffle=False, augmentation=False,
                               target_shape=image_shape, target_voxel_spacing=voxel_spacing,
-                              resize=resize, normalize=normalize)
+                              resize=resize, normalize=normalize, threshold=threshold)
 
     with PdfPages(filename) as pdf:
 

@@ -20,7 +20,8 @@
         "resize": true,
         "origin": "head",
         "normalize": true,
-        "number_class": 2
+        "number_class": 2,
+        "threshold" : "otsu"
     },
     "model": {
         "architecture": "vnet",

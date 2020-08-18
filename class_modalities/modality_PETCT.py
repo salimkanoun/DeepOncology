@@ -26,7 +26,8 @@ class DataGenerator(tf.keras.utils.Sequence):
                  target_voxel_spacing=None,
                  resize=True,
                  normalize=True,
-                 origin='head'):
+                 origin='head',
+                 threshold='otsu'):
         """
         :param images_paths:         list of tuple : [(PET_id, CT_id), ...]
         :param labels_path:          list, [MASK_id, ...]
@@ -54,7 +55,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         self.dtypes = {'pet_img': sitk.sitkFloat32,
                        'ct_img': sitk.sitkFloat32,
                        'mask_img': sitk.sitkUInt8}
-        self.default_threshold = 'otsu'
+        self.threshold = threshold
         self.preprocessor = PreprocessorPETCT(target_shape=target_shape,
                                               target_voxel_spacing=target_voxel_spacing,
                                               resize=resize,
@@ -129,7 +130,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         ct_img = self.read_CT(ct_id)
         mask_img = self.read_MASK(mask_id)
 
-        threshold = self.default_threshold
+        threshold = self.threshold
 
         output = self.preprocessor({'pet_img': pet_img, 'ct_img': ct_img, 'mask_img': mask_img},
                                    threshold=threshold)

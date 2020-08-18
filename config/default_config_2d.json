@@ -19,7 +19,8 @@
         "data_augment": true,
         "resize": true,
         "normalize": true,
-        "number_class": 2
+        "number_class": 2,
+        "threshold" : "otsu"
     },
     "model": {
         "in_channels": 6,
