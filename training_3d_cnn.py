@@ -105,7 +105,8 @@ if 'callbacks' in config['training']:
 
     if config['training']['callbacks'].get('ModelCheckpoint', False):
         # saves model weights to file
-        checkpoint = ModelCheckpoint(os.path.join(training_model_folder, 'model_weights.hdf5'),  # 'model_weights.{epoch:02d}-{val_loss:.2f}.hdf5'
+        # 'model_weights.{epoch:02d}-{val_loss:.2f}.hdf5'
+        checkpoint = ModelCheckpoint(os.path.join(training_model_folder, 'model_weights.hdf5'),
                                      monitor='val_loss',
                                      verbose=1,
                                      save_best_only=True,
