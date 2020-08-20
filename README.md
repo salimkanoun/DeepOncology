@@ -2,17 +2,16 @@
 
 Continuation of  [Thomas Project](https://github.com/ThomasT3563/medical-segmentation) realised during a 6 months internship at IUCT Oncopole, France.
 
-This provides some deep Learning tools for automatic segmentation of medical images. The approach implemented for this project is to process the whole body acquisition. One of the major challenges when processing this kind of data using deep learning algorithms is the memory usage, as depending on the modality and the study, an imaging serie can contains several hundreds or thousands of images.
+This provides some deep Learning tools for automatic segmentation of medical images (PET & CT scan).
 
 ### Model
-The model used during this project is [U-Net](https://arxiv.org/abs/1505.04597). 
-Other models are also implemented like [V-Net](https://arxiv.org/abs/1606.04797) or [DenseX-Net](https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=8946601).
+The model used during this project are deep learning model like [U-Net](https://arxiv.org/abs/1505.04597). 
 
 Implemented model :
 
-- [x] 3D U-Net
-- [x] V-Net
-- [ ] DenseX-Net
+- [x] [3D U-Net](https://arxiv.org/abs/1606.06650)
+- [x] [V-Net](https://arxiv.org/abs/1606.04797)
+- [x] [DenseX-Net](https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=8946601).
 
 
 ### Segmentation of tumour on PET/CT scan
@@ -25,8 +24,10 @@ Implemented model :
 
 
 ### Train new model
-- To train V-net :
-> `python3 training_cnn_lymphoma_segmentation.py config/default_config.json` 
+- To train V-Net :
+> `python3 training_3d_cnn.py config/default_config.json` 
+- To train DenseX-Net :
+> `python3 training_2d_cnn.py config/default_config_2d.json` 
 
 ### Check data
 - To generate 2D MIP :

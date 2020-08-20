@@ -92,13 +92,13 @@ if 'callbacks' in config['training']:
 
     if config['training']['callbacks'].get('ModelCheckpoint', False):
         # saves model weights to file
-        checkpoint = ModelCheckpoint(os.path.join(training_model_folder, 'model_weights.hdf5'),
+        checkpoint = ModelCheckpoint(os.path.join(training_model_folder, 'model_weights.h5'),
                                      # 'model_weights.{epoch:02d}-{val_loss:.2f}.hdf5'
                                      monitor='val_loss',
                                      verbose=1,
                                      save_best_only=True,
                                      mode='min',
-                                     save_weights_only=True)
+                                     save_weights_only=False)
         callbacks.append(checkpoint)
 
     if config['training']['callbacks'].get('TensorBoard', False):

@@ -3,6 +3,7 @@ import json
 
 import os
 import ntpath
+from class_modalities.utils import get_study_uid
 import numpy as np
 
 import matplotlib.pyplot as plt
@@ -37,7 +38,7 @@ image_shape = tuple(config['preprocessing']['image_shape'])  # (128, 64, 64)  # 
 number_channels = config['preprocessing']['number_channels']
 voxel_spacing = tuple(config['preprocessing']['voxel_spacing'])  # (4.8, 4.8, 4.8)  # in millimeter, (z, y, x)
 data_augment = False
-resize = config['preprocessing']['resize']  # True  # not use yet
+resize = config['preprocessing']['resize']
 normalize = config['preprocessing']['normalize']  # True  # whether or not to normalize the inputs
 number_class = config['preprocessing']['number_class']  # 2
 threshold = config['preprocessing']['threshold']
@@ -80,8 +81,8 @@ for subset_type in ['train', 'val', 'test']:
 
         # loop on files to get MIP visualisation
         for step, (X, Mask) in enumerate(generator):
-            print(step)
-            _, suptitle = ntpath.split(dataset[subset_type]['x'][step][0])  # PET file name
+            suptitle = get_study_uid(dataset[subset_type]['x'][step][0])  # PET file name
+            print(step, suptitle)
             PET_scan = X[0, :, :, :, 0]
             CT_scan = X[0, :, :, :, 1]
             Mask = Mask[0]

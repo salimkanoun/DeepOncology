@@ -88,6 +88,30 @@ def generate_gif_MIP(img, filename_gif, mask=None, vmax=1.0, duration=0.1, numbe
 
     create_gif(angle_filenames, duration, filename_gif)
 
+
+def mip(img, threshold=None):
+    img_array = sitk.GetArrayFromImage(img)
+
+    if threshold:
+        # img_array = np.array(img_array>threshold, dtype=np.int8)
+        img_array[img_array > threshold] = threshold
+    return np.max(img_array, axis=1), np.max(img_array, axis=2)
+
+
+def plot_pet(pet_img):
+
+    fig = plt.figure(figsize=(15, 10))
+
+    mip1, mip2 = mip(pet_img, threshold=2.5)
+    img_plot = np.hstack((mip1, mip2))
+
+
+    plt.imshow(img_plot, plt.cm.plasma)
+    # plt.axis('off')
+    plt.colorbar()
+    plt.title('PET', fontsize=20)
+    plt.show()
+
 #
 # def plot_MIP_pdf(PET_scan, CT_scan, Mask):
 #     study_uid = re.sub('_nifti_PT\.nii(\.gz)?', '', os.path.basename((pet_path)))
