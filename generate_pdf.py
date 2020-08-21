@@ -23,7 +23,7 @@ elif len(sys.argv) == 3:
     MIP_folder = sys.argv[2]
 else:
     config_name = 'config/default_config.json'
-    MIP_folder = '/home/salim/Documents/DeepOncopole/MIP_dataset'
+    MIP_folder = '/home/salim/Documents/DeepOncopole/data/MIP_dataset'
 
 # read config file
 with open(config_name) as f:

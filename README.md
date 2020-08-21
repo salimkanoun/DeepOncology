@@ -5,7 +5,7 @@ Continuation of  [Thomas Project](https://github.com/ThomasT3563/medical-segment
 This provides some deep Learning tools for automatic segmentation of medical images (PET & CT scan).
 
 ### Model
-The model used during this project are deep learning model like [U-Net](https://arxiv.org/abs/1505.04597). 
+Models used during this project are deep learning model like [U-Net](https://arxiv.org/abs/1505.04597). 
 
 Implemented model :
 
@@ -33,8 +33,6 @@ Implemented model :
 - To generate 2D MIP :
 > `python3 generate_pdf.py`
 
-- To transform raw data to preprocessed numpy array :
-> `python3 prep_data.py`
 
 
 

@@ -1,6 +1,6 @@
 {
     "path": {
-        "csv_path": "/home/salim/Documents/DeepOncopole/MIP_dataset/DB_PATH_NIFTI.csv",
+        "csv_path": "/home/salim/Documents/DeepOncopole/data/DB_PATH_NIFTI.csv",
         "trained_model_path": null,
         "training_model_folder": "/media/salim/DD 2To/RUDY_WEIGTH/training"
     },

@@ -185,7 +185,10 @@ class InputPipeline(object):
             elif threshold == 'otsu':
                 roi = pet_array[mask_slice > 0]
                 if len(roi) > 0:
-                    threshold_suv = filters.threshold_otsu(roi)
+                    try:
+                        threshold_suv = filters.threshold_otsu(roi)
+                    except:
+                        threshold_suv = 0.0
                 else:
                     threshold_suv = 0.0
             else:
