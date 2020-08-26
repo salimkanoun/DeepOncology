@@ -134,7 +134,7 @@ def roi2tmtv(mask_img, pet_img, threshold='auto'):
             threshold_suv = threshold
 
         # apply threshold
-        n_voxels_per_roi[num_slice] = np.sum(np.where((pet_array >= threshold_suv) & (mask_slice > 0)))
+        n_voxels_per_roi[num_slice] = np.sum((pet_array >= threshold_suv) & (mask_slice > 0))
         new_mask[np.where((pet_array >= threshold_suv) & (mask_slice > 0))] = 1
 
     return np.sum(new_mask), n_voxels_per_roi

@@ -195,7 +195,7 @@ class InputPipeline(object):
                 threshold_suv = threshold
 
             # apply threshold
-            new_mask[np.where((pet_array >= threshold_suv) & (mask_slice > 0))] = 1
+            new_mask[np.where((pet_array > threshold_suv) & (mask_slice > 0))] = 1
 
         # reconvert to sitk and restore information
         new_mask = sitk.GetImageFromArray(new_mask)
