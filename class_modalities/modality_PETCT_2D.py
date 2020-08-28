@@ -360,7 +360,8 @@ class FullPipeline(object):
                  target_voxel_spacing=None,
                  normalize=True,
                  in_channels=6,
-                 threshold='otsu'):
+                 threshold='otsu',
+                 batch_size=None):
         """
         :param target_shape:         tuple, shape of generated PET, CT or MASK scan: (z, y, x) (368, 128, 128) for ex.
         :param target_voxel_spacing: tuple, resolution of the generated PET, CT or MASK scan : (z, y, x) (4.8, 4.8, 4.8) for ex.
@@ -374,7 +375,7 @@ class FullPipeline(object):
         self.preprocessor = InputPipeline(target_shape=target_shape,
                                           target_voxel_spacing=target_voxel_spacing,
                                           normalize=normalize,
-                                          augment=False)
+                                          augment=None)
 
         self.dtypes = {'pet_img': sitk.sitkFloat32,
                        'ct_img': sitk.sitkFloat32,
@@ -382,6 +383,7 @@ class FullPipeline(object):
         self.threshold = threshold
 
         self.model = self.load_model(model) if isinstance(model, str) else model
+        self.batch_size = self.batch_size
 
     def __call__(self, img_dict):
         pet_img, ct_img = img_dict['pet_img'], img_dict['ct_img']
@@ -417,24 +419,40 @@ class FullPipeline(object):
         pet_array = sitk.GetArrayFromImage(images['pet_img'])
         ct_array = sitk.GetArrayFromImage(images['ct_img'])
 
+        # stack different slices
         X_batch = []
         n_slice = self.number_channels // 2
         for i in range(0, pet_array.shape[0] + 1 - n_slice):
             # select slices
             pet_ct_slices = np.vstack((pet_array[i:i + n_slice], ct_array[i:i + n_slice]))
+            # axial axis as channels axis
             pet_ct_slices = np.transpose(pet_ct_slices, (1, 2, 0))
 
             X_batch.append(pet_ct_slices)
-
         X_batch = np.array(X_batch)
-        Y_batch = self.model.predic(X_batch)
+
+        # predict cnn
+        if self.batch_size is None:
+            # one-shot predict
+            Y_batch = self.model.predict(X_batch)
+        else:
+            # small batch predict
+            Y_batch = None
+            for i in range(np.ceil(X_batch.shape[0]/self.batch_size)):
+                if Y_batch is None:
+                    Y_batch = self.model.predict(X_batch[i:i+self.batch_size])
+                else:
+                    y_batch = self.model.predict(X_batch[i:i+self.batch_size])
+                    Y_batch = np.concatenate((Y_batch, y_batch), axis=0)
+
         Y_batch = np.squeeze(Y_batch)
 
+        # add padding
         n_zero_up = n_slice // 2
         n_zero_down = n_slice - 1 - n_zero_up
-        mask_array = np.concatenate((np.zeros((n_zero_up, Y_batch.shape[2], Y_batch.shape[3])),
+        mask_array = np.concatenate((np.zeros((n_zero_up, Y_batch.shape[1], Y_batch.shape[2])),
                                      Y_batch,
-                                     np.zeros((n_zero_down, Y_batch.shape[2], Y_batch.shape[3]))), axis=0)
+                                     np.zeros((n_zero_down, Y_batch.shape[1], Y_batch.shape[2]))), axis=0)
 
         # transform numpy array to simple itk image / nifti format
         mask_img = sitk.GetImageFromArray(mask_array)
@@ -457,10 +475,8 @@ class FullPipeline(object):
         mask_img_final = sitk.BinaryThreshold(mask_img_final, lowerThreshold=0.0, upperThreshold=0.5, insideValue=0, outsideValue=1)
 
         if 'mask_img' in img_dict:
-
             return {'mask_cnn_pred': mask_img, 'mask_cnn_true': images['mask_img'],
                     'mask_pred': mask_img_final, 'mask_true': original_mask}
-
         else:
             return mask_img_final
 

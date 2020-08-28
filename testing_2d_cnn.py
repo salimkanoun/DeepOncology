@@ -11,11 +11,6 @@ from class_modalities.modality_PETCT_2D import FullPipeline
 from class_modalities.utils import get_study_uid
 from deeplearning_tools.Metrics import metric_dice
 
-
-import tensorflow as tf
-from deeplearning_models.DenseXnet import DenseXNet as cnn
-
-
 import os
 from datetime import datetime
 
@@ -33,11 +28,9 @@ csv_path = config['path']['csv_path']
 model_path = "/media/salim/DD 2To/RUDY_WEIGTH/training/20200827-08:18:39/model_weights.h5"
 
 # PET CT scan params
-image_shape = tuple(config['preprocessing']['image_shape'])  # (300, 128, 128)  # (z, y, x)
+image_shape = tuple(config['preprocessing']['image_shape'])  # (z, y, x)
 in_channels, out_channels = config['model']['in_channels'], config['model']['out_channels']  # 6, 1
-voxel_spacing = tuple(config['preprocessing']['voxel_spacing'])  # (4.8, 4.8, 4.8)  # in millimeter, (z, y, x)
-data_augment = config['preprocessing']['data_augment']  # True  # for training dataset only
-resize = config['preprocessing']['resize']  # True  # not use yet
+voxel_spacing = tuple(config['preprocessing']['voxel_spacing'])  # in millimeter, (z, y, x)
 normalize = config['preprocessing']['normalize']  # True  # whether or not to normalize the inputs
 
 # Get Pipeline
@@ -58,7 +51,7 @@ for subset, dataset in zip(['train', 'val', 'test'], [train_images_paths, val_im
     header = ['study_uid', 'subset', 'metric_dice_cnn', 'metric_dice_pipeline',
               'tmtv_cnn_pred', 'tmtv_cnn_true', 'tmtv_pipeline_pred', 'tmtv_pipeline_true']
 
-    with open('/home/salim/Documents/DeepOncopole/data/densexnet/results_{}.csv', 'w') as file:
+    with open('/home/salim/Documents/DeepOncopole/data/densexnet/results_{}.csv'.format(subset), 'w') as file:
         writer = csv.writer(file, delimiter='\t')
         writer.writerow(header)
 
@@ -67,12 +60,13 @@ for subset, dataset in zip(['train', 'val', 'test'], [train_images_paths, val_im
             step += 1
             study_uid = get_study_uid(img_path['pet_img'])
             print('[%4d / %4d] : %s' % (step, len(dataset), study_uid))
+
             # predict cnn + resample etc
             result = pipeline(img_path)
 
             # NIfTI to numpy
             mask_cnn_true = sitk.GetArrayFromImage(result['mask_cnn_true'])
-            mask_cnn_pred = sitk.GetArrayFromImage(np.round(result(['mask_cnn_pred'])))
+            mask_cnn_pred = np.round(sitk.GetArrayFromImage(result['mask_cnn_pred']))
 
             mask_true = sitk.GetArrayFromImage(result['mask_true'])
             mask_pred = sitk.GetArrayFromImage(result['mask_pred'])
