@@ -7,7 +7,6 @@ from skimage import filters
 import random
 from scipy.stats import truncnorm
 
-
 from .data_augmentation import DataAugmentor
 from math import pi
 
@@ -123,7 +122,7 @@ class InputPipeline(object):
         # compute transformation parameters
         new_origin = self.compute_new_origin_head2hip(inputs_img['pet_img'])
         height = self.get_max_height(inputs_img['pet_img'].GetSize(), inputs_img['pet_img'].GetSpacing())
-        target_shape = (self.target_shape[0], self.target_shape[1], int(height/self.target_voxel_spacing[2]))
+        target_shape = (self.target_shape[0], self.target_shape[1], int(height / self.target_voxel_spacing[2]))
 
         # apply transformation : resample and reshape
         resampled_img = dict()
@@ -246,7 +245,7 @@ class DataGenerator(tf.keras.utils.Sequence):
                        'mask_img': sitk.sitkUInt8}
         self.threshold = threshold
         if augmentation:
-            augment = DataAugmentor(translation=(10, 10, 0), scaling=(0.1, 0.1, 0.0), rotation=(pi/30, pi/30, 0.0),
+            augment = DataAugmentor(translation=(10, 10, 0), scaling=(0.1, 0.1, 0.0), rotation=(pi / 30, pi / 30, 0.0),
                                     default_value={'pet_img': 0.0, 'ct_img': -1000.0, 'mask_img': 0})
         else:
             augment = None
@@ -347,3 +346,140 @@ class DataGenerator(tf.keras.utils.Sequence):
             return truncnorm.rvs(a, b, loc=mu, scale=std)
         else:
             return 'auto'
+
+
+class FullPipeline(object):
+    """
+    Read, preprocess and flow the PET scan, CT scan and mask
+
+    """
+
+    def __init__(self,
+                 model,
+                 target_shape=None,
+                 target_voxel_spacing=None,
+                 normalize=True,
+                 in_channels=6,
+                 threshold='otsu'):
+        """
+        :param target_shape:         tuple, shape of generated PET, CT or MASK scan: (z, y, x) (368, 128, 128) for ex.
+        :param target_voxel_spacing: tuple, resolution of the generated PET, CT or MASK scan : (z, y, x) (4.8, 4.8, 4.8) for ex.
+
+        """
+        self.target_shape = target_shape
+        self.target_voxel_sapcing = target_voxel_spacing
+        self.number_channels = in_channels  # PET + CT scan
+        # self.images_shape = tuple(list(target_shape[1:]) + [self.number_channels])
+
+        self.preprocessor = InputPipeline(target_shape=target_shape,
+                                          target_voxel_spacing=target_voxel_spacing,
+                                          normalize=normalize,
+                                          augment=False)
+
+        self.dtypes = {'pet_img': sitk.sitkFloat32,
+                       'ct_img': sitk.sitkFloat32,
+                       'mask_img': sitk.sitkUInt8}
+        self.threshold = threshold
+
+        self.model = self.load_model(model) if isinstance(model, str) else model
+
+    def __call__(self, img_dict):
+        pet_img, ct_img = img_dict['pet_img'], img_dict['ct_img']
+
+        if isinstance(pet_img, str):
+            pet_img = self.read_PET(pet_img)
+        if isinstance(ct_img, str):
+            ct_img = self.read_CT(ct_img)
+
+        if 'mask_img' in img_dict:
+            mask_img = img_dict['mask_img']
+            if isinstance(mask_img, str):
+                mask_img = self.read_MASK(mask_img)
+
+        # read original meta info
+        origin = pet_img.GetOrigin()
+        spacing = pet_img.GetSpacing()
+        direction = pet_img.GetDirection()
+        size = pet_img.GetSize()
+
+        # preprocess inputs
+        if 'mask_img' in img_dict:
+            original_mask = self.preprocessor.roi2mask(mask_img, pet_img,
+                                                       threshold=self.threshold)
+
+            images = self.preprocessor({'pet_img': pet_img, 'ct_img': ct_img, 'mask_img': mask_img},
+                                       threshold=self.threshold)
+
+        else:
+            images = self.preprocessor({'pet_img': pet_img, 'ct_img': ct_img})
+
+        # convert to numpy array
+        pet_array = sitk.GetArrayFromImage(images['pet_img'])
+        ct_array = sitk.GetArrayFromImage(images['ct_img'])
+
+        X_batch = []
+        n_slice = self.number_channels // 2
+        for i in range(0, pet_array.shape[0] + 1 - n_slice):
+            # select slices
+            pet_ct_slices = np.vstack((pet_array[i:i + n_slice], ct_array[i:i + n_slice]))
+            pet_ct_slices = np.transpose(pet_ct_slices, (1, 2, 0))
+
+            X_batch.append(pet_ct_slices)
+
+        X_batch = np.array(X_batch)
+        Y_batch = self.model.predic(X_batch)
+        Y_batch = np.squeeze(Y_batch)
+
+        n_zero_up = n_slice // 2
+        n_zero_down = n_slice - 1 - n_zero_up
+        mask_array = np.concatenate((np.zeros((n_zero_up, Y_batch.shape[2], Y_batch.shape[3])),
+                                     Y_batch,
+                                     np.zeros((n_zero_down, Y_batch.shape[2], Y_batch.shape[3]))), axis=0)
+
+        # transform numpy array to simple itk image / nifti format
+        mask_img = sitk.GetImageFromArray(mask_array)
+        mask_img.SetOrigin(self.preprocessor.compute_new_origin_head2hip(pet_img))
+        mask_img.SetDirection(self.preprocessor.target_direction)
+        mask_img.SetSpacing(self.preprocessor.target_voxel_spacing)
+
+        # resample to orginal shape, spacing, direction and origin
+        transformation = sitk.ResampleImageFilter()
+        transformation.SetOutputDirection(direction)
+        transformation.SetOutputOrigin(origin)
+        transformation.SetOutputSpacing(spacing)
+        transformation.SetSize(size)
+
+        transformation.SetDefaultPixelValue(0.0)
+        transformation.SetInterpolator(sitk.sitkLinear)  # sitk.sitkNearestNeighbor
+        mask_img_final = transformation.Execute(mask_img)
+
+        # transform to binary
+        mask_img_final = sitk.BinaryThreshold(mask_img_final, lowerThreshold=0.0, upperThreshold=0.5, insideValue=0, outsideValue=1)
+
+        if 'mask_img' in img_dict:
+
+            return {'mask_cnn_pred': mask_img, 'mask_cnn_true': images['mask_img'],
+                    'mask_pred': mask_img_final, 'mask_true': original_mask}
+
+        else:
+            return mask_img_final
+
+    @staticmethod
+    def load_model(model_path):
+        return tf.keras.models.load_model(model_path, compile=False)
+
+    def read_PET(self, filename):
+        return sitk.ReadImage(filename, self.dtypes['pet_img'])
+
+    def read_CT(self, filename):
+        return sitk.ReadImage(filename, self.dtypes['ct_img'])
+
+    def read_MASK(self, filename):
+        return sitk.ReadImage(filename, self.dtypes['mask_img'])
+
+    def save_img(self, img, filename):
+        """
+        :param img: image, simple itk image
+        :param filename: path/to/file.nii, where to save the image
+        """
+        sitk.WriteImage(img, filename)

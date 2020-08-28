@@ -173,7 +173,7 @@ history = model.fit(train_generator,
                     epochs=epochs,
                     callbacks=callbacks,  # initial_epoch=0,
                     verbose=1,
-                    workers=2, use_multiprocessing=True
+                    workers=2, use_multiprocessing=False
                     )
 
 

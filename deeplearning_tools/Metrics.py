@@ -51,6 +51,15 @@ def dice_similarity_coefficient(y_true, y_pred):
     return np.mean((numerator + smooth) / (denominator + smooth))
 
 
+def metric_dice(y_true, y_pred, axis=(0, 1, 2)):
+    smooth = 0.1
+
+    numerator = 2 * np.sum(y_true * y_pred, axis=axis)
+    denominator = np.sum(y_true + y_pred, axis=axis)
+
+    return (numerator + smooth) / (denominator + smooth)
+
+
 def sensitivity(y_true, y_pred):
     """
     sensitivity = tp/(tp+fn)
