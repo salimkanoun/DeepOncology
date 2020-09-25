@@ -438,11 +438,11 @@ class FullPipeline(object):
         else:
             # small batch predict
             Y_batch = None
-            for i in range(np.ceil(X_batch.shape[0]/self.batch_size)):
+            for i in range(int(np.ceil(X_batch.shape[0]/self.batch_size))):
                 if Y_batch is None:
-                    Y_batch = self.model.predict(X_batch[i:i+self.batch_size])
+                    Y_batch = self.model.predict(X_batch[i*self.batch_size:(i+1)*self.batch_size])
                 else:
-                    y_batch = self.model.predict(X_batch[i:i+self.batch_size])
+                    y_batch = self.model.predict(X_batch[i*self.batch_size:(i+1)*self.batch_size])
                     Y_batch = np.concatenate((Y_batch, y_batch), axis=0)
 
         Y_batch = np.squeeze(Y_batch)
