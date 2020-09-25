@@ -1,46 +1,9 @@
 import tensorflow as tf
 
 
-# def sensitivity(y_true, y_pred):
-#     """
-#     sensitivity = tp/(tp+fn)
-#     """
-#     y_pred = tf.math.round(y_pred)
-#
-#     tp = tf.keras.backend.sum(y_pred * y_true, axis=(1, 2, 3))
-#     denominator = tf.keras.backend.sum(y_true, axis=(1, 2, 3))
-#     return tf.keras.backend.mean(tp/denominator)
-#
-#
-# def specificity(y_true, y_pred):
-#     """
-#     specifity = tn/(tn+fp)
-#     """
-#     y_pred = tf.math.round(y_pred)
-#     pass
-
-
-# def ppv(y_true, y_pred):
-#     """
-#     Positive Predictive value
-#     ppv = tp /(tp +fp)
-#     """
-#     smooth = 1.0
-#
-#     y_pred = tf.math.round(y_pred)
-#
-#     tp = tf.math.reduce_sum(y_true * y_pred, axis=(1, 2, 3, 4))
-#     P = tf.math.reduce_sum(y_pred, axis=(1, 2, 3, 4))
-#
-#     return tf.math.reduce_mean((tp + smooth)/(P + smooth))
-
-def metric_precision(y_true, y_pred):
-    y_pred = tf.math.round(y_pred)
-    tp = tf.keras.backend.sum(y_pred * y_true, axis=(1, 2, 3))
-
-
 def metric_dice(y_true, y_pred):
     y_pred = tf.math.round(y_pred)
+    y_true = tf.math.round(y_true)
     return dice_similarity_coefficient(y_true, y_pred)
 
 

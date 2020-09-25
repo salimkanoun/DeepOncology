@@ -104,28 +104,15 @@ class DataGenerator_3D_from_nifti(tf.keras.utils.Sequence):
 
         # prepare the batch
         X_batch = []
-        Y_batch = []
         for idx in indexes:
-            img_path = self.images_paths[idx]
-
-            pet_array = np.load(img_path['pet_img'])
-            ct_array = np.load(img_path['ct_img'])
-
-            masks = []
-            for key in self.mask_keys:
-                masks.append(np.load(img_path[key]))
-            masks = np.array(masks)
-            mask_array = np.mean(masks, axis=0)
-
-            # concatenate PET and CT
-            PET_CT_array = np.stack((pet_array, ct_array), axis=-1)  # channels last
-
-            # add 1 channel to mask
-            MASK_array = np.expand_dims(mask_array, axis=-1)  # channels last
+            img_dict = self.images_paths[idx]
+            if self.transforms is not None:
+                for transform in self.transforms:
+                    img_dict = transform(img_dict)
 
             # add it to the batch
-            X_batch.append(PET_CT_array)
-            Y_batch.append(MASK_array)
+            X_batch.append(img_dict)
 
-        return np.array(X_batch), np.array(Y_batch)
+        return X_batch
+
 

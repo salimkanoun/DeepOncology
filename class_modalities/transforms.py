@@ -144,7 +144,7 @@ class Roi2Mask_probs(object):
     Apply threshold-based method to calculate the non-binary (probs) segmentation from the ROI
     """
 
-    def __init__(self, keys=('pet_img', 'mask_img'), method=['otsu']):
+    def __init__(self, keys=('pet_img', 'mask_img'), method=['otsu'], new_key_name='mask_img'):
         """
         :param keys: (pet_img, roi_img) : (3D SimpleITK img, 4D SimpleITK img)
         :param method: method to use for calculate the threshold
@@ -155,14 +155,13 @@ class Roi2Mask_probs(object):
         self.keys = keys
         self.method = method
         self.method = [self.method.lower()] if isinstance(self.method, str) else [el.lower() for el in self.method]
-
-        assert method in ['absolute', 'relative', 'otsu', 'adaptative']
+        self.new_key_name = new_key_name
 
     def __call__(self, img_dict):
         pet_key = self.keys[0]
         roi_key = self.keys[1]
 
-        img_dict[roi_key] = self.roi2mask(img_dict[roi_key], img_dict[pet_key])
+        img_dict[self.new_key_name] = self.roi2mask(img_dict[roi_key], img_dict[pet_key])
         return img_dict
 
     def relative_seg(self, roi):
@@ -279,7 +278,8 @@ class ResampleReshapeAlign(object):
 
     def __init__(self, target_shape, target_voxel_spacing,
                  keys=('pet_img', 'ct_img', 'mask_img'),
-                 origin='head', origin_key='pet_img'):
+                 origin='head', origin_key='pet_img',
+                 interpolator=None, default_value=None):
         """
         :param target_shape: tuple[int], (x, y, z)
         :param target_voxel_spacing: tuple[float], (x, y, z)
@@ -302,13 +302,19 @@ class ResampleReshapeAlign(object):
         self.origin_key = origin_key
 
         # sitk.sitkLinear, sitk.sitkBSpline, sitk.sitkNearestNeighbor
-        self.interpolator = {'pet_img': sitk.sitkBSpline,
-                             'ct_img': sitk.sitkBSpline,
-                             'mask_img': sitk.sitkNearestNeighbor}
+        if interpolator is None:
+            self.interpolator = {'pet_img': sitk.sitkBSpline,
+                                 'ct_img': sitk.sitkBSpline,
+                                 'mask_img': sitk.sitkNearestNeighbor}
+        else:
+            self.interpolator = interpolator
 
-        self.default_value = {'pet_img': 0.0,
-                              'ct_img': -1000.0,
-                              'mask_img': 0}
+        if default_value is None:
+            self.default_value = {'pet_img': 0.0,
+                                  'ct_img': -1000.0,
+                                  'mask_img': 0}
+        else:
+            self.default_value = default_value
 
     def __call__(self, img_dict):
         # compute transformation parameters

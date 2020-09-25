@@ -1,4 +1,5 @@
 import sys
+import argparse
 import json
 
 from class_modalities.datasets import DataManager
@@ -11,41 +12,37 @@ import re
 import os
 from datetime import datetime
 
-# path
-now = datetime.now().strftime("%Y%m%d-%H:%M:%S")
 
-# import config file
-if len(sys.argv) == 3:
-    config_name = sys.argv[1]
-    data_path = sys.argv[2]
-elif len(sys.argv) == 2:
-    config_name = 'config/default_config.json'
-    data_path = os.path.join(sys.argv[2], 'data', 'preprocessed')
-else:
-    config_name = 'config/default_config.json'
-    data_path = os.getcwd()
+def main(config, args):
+    # path
+    csv_path = config['path']['csv_path']
 
-with open(config_name) as f:
-    config = json.load(f)
+    # PET CT scan params
+    image_shape = tuple(config['preprocessing']['image_shape'])  # (128, 64, 64)  # (368, 128, 128)  # (z, y, x)
+    number_channels = config['preprocessing']['number_channels']
+    voxel_spacing = tuple(config['preprocessing']['voxel_spacing'])  # (4.8, 4.8, 4.8)  # in millimeter, (z, y, x)
+    data_augment = False
+    origin = config['preprocessing']['origin']  # how to set the new origin
+    normalize = config['preprocessing']['normalize']  # True  # whether or not to normalize the inputs
+    number_class = config['preprocessing']['number_class']  # 2
 
-# path
-csv_path = config['path']['csv_path']
+    # Get Data
+    DM = DataManager(csv_path=csv_path)
+    train_images_paths, val_images_paths, test_images_paths = DM.get_train_val_test(wrap_with_dict=True)
 
-# PET CT scan params
-image_shape = tuple(config['preprocessing']['image_shape'])  # (128, 64, 64)  # (368, 128, 128)  # (z, y, x)
-number_channels = config['preprocessing']['number_channels']
-voxel_spacing = tuple(config['preprocessing']['voxel_spacing'])  # (4.8, 4.8, 4.8)  # in millimeter, (z, y, x)
-data_augment = config['preprocessing']['data_augment']  # True  # for training dataset only
-resize = config['preprocessing']['resize']  # True  # not use yet
-origin = config['preprocessing']['origin']  # how to set the new origin
-normalize = config['preprocessing']['normalize']  # True  # whether or not to normalize the inputs
-number_class = config['preprocessing']['number_class']  # 2
 
-# Get Data
-DM = DataManager(csv_path=csv_path)
-dataset = collections.defaultdict(dict)
-dataset['train']['x'], dataset['val']['x'], dataset['test']['x'], dataset['train']['y'], dataset['val']['y'], \
-dataset['test']['y'] = DM.get_train_val_test()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--config", default='config/default_config.json', type=str,
+                        help="path/to/config.json")
+    parser.add_argument("--pp_dir", type=str,
+                        help="path/to/preprocessing/directory")
+    args = parser.parse_args()
+
+    with open(args.config) as f:
+        config = json.load(f)
+
+    main(config, args)
 
 # for subset_type in dataset.keys():
 for subset_type in ['train', 'val', 'test']:

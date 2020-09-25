@@ -3,7 +3,7 @@
 # class configs(DefaultConfigs):
 
 
-class configs(object):
+class configs_3D(object):
 
     def __init__(self):
 
