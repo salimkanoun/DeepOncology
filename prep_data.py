@@ -1,20 +1,17 @@
-import sys
+
 import argparse
+
+import numpy as np
+import os
 import json
 
 from class_modalities.datasets import DataManager
-from class_modalities.modality_PETCT import DataGenerator
 
-import numpy as np
-import collections
-import re
-
-import os
-from datetime import datetime
-
+from class_modalities.transforms import LoadNifti, Compose, Roi2Mask_probs, ResampleReshapeAlign, Sitk2Numpy, ScaleIntensityRanged
+import SimpleITK as sitk
 
 def main(config, args):
-    # path
+    pp_dir = args.pp_dir
     csv_path = config['path']['csv_path']
 
     # PET CT scan params
@@ -28,7 +25,68 @@ def main(config, args):
 
     # Get Data
     DM = DataManager(csv_path=csv_path)
+    # dataset = collections.defaultdict(dict)
+    # dataset['train']['x'], dataset['val']['x'], dataset['test']['x'], dataset['train']['y'], dataset['val']['y'], \
+    # dataset['test']['y'] = DM.get_train_val_test()
+
     train_images_paths, val_images_paths, test_images_paths = DM.get_train_val_test(wrap_with_dict=True)
+
+    target_shape = image_shape[::-1]  # (z, y, x) to (x, y, z)
+    target_voxel_spacing = voxel_spacing[::-1]
+
+    transformers2 = Compose([  # read img + meta info
+        LoadNifti(keys=("pet_img", "ct_img", "mask_img")),
+        Roi2Mask_probs(keys=('pet_img', 'mask_img'),
+                       method='absolute', new_key_name='mask_img_absolute'),
+        Roi2Mask_probs(keys=('pet_img', 'mask_img'),
+                       method='relative', new_key_name='mask_img_relative'),
+        Roi2Mask_probs(keys=('pet_img', 'mask_img'),
+                       method='otsu', new_key_name='mask_img_otsu'),
+        ResampleReshapeAlign(target_shape, target_voxel_spacing,
+                             keys=['pet_img', "ct_img",
+                                   'mask_img_absolute', 'mask_img_relative', 'mask_img_otsu'],
+                             origin='head', origin_key='pet_img',
+                             interpolator={'pet_img': sitk.sitkLinear,
+                                           'ct_img': sitk.sitkLinear,
+                                           'mask_img': sitk.sitkLinear,
+                                           'mask_img_absolute': sitk.sitkLinear,
+                                           'mask_img_relative': sitk.sitkLinear,
+                                           'mask_img_otsu': sitk.sitkLinear},
+                             default_value={'pet_img': 0.0,
+                                            'ct_img': -1000.0,
+                                            'mask_img': 0,
+                                            'mask_img_absolute': 0.0,
+                                            'mask_img_relative': 0.0,
+                                            'mask_img_otsu': 0.0}),
+        Sitk2Numpy(keys=['pet_img', 'ct_img',
+                         'mask_img_absolute', 'mask_img_relative', 'mask_img_otsu']),
+        # normalize input
+        ScaleIntensityRanged(keys="pet_img",
+                             a_min=0.0, a_max=25.0, b_min=0.0, b_max=1.0, clip=True),
+        ScaleIntensityRanged(keys="ct_img",
+                             a_min=-1000.0, a_max=1000.0, b_min=0.0, b_max=1.0, clip=True)
+    ])
+
+    for dataset, subset in zip([train_images_paths, val_images_paths, test_images_paths], ['train', 'val', 'test']):
+        print(subset, len(dataset))
+
+        # create folder
+        if not os.path.exists(os.path.join(pp_dir, subset)):
+            os.makedirs(os.path.join(pp_dir, subset))
+
+        for idx, img_path in enumerate(dataset):
+            result = transformers2(img_path)
+            study_uid = result['image_id']
+
+            # create folder
+            base_path = os.path.join(pp_dir, subset, study_uid)
+            if not os.path.exists(base_path):
+                os.makedirs(base_path)
+
+            for key in ['mask_img_absolute', 'mask_img_relative', 'mask_img_otsu', 'pet_img', 'ct_img']:
+                np.save(os.path.join(base_path, key), result[key])
+
+            print('[{} / {}] : Succesfully saved {}'.format(idx, len(dataset), study_uid))
 
 
 if __name__ == "__main__":
@@ -44,38 +102,5 @@ if __name__ == "__main__":
 
     main(config, args)
 
-# for subset_type in dataset.keys():
-for subset_type in ['train', 'val', 'test']:
-    print(subset_type)
-    # path to pdf to generate
-    folder_name = os.path.join(data_path, subset_type)
-    print('folder :', folder_name)
-    if not os.path.exists(folder_name):
-        os.makedirs(folder_name)
-        print(folder_name, 'folder created')
-
-    # Define generator
-    generator = DataGenerator(dataset[subset_type]['x'], dataset[subset_type]['y'],
-                              batch_size=1, shuffle=False, augmentation=False,
-                              target_shape=image_shape, target_voxel_spacing=voxel_spacing,
-                              resize=resize, normalize=normalize)
-
-    # loop on files to get MIP visualisation
-    for step, (X, mask) in enumerate(generator):
-        pet_path = dataset['subset_type']['x'][step][0]
-        study_uid = re.sub('_nifti_PT\.nii(\.gz)?', '', os.path.basename(pet_path))
-
-        pet_array = X[0, :, :, :, 0]
-        ct_array = X[0, :, :, :, 1]
-        mask_array = mask[0]
-
-        if not os.path.exists(os.path.join(folder_name, study_uid)):
-            os.makedirs(os.path.join(folder_name, study_uid))
-
-        np.save(os.path.join(folder_name, study_uid, study_uid + '_PET.npy'), pet_array)
-        np.save(os.path.join(folder_name, study_uid, study_uid + '_CT.npy'), ct_array)
-        np.save(os.path.join(folder_name, study_uid, study_uid + '_MASK.npy'), mask_array)
-
-        print('Succesfully saved :', step, study_uid)
 
 

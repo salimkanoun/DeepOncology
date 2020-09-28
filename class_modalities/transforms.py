@@ -10,6 +10,16 @@ from math import pi
 from .utils import get_study_uid, one_hot_encode
 
 
+class Compose(object):
+    def __init__(self, transformers):
+        self.transformers = transformers
+
+    def __call__(self, img_dict):
+        for transform in self.transformers:
+            img_dict = transform(img_dict)
+
+        return img_dict
+
 class LoadNifti(object):
     """
     Load Nifti images and returns Simple itk object
@@ -236,7 +246,7 @@ class Roi2Mask_probs(object):
                 roi = pet_array[mask_slice > 0]
                 try:
                     # apply threshold
-                    new_mask[num_slice][np.where(roi)] = self.compute_probs(roi, method)
+                    new_mask[num_slice][np.where(mask_slice > 0)] = self.compute_probs(roi, method)
 
                 except Exception as e:
                     print(e)
@@ -401,7 +411,7 @@ class ScaleIntensityRanged(object):
 
     def __call__(self, img_dict):
 
-        for key in self.keys():
+        for key in self.keys:
 
             img = img_dict.pop(key)
 
@@ -460,7 +470,7 @@ class RandAffine(object):
         def_ratios = self.generate_random_deformation_ratios()
 
         # apply the same deformation to every image
-        for key in self.keys():
+        for key in self.keys:
             img_dict[key] = self.AffineTransformation(image=img_dict.pop(key),
                                                       interpolator=self.interpolator[key],
                                                       deformations=def_ratios,

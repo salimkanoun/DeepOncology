@@ -4,6 +4,7 @@ import json
 
 from class_modalities.datasets import DataManager
 from class_modalities.modality_PETCT import DataGenerator
+from class_modalities.data_loader import DataGenerator_3D_from_numpy
 
 import tensorflow as tf
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping, TensorBoard
@@ -24,6 +25,7 @@ def main(config):
 
     # path
     csv_path = config['path']['csv_path']
+    pp_dir = config['path']['pp_dir']
 
     trained_model_path = config['path']['trained_model_path']  # if None, trained from scratch
     training_model_folder = os.path.join(config['path']['training_model_folder'], now)  # '/path/to/folder'
@@ -80,7 +82,6 @@ def main(config):
     callbacks = []
     if 'callbacks' in config['training']:
         if config['training']['callbacks'].get('ReduceLROnPlateau', False):
-
             # reduces learning rate if no improvement are seen
             learning_rate_reduction = ReduceLROnPlateau(monitor='val_loss',
                                                         patience=config['training']['callbacks']['patience'],
@@ -120,24 +121,36 @@ def main(config):
     # callbacks = [tensorboard_callback, learning_rate_reduction, early_stop, checkpoint]
 
     # Get Data
-    DM = DataManager(csv_path=csv_path)
-    x_train, x_val, x_test, y_train, y_val, y_test = DM.get_train_val_test()
+    if pp_dir is None:
+        DM = DataManager(csv_path=csv_path)
+        x_train, x_val, x_test, y_train, y_val, y_test = DM.get_train_val_test()
 
-    # Define generator
-    train_generator = DataGenerator(x_train, y_train,
-                                    batch_size=batch_size, shuffle=shuffle, augmentation=data_augment,
-                                    target_shape=image_shape, target_voxel_spacing=voxel_spacing,
-                                    resize=resize, normalize=normalize, origin=origin)
+        # Define generator
+        train_generator = DataGenerator(x_train, y_train,
+                                        batch_size=batch_size, shuffle=shuffle, augmentation=data_augment,
+                                        target_shape=image_shape, target_voxel_spacing=voxel_spacing,
+                                        resize=resize, normalize=normalize, origin=origin)
 
-    val_generator = DataGenerator(x_val, y_val,
-                                  batch_size=batch_size, shuffle=False, augmentation=False,
-                                  target_shape=image_shape, target_voxel_spacing=voxel_spacing,
-                                  resize=resize, normalize=normalize, origin=origin)
+        val_generator = DataGenerator(x_val, y_val,
+                                      batch_size=batch_size, shuffle=False, augmentation=False,
+                                      target_shape=image_shape, target_voxel_spacing=voxel_spacing,
+                                      resize=resize, normalize=normalize, origin=origin)
+    else:
+        mask_keys = ['mask_img_absolute', 'mask_img_relative', 'mask_img_otsu']
+        train_generator = DataGenerator_3D_from_numpy(pp_dir, 'train',
+                                                      mask_keys,
+                                                      batch_size=batch_size,
+                                                      shuffle=True)
+        val_generator = DataGenerator_3D_from_numpy(pp_dir, 'val',
+                                                    mask_keys,
+                                                    batch_size=batch_size,
+                                                    shuffle=False)
 
     # Define model
     if architecture == 'unet':
         with strategy.scope():
-            model = CustomUNet3D(tuple(list(image_shape) + [number_channels]), number_class,  **cnn_params).create_model()
+            model = CustomUNet3D(tuple(list(image_shape) + [number_channels]), number_class,
+                                 **cnn_params).create_model()
 
     elif architecture == 'vnet':
         with strategy.scope():
@@ -156,7 +169,8 @@ def main(config):
 
     # serialize model to JSON before training
     model_json = model.to_json()
-    with open(os.path.join(training_model_folder, 'architecture_{}_model_{}.json'.format(architecture, now)), "w") as json_file:
+    with open(os.path.join(training_model_folder, 'architecture_{}_model_{}.json'.format(architecture, now)),
+              "w") as json_file:
         json_file.write(model_json)
 
     # training model
