@@ -16,19 +16,12 @@ def main(config, args):
 
     # PET CT scan params
     image_shape = tuple(config['preprocessing']['image_shape'])  # (128, 64, 64)  # (368, 128, 128)  # (z, y, x)
-    number_channels = config['preprocessing']['number_channels']
     voxel_spacing = tuple(config['preprocessing']['voxel_spacing'])  # (4.8, 4.8, 4.8)  # in millimeter, (z, y, x)
     data_augment = False
     origin = config['preprocessing']['origin']  # how to set the new origin
-    normalize = config['preprocessing']['normalize']  # True  # whether or not to normalize the inputs
-    number_class = config['preprocessing']['number_class']  # 2
 
     # Get Data
     DM = DataManager(csv_path=csv_path)
-    # dataset = collections.defaultdict(dict)
-    # dataset['train']['x'], dataset['val']['x'], dataset['test']['x'], dataset['train']['y'], dataset['val']['y'], \
-    # dataset['test']['y'] = DM.get_train_val_test()
-
     train_images_paths, val_images_paths, test_images_paths = DM.get_train_val_test(wrap_with_dict=True)
 
     target_shape = image_shape[::-1]  # (z, y, x) to (x, y, z)

@@ -239,23 +239,24 @@ class Roi2Mask_probs(object):
 
         new_masks = []
         for method in self.method:
-            new_mask = np.zeros(mask_array.shape, dtype=np.float64)
+            new_mask = np.zeros(mask_array.shape[1:], dtype=np.float64)
 
             for num_slice in range(mask_array.shape[0]):
-                mask_slice = mask_array[num_slice]
+                mask_slice = mask_array[num_slice]  # R.O.I
                 roi = pet_array[mask_slice > 0]
                 try:
                     # apply threshold
-                    new_mask[num_slice][np.where(mask_slice > 0)] = self.compute_probs(roi, method)
-
+                    new_mask[np.where(mask_slice > 0)] = np.maximum(self.compute_probs(roi, method),
+                                                                    new_mask[np.where(mask_slice > 0)])
                 except Exception as e:
                     print(e)
                     print(sys.exc_info()[0])
-            new_masks.append(np.max(new_mask, axis=0))
+            new_masks.append(new_mask)
 
-        new_mask = np.mean(new_masks)
+        new_mask = new_masks[0] if len(new_masks) == 1 else np.mean(np.array(new_masks), axis=0)
+        # np.average(imgs, axis=0, weights=self.weights)
 
-        # reconvert to sitk and restore information
+        # reconvert to sitk and restore 3D meta-information
         new_mask = sitk.GetImageFromArray(new_mask)
         new_mask.SetOrigin(origin)
         new_mask.SetDirection(direction)
@@ -289,7 +290,8 @@ class ResampleReshapeAlign(object):
     def __init__(self, target_shape, target_voxel_spacing,
                  keys=('pet_img', 'ct_img', 'mask_img'),
                  origin='head', origin_key='pet_img',
-                 interpolator=None, default_value=None):
+                 interpolator=None, default_value=None,
+                 add_meta_info=True):
         """
         :param target_shape: tuple[int], (x, y, z)
         :param target_voxel_spacing: tuple[float], (x, y, z)
@@ -311,6 +313,8 @@ class ResampleReshapeAlign(object):
         self.origin = origin
         self.origin_key = origin_key
 
+        self.add_meta_info = add_meta_info
+
         # sitk.sitkLinear, sitk.sitkBSpline, sitk.sitkNearestNeighbor
         if interpolator is None:
             self.interpolator = {'pet_img': sitk.sitkBSpline,
@@ -329,11 +333,14 @@ class ResampleReshapeAlign(object):
     def __call__(self, img_dict):
         # compute transformation parameters
         new_origin = self.compute_new_origin(img_dict[self.origin_key])
-        # img_dict['new_origin'] = new_origin
-        # img_dict['original_size'] = img_dict['pet_img'].GetSize()
-        # img_dict['original_spacing'] = img_dict['pet_img'].GetSpacing()
-        # img_dict['original_origin'] = img_dict['pet_img'].GetOrigin()
-        # img_dict['original_direction'] = img_dict['pet_img'].GetDirection()
+        if self.add_meta_info:
+            img_dict['meta_info'] = img_dict.get('meta_info', dict())
+
+            img_dict['meta_info']['new_origin'] = new_origin
+            img_dict['meta_info']['original_size'] = img_dict['pet_img'].GetSize()
+            img_dict['meta_info']['original_spacing'] = img_dict['pet_img'].GetSpacing()
+            img_dict['meta_info']['original_origin'] = img_dict['pet_img'].GetOrigin()
+            img_dict['meta_info']['original_direction'] = img_dict['pet_img'].GetDirection()
 
         for key in self.keys:
             img_dict[key] = self.resample_img(img_dict[key], new_origin, self.default_value[key],
@@ -550,16 +557,16 @@ class PostCNNResampler(object):
 
     def __call__(self, img_dict):
         mask_img = sitk.GetImageFromArray(img_dict['mask_pred'])
-        mask_img.SetOrigin(img_dict['new_origin'])
+        mask_img.SetOrigin(img_dict['meta_info']['new_origin'])
         mask_img.SetDirection(self.target_direction)
         mask_img.SetSpacing(self.target_voxel_spacing)
 
         # resample to orginal shape, spacing, direction and origin
         transformation = sitk.ResampleImageFilter()
-        transformation.SetOutputDirection(img_dict['original_direction'])
-        transformation.SetOutputOrigin(img_dict['original_origin'])
-        transformation.SetOutputSpacing(img_dict['original_spacing'])
-        transformation.SetSize(img_dict['original_size'])
+        transformation.SetOutputDirection(img_dict['meta_info']['original_direction'])
+        transformation.SetOutputOrigin(img_dict['meta_info']['original_origin'])
+        transformation.SetOutputSpacing(img_dict['meta_info']['original_spacing'])
+        transformation.SetSize(img_dict['meta_info']['original_size'])
 
         transformation.SetDefaultPixelValue(0.0)
         transformation.SetInterpolator(sitk.sitkLinear)  # sitk.sitkNearestNeighbor
