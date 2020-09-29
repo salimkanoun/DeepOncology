@@ -80,11 +80,11 @@ def main(config, args):
     if not os.path.isfile(result_csv_path):
         # csv file do not exist yet => so let's create it
         with open(result_csv_path, 'w') as f:
-            writer = csv.writer(f)
+            writer = csv.writer(f, delimiter='\t')
             writer.writerow(['study_uid', 'model', 'ground_truth', 'dice_cnn', 'tmtv_cnn_pred', 'tmtv_cnn_true'])
 
     with open(result_csv_path, 'a') as f:
-        writer = csv.writer(f)
+        writer = csv.writer(f, delimiter='\t')
         for subset, dataset in zip(['train', 'val', 'test'], [train_generator, val_generator, test_generator]):
             print('dataset {} : {}'.format(subset, len(dataset) * batch_size))
 

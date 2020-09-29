@@ -98,7 +98,7 @@ class DataGenerator_3D_from_numpy(tf.keras.utils.Sequence):
 
         if self.returns_dict:
             study_uids = []
-            for idx in self.images_paths[idx]:
+            for idx in indexes:
                 img_path = self.images_paths[idx]
                 directory = os.path.dirname(img_path['pet_img'])
                 study_uid = os.path.split(directory)[1]

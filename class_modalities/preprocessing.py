@@ -281,150 +281,150 @@ class PreprocessorPETCT(object):
         new_mask.SetSpacing(spacing)
 
         return new_mask
-
-from scipy.stats import truncnorm, uniform
-
-class Roi2Mask(object):
-    """
-    Apply threshold-based method to determine the segmentation from the ROI
-    """
-
-    def __init__(self, method='otsu', tval=0.0, idx_channel=-1, as_discrete=False):
-        """
-        :param method: method to use for calculate the threshold
-                Must be one of 'absolute', 'relative', 'otsu', 'adaptative'
-        :param tval: Used only for method= 'absolute' or 'relative'. threshold value of the method.
-                for 2.5 SUV threshold: use method='absolute', tval=2.5
-                for 41% SUV max threshold: method='relative', tval=0.41
-        :param idx_channel: idx of the ROI.
-                for example, if ROI image shape is (n_roi, x, y, z) then idx_channel must be 0.
-        """
-        self.method = method.lower()
-        self.tval = tval
-        self.as_discrete = as_discrete
-
-        assert self.method in ['absolute', 'relative', 'otsu', 'adaptative']
-
-    def __call__(self, pet_img, mask_img):
-        return self.roi2mask(mask_img, pet_img)
-
-
-    def calculate_threshold(self, roi):
-        if self.method == 'absolute':
-            return self.tval
-
-        elif self.method == 'relative':
-            # check len(roi) > 0
-            SUV_max = np.max(roi)
-            return self.tval * SUV_max
-
-        elif self.method == 'adaptative' or self.method == 'otsu':
-            # check len(np.unique(roi)) > 1
-            return filters.threshold_otsu(roi)
-
-    def continous_mask_function(self):
-        if self.method == 'absolute':
-
-            lower, upper = 2.0, 4.0
-            mu, std = 3.0, 0.5
-
-            a, b = (lower - mu) / std, (upper - mu) / std
-
-            # truncnorm.cdf(x, a, b, loc=mu, scale=std)
-            # uniform.cdf(x, loc=lower, scale=upper - lower)
-
-        elif self.method == 'relative':
-            # def sigmoid_SUV(roi):
-            #     a = 15 / np.max(roi)  # 0.5
-            #     tval = 0.42
-            #     mu = tval * np.max(roi)
-            #
-            #     return 1.0 - 1.0 / (1 + np.exp(-a * (mu - roi)))
-
-    def roi2mask_from_numpy(self, mask_array, pet_array):
-        if self.as_discrete:
-            #
-            new_mask = np.zeros(mask_array.shape[1:], dtype=np.int8)
-
-            # loop over R.O.I
-            for num_slice in range(mask_array.shape[0]):
-                mask_slice = mask_array[num_slice]
-                roi = pet_array[mask_slice > 0]
-
-                try:
-                    threshold = self.calculate_threshold(roi)
-
-                    # apply threshold
-                    new_mask[np.where((pet_array >= threshold) & (mask_slice > 0))] = 1
-                except:
-                    continue
-
-        else:
-            new_mask = np.zeros(mask_array.shape, dtype=np.float64)
-            for ii, num_slice in enumerate(mask_array.shape[0]):
-                mask_slice = mask_array[num_slice]
-                roi = pet_array[mask_slice > 0]
-
-                try:
-                    threshold = self.calculate_threshold(roi)
-
-                    # apply threshold
-                    new_mask[ii][np.where((pet_array >= threshold) & (mask_slice > 0))] = 1
-                except:
-                    continue
-
-
-    def roi2mask(self, mask_img, pet_img):
-        """
-        Generate the mask from the ROI of the pet scan
-        Args:
-            :param mask_img: sitk image, raw mask (i.e ROI)
-            :param pet_img: sitk image, the corresponding pet scan
-
-        :return: sitk image, the ground truth segmentation
-        """
-        # transform to numpy
-        mask_array = sitk.GetArrayFromImage(mask_img)
-        pet_array = sitk.GetArrayFromImage(pet_img)
-
-        # get 3D meta information
-        if len(mask_array.shape) == 3:
-            mask_array = np.expand_dims(mask_array, axis=0)
-
-            origin = mask_img.GetOrigin()
-            spacing = mask_img.GetSpacing()
-            direction = tuple(mask_img.GetDirection())
-            # size = mask_img.GetSize()
-        else:
-            mask_array = np.rollaxis(mask_array, self.idx_channel, 0)
-
-            # convert false-4d meta information to 3d information
-            origin = mask_img.GetOrigin()[:-1]
-            spacing = mask_img.GetSpacing()[:-1]
-            direction = tuple(el for i, el in enumerate(mask_img.GetDirection()[:12]) if not (i + 1) % 4 == 0)
-            # size = mask_img.GetSize()[:-1]
-
-        new_mask = np.zeros(mask_array.shape[1:], dtype=np.int8)
-
-        for num_slice in range(mask_array.shape[0]):
-            mask_slice = mask_array[num_slice]
-            roi = pet_array[mask_slice > 0]
-
-            try:
-                threshold = self.calculate_threshold(roi)
-
-                # apply threshold
-                new_mask[np.where((pet_array >= threshold) & (mask_slice > 0))] = 1
-
-            except:
-                continue
-
-        # reconvert to sitk and restore information
-        new_mask = sitk.GetImageFromArray(new_mask)
-        new_mask.SetOrigin(origin)
-        new_mask.SetDirection(direction)
-        new_mask.SetSpacing(spacing)
-
-        return new_mask
-
-
+#
+# from scipy.stats import truncnorm, uniform
+#
+# class Roi2Mask(object):
+#     """
+#     Apply threshold-based method to determine the segmentation from the ROI
+#     """
+#
+#     def __init__(self, method='otsu', tval=0.0, idx_channel=-1, as_discrete=False):
+#         """
+#         :param method: method to use for calculate the threshold
+#                 Must be one of 'absolute', 'relative', 'otsu', 'adaptative'
+#         :param tval: Used only for method= 'absolute' or 'relative'. threshold value of the method.
+#                 for 2.5 SUV threshold: use method='absolute', tval=2.5
+#                 for 41% SUV max threshold: method='relative', tval=0.41
+#         :param idx_channel: idx of the ROI.
+#                 for example, if ROI image shape is (n_roi, x, y, z) then idx_channel must be 0.
+#         """
+#         self.method = method.lower()
+#         self.tval = tval
+#         self.as_discrete = as_discrete
+#
+#         assert self.method in ['absolute', 'relative', 'otsu', 'adaptative']
+#
+#     def __call__(self, pet_img, mask_img):
+#         return self.roi2mask(mask_img, pet_img)
+#
+#
+#     def calculate_threshold(self, roi):
+#         if self.method == 'absolute':
+#             return self.tval
+#
+#         elif self.method == 'relative':
+#             # check len(roi) > 0
+#             SUV_max = np.max(roi)
+#             return self.tval * SUV_max
+#
+#         elif self.method == 'adaptative' or self.method == 'otsu':
+#             # check len(np.unique(roi)) > 1
+#             return filters.threshold_otsu(roi)
+#
+#     def continous_mask_function(self):
+#         if self.method == 'absolute':
+#
+#             lower, upper = 2.0, 4.0
+#             mu, std = 3.0, 0.5
+#
+#             a, b = (lower - mu) / std, (upper - mu) / std
+#
+#             # truncnorm.cdf(x, a, b, loc=mu, scale=std)
+#             # uniform.cdf(x, loc=lower, scale=upper - lower)
+#
+#         elif self.method == 'relative':
+#             # def sigmoid_SUV(roi):
+#             #     a = 15 / np.max(roi)  # 0.5
+#             #     tval = 0.42
+#             #     mu = tval * np.max(roi)
+#             #
+#             #     return 1.0 - 1.0 / (1 + np.exp(-a * (mu - roi)))
+#
+#     def roi2mask_from_numpy(self, mask_array, pet_array):
+#         if self.as_discrete:
+#             #
+#             new_mask = np.zeros(mask_array.shape[1:], dtype=np.int8)
+#
+#             # loop over R.O.I
+#             for num_slice in range(mask_array.shape[0]):
+#                 mask_slice = mask_array[num_slice]
+#                 roi = pet_array[mask_slice > 0]
+#
+#                 try:
+#                     threshold = self.calculate_threshold(roi)
+#
+#                     # apply threshold
+#                     new_mask[np.where((pet_array >= threshold) & (mask_slice > 0))] = 1
+#                 except:
+#                     continue
+#
+#         else:
+#             new_mask = np.zeros(mask_array.shape, dtype=np.float64)
+#             for ii, num_slice in enumerate(mask_array.shape[0]):
+#                 mask_slice = mask_array[num_slice]
+#                 roi = pet_array[mask_slice > 0]
+#
+#                 try:
+#                     threshold = self.calculate_threshold(roi)
+#
+#                     # apply threshold
+#                     new_mask[ii][np.where((pet_array >= threshold) & (mask_slice > 0))] = 1
+#                 except:
+#                     continue
+#
+#
+#     def roi2mask(self, mask_img, pet_img):
+#         """
+#         Generate the mask from the ROI of the pet scan
+#         Args:
+#             :param mask_img: sitk image, raw mask (i.e ROI)
+#             :param pet_img: sitk image, the corresponding pet scan
+#
+#         :return: sitk image, the ground truth segmentation
+#         """
+#         # transform to numpy
+#         mask_array = sitk.GetArrayFromImage(mask_img)
+#         pet_array = sitk.GetArrayFromImage(pet_img)
+#
+#         # get 3D meta information
+#         if len(mask_array.shape) == 3:
+#             mask_array = np.expand_dims(mask_array, axis=0)
+#
+#             origin = mask_img.GetOrigin()
+#             spacing = mask_img.GetSpacing()
+#             direction = tuple(mask_img.GetDirection())
+#             # size = mask_img.GetSize()
+#         else:
+#             mask_array = np.rollaxis(mask_array, self.idx_channel, 0)
+#
+#             # convert false-4d meta information to 3d information
+#             origin = mask_img.GetOrigin()[:-1]
+#             spacing = mask_img.GetSpacing()[:-1]
+#             direction = tuple(el for i, el in enumerate(mask_img.GetDirection()[:12]) if not (i + 1) % 4 == 0)
+#             # size = mask_img.GetSize()[:-1]
+#
+#         new_mask = np.zeros(mask_array.shape[1:], dtype=np.int8)
+#
+#         for num_slice in range(mask_array.shape[0]):
+#             mask_slice = mask_array[num_slice]
+#             roi = pet_array[mask_slice > 0]
+#
+#             try:
+#                 threshold = self.calculate_threshold(roi)
+#
+#                 # apply threshold
+#                 new_mask[np.where((pet_array >= threshold) & (mask_slice > 0))] = 1
+#
+#             except:
+#                 continue
+#
+#         # reconvert to sitk and restore information
+#         new_mask = sitk.GetImageFromArray(new_mask)
+#         new_mask.SetOrigin(origin)
+#         new_mask.SetDirection(direction)
+#         new_mask.SetSpacing(spacing)
+#
+#         return new_mask
+#
+#
