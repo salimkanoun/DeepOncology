@@ -20,6 +20,7 @@ class Compose(object):
 
         return img_dict
 
+
 class LoadNifti(object):
     """
     Load Nifti images and returns Simple itk object
@@ -58,14 +59,13 @@ class Roi2Mask(object):
 
     def __init__(self, keys=('pet_img', 'mask_img'), method='otsu', tval=0.0):
         """
-        :param keys:
+        :param keys: 'pet_img' must be a 3D simpleITK image
+                     'mask_img' must be a 4D simpleITK image. shape = (n_roi, _, _, _)
         :param method: method to use for calculate the threshold
                 Must be one of 'absolute', 'relative', 'otsu', 'adaptative'
         :param tval: Used only for method= 'absolute' or 'relative'. threshold value of the method.
                 for 2.5 SUV threshold: use method='absolute', tval=2.5
                 for 41% SUV max threshold: method='relative', tval=0.41
-        :param idx_channel: idx of the ROI.
-                for example, if ROI image shape is (n_roi, x, y, z) then idx_channel must be 0.
         """
         self.keys = (keys,) if isinstance(keys, str) else keys
 
@@ -337,10 +337,11 @@ class ResampleReshapeAlign(object):
     def __call__(self, img_dict):
         # compute transformation parameters
         new_origin = self.compute_new_origin(img_dict[self.origin_key])
+
         if self.add_meta_info:
+            # save meta information of raw data
             img_dict['meta_info'] = img_dict.get('meta_info', dict())
 
-            img_dict['meta_info']['new_origin'] = new_origin
             img_dict['meta_info']['original_size'] = img_dict['pet_img'].GetSize()
             img_dict['meta_info']['original_spacing'] = img_dict['pet_img'].GetSpacing()
             img_dict['meta_info']['original_origin'] = img_dict['pet_img'].GetOrigin()
@@ -349,6 +350,13 @@ class ResampleReshapeAlign(object):
         for key in self.keys:
             img_dict[key] = self.resample_img(img_dict[key], new_origin, self.default_value[key],
                                               self.interpolator[key])
+
+        if self.add_meta_info:
+            # save meta information of preprocessed data
+            img_dict['meta_info']['new_size'] = img_dict['pet_img'].GetSize()
+            img_dict['meta_info']['new_spacing'] = img_dict['pet_img'].GetSpacing()
+            img_dict['meta_info']['new_origin'] = img_dict['pet_img'].GetOrigin()
+            img_dict['meta_info']['new_direction'] = img_dict['pet_img'].GetDirection()
 
         return img_dict
 
@@ -562,8 +570,8 @@ class PostCNNResampler(object):
     def __call__(self, img_dict):
         mask_img = sitk.GetImageFromArray(img_dict['mask_pred'])
         mask_img.SetOrigin(img_dict['meta_info']['new_origin'])
-        mask_img.SetDirection(self.target_direction)
-        mask_img.SetSpacing(self.target_voxel_spacing)
+        mask_img.SetDirection(self.target_direction)  # img_dict['meta_info']['new_direction']
+        mask_img.SetSpacing(self.target_voxel_spacing)  # img_dict['meta_info']['new_spacing']
 
         # resample to orginal shape, spacing, direction and origin
         transformation = sitk.ResampleImageFilter()

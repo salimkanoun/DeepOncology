@@ -75,6 +75,8 @@ def main(config, args):
     model_cnn = tf.keras.models.load_model(args.model_path, compile=False)
 
     result_csv_path = os.path.join(args.target_dir, 'result_tmtv.csv')
+    if not os.path.exists(args.target_dir):
+        os.makedirs(args.target_dir)
     if not os.path.isfile(result_csv_path):
         # csv file do not exist yet => so let's create it
         with open(result_csv_path, 'w') as f:
