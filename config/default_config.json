@@ -1,8 +1,9 @@
 {
     "path": {
-        "csv_path": "/home/salim/Documents/DeepOncopole/data/DB_PATH_NIFTI.csv",
-        "trained_model_path": null,
-        "training_model_folder": "/media/salim/DD 2To/RUDY_WEIGTH/training"
+        "csv_path": "/home/oncopole/Documents/Rudy/DeepOncopole/data/DB_PATH_NIFTI.csv",
+        "pp_dir": "/media/oncopole/83c5223d-7a01-4ed0-b268-b877a7da96e2/Rudy/data",
+        "trained_model_path": "/media/oncopole/DD 2To/RUDY_WEIGTH/training/20200911-14:27:38/trained_model_20200911-14:27:38.h5",
+        "training_model_folder": "/media/oncopole/DD 2To/RUDY_WEIGTH/training"
     },
     "preprocessing": {
         "image_shape": [
@@ -68,7 +69,7 @@
         }
     },
     "training": {
-        "epochs": 100,
+        "epochs": 50,
         "batch_size": 2,
         "shuffle": true,
         "optimizer": {
