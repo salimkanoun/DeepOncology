@@ -13,7 +13,7 @@ from deeplearning_models.Vnet import VNet
 from deeplearning_models.Layers import prelu
 
 from deeplearning_tools.Loss import vnet_dice_loss
-from deeplearning_tools.Loss import dice_similarity_coefficient as dsc
+from deeplearning_tools.Loss import metric_dice as dsc
 
 import os
 from datetime import datetime
@@ -25,7 +25,7 @@ def main(config):
 
     # path
     csv_path = config['path']['csv_path']
-    pp_dir = config['path']['pp_dir']
+    pp_dir = config['path'].get('pp_dir', None)
 
     trained_model_path = config['path']['trained_model_path']  # if None, trained from scratch
     training_model_folder = os.path.join(config['path']['training_model_folder'], now)  # '/path/to/folder'
@@ -102,10 +102,10 @@ def main(config):
             # saves model weights to file
             # 'model_weights.{epoch:02d}-{val_loss:.2f}.hdf5'
             checkpoint = ModelCheckpoint(os.path.join(training_model_folder, 'model_weights.h5'),
-                                         monitor='val_loss',
+                                         monitor='val_loss',  # metric_dice
                                          verbose=1,
                                          save_best_only=True,
-                                         mode='min',
+                                         mode='min',  # max
                                          save_weights_only=False)
             callbacks.append(checkpoint)
 

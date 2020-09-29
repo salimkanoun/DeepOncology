@@ -129,7 +129,9 @@ class Roi2Mask(object):
         for num_slice in range(mask_array.shape[0]):
             mask_slice = mask_array[num_slice]
             roi = pet_array[mask_slice > 0]
-
+            if len(roi) == 0:
+                # R.O.I is empty
+                continue
             try:
                 threshold = self.calculate_threshold(roi)
 
@@ -244,6 +246,8 @@ class Roi2Mask_probs(object):
             for num_slice in range(mask_array.shape[0]):
                 mask_slice = mask_array[num_slice]  # R.O.I
                 roi = pet_array[mask_slice > 0]
+                if len(roi) == 0:
+                    continue
                 try:
                     # apply threshold
                     new_mask[np.where(mask_slice > 0)] = np.maximum(self.compute_probs(roi, method),

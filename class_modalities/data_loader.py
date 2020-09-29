@@ -47,10 +47,10 @@ class DataGenerator_3D_from_numpy(tf.keras.utils.Sequence):
                 all_pp_data_exist = True
                 keys = ['pet_img', 'ct_img'] + self.mask_keys
                 for key in keys:
-                    img_path[key] = os.path.join(base_path, key + '.npy')
-                    if not os.path.exists(os.path.join(base_path, key + '.npy')):
+                    img_path[key] = os.path.join(base_path, study_uid, key + '.npy')
+                    if not os.path.exists(os.path.join(base_path, study_uid, key + '.npy')):
                         all_pp_data_exist = False
-                        print('study_uid {} : no preprocessed data for {}'.format(study_uid, key))
+                        print('study_uid {} : no preprocessed data for {}'.format(study_uid, study_uid, key))
                 if all_pp_data_exist:
                     self.images_paths.append(img_path)
 
@@ -76,8 +76,11 @@ class DataGenerator_3D_from_numpy(tf.keras.utils.Sequence):
             masks = []
             for key in self.mask_keys:
                 masks.append(np.load(img_path[key]))
-            masks = np.array(masks)
-            mask_array = np.mean(masks, axis=0)
+            if len(masks) == 0:
+                mask_array = masks[0]
+            else:
+                masks = np.array(masks)
+                mask_array = np.mean(masks, axis=0)
 
             # concatenate PET and CT
             PET_CT_array = np.stack((pet_array, ct_array), axis=-1)  # channels last

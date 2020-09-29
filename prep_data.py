@@ -1,7 +1,9 @@
 
 import argparse
 
+import pandas as pd
 import numpy as np
+import pickle
 import os
 import json
 
@@ -9,6 +11,19 @@ from class_modalities.datasets import DataManager
 
 from class_modalities.transforms import LoadNifti, Compose, Roi2Mask_probs, ResampleReshapeAlign, Sitk2Numpy, ScaleIntensityRanged
 import SimpleITK as sitk
+
+
+def aggregate_meta_info(exp_dir):
+
+    files = [os.path.join(exp_dir, f) for f in os.listdir(exp_dir) if 'meta_info' in f]
+    df = pd.DataFrame(columns=['pid', 'class_target', 'spacing', 'fg_slices'])
+    for f in files:
+        with open(f, 'rb') as handle:
+            df.loc[len(df)] = pickle.load(handle)
+
+    df.to_pickle(os.path.join(exp_dir, 'info_df.pickle'))
+    print ("aggregated meta info to df with length", len(df))
+
 
 def main(config, args):
     pp_dir = args.pp_dir
@@ -78,6 +93,20 @@ def main(config, args):
 
             for key in ['mask_img_absolute', 'mask_img_relative', 'mask_img_otsu', 'pet_img', 'ct_img']:
                 np.save(os.path.join(base_path, key), result[key])
+
+            with open(os.path.join(base_path, 'meta_info.pickle'), 'wb') as handle:
+                meta_info_dict = {'study_uid': study_uid,
+                                  'axes': 'zyx', 'shape': image_shape, 'spacing': voxel_spacing}
+                volume_voxel = np.prod(voxel_spacing) * 10**-6  # volume of one voxel in liters
+                # add tmtv
+                for key in ['mask_img_absolute', 'mask_img_relative', 'mask_img_otsu']:
+                    meta_info_dict['tmtv_' + key] = np.sum(np.round(result[key])) * volume_voxel
+
+                mean_mask = np.mean([result[key] for key in ['mask_img_absolute', 'mask_img_relative', 'mask_img_otsu']],
+                                    axis=0)
+                meta_info_dict['tmtv_mean_mask'] = np.sum(np.round(mean_mask)) * volume_voxel
+
+                pickle.dump(meta_info_dict, handle)
 
             print('[{} / {}] : Succesfully saved {}'.format(idx, len(dataset), study_uid))
 
