@@ -119,7 +119,7 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--config", default='config/default_config.json', type=str,
                         help="path/to/config.json")
     parser.add_argument("-d", "--dir", default='/home/salim/Documents/DeepOncopole/data/MIP_dataset', type=str,
-                        help="path/to/config.json")
+                        help="directory where pdf will be stored")
     args = parser.parse_args()
 
     with open(args.config) as f:
