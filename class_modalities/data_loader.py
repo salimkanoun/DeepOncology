@@ -10,7 +10,8 @@ class DataGenerator_3D_from_numpy(tf.keras.utils.Sequence):
                  subset,
                  mask_keys,
                  batch_size=1,
-                 shuffle=True):
+                 shuffle=False,
+                 returns_dict=False):
         self.pp_dir = pp_dir
         self.subset = subset
         if isinstance(mask_keys, list):
@@ -23,6 +24,7 @@ class DataGenerator_3D_from_numpy(tf.keras.utils.Sequence):
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.on_epoch_end()
+        self.returns_dict = returns_dict
 
     def __len__(self):
         """
@@ -70,9 +72,11 @@ class DataGenerator_3D_from_numpy(tf.keras.utils.Sequence):
         for idx in indexes:
             img_path = self.images_paths[idx]
 
+            # load input image
             pet_array = np.load(img_path['pet_img'])
             ct_array = np.load(img_path['ct_img'])
 
+            # load segmentation
             masks = []
             for key in self.mask_keys:
                 masks.append(np.load(img_path[key]))
@@ -92,7 +96,16 @@ class DataGenerator_3D_from_numpy(tf.keras.utils.Sequence):
             X_batch.append(PET_CT_array)
             Y_batch.append(MASK_array)
 
-        return np.array(X_batch), np.array(Y_batch)
+        if self.returns_dict:
+            study_uids = []
+            for idx in self.images_paths[idx]:
+                img_path = self.images_paths[idx]
+                directory = os.path.dirname(img_path['pet_img'])
+                study_uid = os.path.split(directory)[1]
+                study_uids.append(study_uid)
+            return {"study_uid": study_uids, 'img': np.array(X_batch), 'seg': np.array(Y_batch)}
+        else:
+            return np.array(X_batch), np.array(Y_batch)
 
 
 class DataGenerator_3D_from_nifti(tf.keras.utils.Sequence):

@@ -140,7 +140,7 @@ def main(config):
         train_generator = DataGenerator_3D_from_numpy(pp_dir, 'train',
                                                       mask_keys,
                                                       batch_size=batch_size,
-                                                      shuffle=True)
+                                                      shuffle=shuffle)
         val_generator = DataGenerator_3D_from_numpy(pp_dir, 'val',
                                                     mask_keys,
                                                     batch_size=batch_size,
