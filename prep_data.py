@@ -13,16 +13,16 @@ from class_modalities.transforms import LoadNifti, Compose, Roi2Mask_probs, Resa
 import SimpleITK as sitk
 
 
-def aggregate_meta_info(exp_dir):
-
-    files = [os.path.join(exp_dir, f) for f in os.listdir(exp_dir) if 'meta_info' in f]
-    df = pd.DataFrame(columns=['pid', 'class_target', 'spacing', 'fg_slices'])
-    for f in files:
-        with open(f, 'rb') as handle:
-            df.loc[len(df)] = pickle.load(handle)
-
-    df.to_pickle(os.path.join(exp_dir, 'info_df.pickle'))
-    print ("aggregated meta info to df with length", len(df))
+# def aggregate_meta_info(exp_dir):
+#
+#     files = [os.path.join(exp_dir, f) for f in os.listdir(exp_dir) if 'meta_info' in f]
+#     df = pd.DataFrame(columns=['pid', 'class_target', 'spacing', 'fg_slices'])
+#     for f in files:
+#         with open(f, 'rb') as handle:
+#             df.loc[len(df)] = pickle.load(handle)
+#
+#     df.to_pickle(os.path.join(exp_dir, 'info_df.pickle'))
+#     print ("aggregated meta info to df with length", len(df))
 
 
 def main(config, args):
@@ -115,7 +115,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config", default='config/default_config.json', type=str,
                         help="path/to/config.json")
-    parser.add_argument("--pp_dir", type=str,
+    parser.add_argument("--pp_dir", type=str, required=True,
                         help="path/to/preprocessing/directory")
     args = parser.parse_args()
 

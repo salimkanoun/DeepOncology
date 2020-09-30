@@ -44,6 +44,7 @@ def main(config):
     origin = config['preprocessing']['origin']  # how to set the new origin
     normalize = config['preprocessing']['normalize']  # True  # whether or not to normalize the inputs
     number_class = config['preprocessing']['number_class']  # 2
+    threshold = config["preprocessing"]['threshold']
 
     # CNN params
     architecture = config['model']['architecture']  # 'unet' or 'vnet'
@@ -129,14 +130,15 @@ def main(config):
         train_generator = DataGenerator(x_train, y_train,
                                         batch_size=batch_size, shuffle=shuffle, augmentation=data_augment,
                                         target_shape=image_shape, target_voxel_spacing=voxel_spacing,
-                                        resize=resize, normalize=normalize, origin=origin)
+                                        resize=resize, normalize=normalize, origin=origin, threshold=threshold)
 
         val_generator = DataGenerator(x_val, y_val,
                                       batch_size=batch_size, shuffle=False, augmentation=False,
                                       target_shape=image_shape, target_voxel_spacing=voxel_spacing,
-                                      resize=resize, normalize=normalize, origin=origin)
+                                      resize=resize, normalize=normalize, origin=origin, threshold=threshold)
     else:
-        mask_keys = ['mask_img_absolute', 'mask_img_relative', 'mask_img_otsu']
+        # mask_keys = ['mask_img_absolute', 'mask_img_relative', 'mask_img_otsu']
+        mask_keys = 'mask_img_' + threshold if isinstance(threshold, str) else ['mask_img_' + el for el in threshold]
         train_generator = DataGenerator_3D_from_numpy(pp_dir, 'train',
                                                       mask_keys,
                                                       batch_size=batch_size,

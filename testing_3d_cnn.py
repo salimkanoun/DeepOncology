@@ -81,7 +81,8 @@ def main(config, args):
         # csv file do not exist yet => so let's create it
         with open(result_csv_path, 'w') as f:
             writer = csv.writer(f, delimiter='\t')
-            writer.writerow(['study_uid', 'model', 'ground_truth', 'dice_cnn', 'tmtv_cnn_pred', 'tmtv_cnn_true'])
+            writer.writerow(['study_uid', 'subset', 'model', 'ground_truth',
+                             'dice_cnn', 'tmtv_cnn_pred', 'tmtv_cnn_true'])
 
     with open(result_csv_path, 'a') as f:
         writer = csv.writer(f, delimiter='\t')
@@ -107,11 +108,11 @@ def main(config, args):
                     if args.save_pred:
                         np.save(args.target_dir, np.squeeze(Y_pred[ii]))
                     writer.writerow(
-                        [study_uid_batch[ii], args.model_path, 'mean' + '|'.join(mask_keys),
+                        [study_uid_batch[ii], subset, args.model_path, 'mean' + '|'.join(mask_keys),
                          dice_batch[ii], tmtv_pred[ii], tmtv_true[ii]])
                     # header =
                     # writer.writerow(
-                    #     ['study_uid', 'model', 'ground_truth', 'dice_cnn', 'tmtv_cnn_pred', 'tmtv_cnn_true'])
+                    #     ['study_uid', 'model', 'subset', 'ground_truth', 'dice_cnn', 'tmtv_cnn_pred', 'tmtv_cnn_true'])
 
 
 if __name__ == "__main__":

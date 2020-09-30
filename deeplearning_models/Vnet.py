@@ -4,8 +4,8 @@ from .Layers import convolution, down_convolution, up_convolution, get_num_chann
 
 
 def dropout(x, keep_prob):
-    # tf.keras.layers.Dropout(keep_prob)(x)
-    return tf.keras.layers.SpatialDropout3D(keep_prob)(x)
+    # tf.keras.layers.Dropout(1.0 - keep_prob)(x)
+    return tf.keras.layers.SpatialDropout3D(1.0 - keep_prob)(x)
 
 
 def convolution_block(layer_input, num_convolutions, kernel_size, keep_prob, activation_fn):
