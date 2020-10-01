@@ -7,6 +7,7 @@ from class_modalities.modality_PETCT import DataGenerator
 from class_modalities.data_loader import DataGenerator_3D_from_numpy
 
 import tensorflow as tf
+import tensorflow_addons as tfa
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping, TensorBoard
 from deeplearning_models.Unet import CustomUNet3D
 from deeplearning_models.Vnet import VNet
@@ -66,6 +67,10 @@ def main(config):
     shuffle = config['training']['shuffle']
     opt_params = config['training']["optimizer"]["opt_params"]
 
+    # saving the config in the result folder
+    with open(os.path.join(training_model_folder, 'config.json'), 'w') as f:
+        json.dump(config, f)
+
     # multi gpu training strategy
     strategy = tf.distribute.MirroredStrategy()
 
@@ -73,9 +78,10 @@ def main(config):
         # definition of loss, optimizer and metrics
         loss_object = vnet_dice_loss
 
-        optimizer = tf.keras.optimizers.SGD(learning_rate=1e-3, momentum=0.90)
+        # optimizer = tf.keras.optimizers.SGD(learning_rate=1e-3, momentum=0.90)
         # optimizer = tf.keras.optimizers.SGD(**opt_params)
         # optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
+        optimizer = tfa.optimizers.AdamW(learning_rate=1e-4, weight_decay=1e-4)
 
         metrics = [dsc, 'BinaryCrossentropy']
 

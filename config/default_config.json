@@ -22,7 +22,7 @@
         "origin": "head",
         "normalize": true,
         "number_class": 2,
-        "threshold" : "otsu"
+        "threshold" : ["otsu", "absolute", "relative"]
     },
     "model": {
         "architecture": "vnet",
@@ -43,7 +43,8 @@
                     3
                 ],
                 "bottom_convolutions": 3,
-                "activation": "relu"
+                "activation": "relu",
+                "keep_prob": 0.8
             }
         },
         "unet": {
