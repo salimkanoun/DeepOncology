@@ -28,7 +28,7 @@
         "architecture": "vnet",
         "vnet": {
             "cnn_params": {
-                "keep_prob": 1.0,
+                "keep_prob": 0.8,
                 "kernel_size": [
                     5,
                     5,
@@ -43,8 +43,7 @@
                     3
                 ],
                 "bottom_convolutions": 3,
-                "activation": "relu",
-                "keep_prob": 0.8
+                "activation": "relu"
             }
         },
         "unet": {
