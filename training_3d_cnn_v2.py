@@ -4,7 +4,8 @@ import json
 
 from class_modalities.datasets import DataManager
 from class_modalities.modality_PETCT import DataGenerator
-from class_modalities.data_loader import DataGenerator_3D_from_numpy
+from class_modalities.data_loader import DataGenerator_3D_from_nifti
+from class_modalities.transforms import *
 
 import tensorflow as tf
 import tensorflow_addons as tfa
@@ -13,7 +14,7 @@ from deeplearning_models.Unet import CustomUNet3D
 from deeplearning_models.Vnet import VNet
 from deeplearning_models.Layers import prelu
 
-from deeplearning_tools.Loss import vnet_dice_loss
+from deeplearning_tools.Loss import vnet_dice_loss, custom_robust_loss
 from deeplearning_tools.Loss import metric_dice as dsc
 
 import os
@@ -76,14 +77,9 @@ def main(config):
 
     with strategy.scope():
         # definition of loss, optimizer and metrics
-        loss_object = vnet_dice_loss
-
-        # optimizer = tf.keras.optimizers.SGD(learning_rate=1e-3, momentum=0.90)
-        # optimizer = tf.keras.optimizers.SGD(**opt_params)
-        # optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
+        loss_object = custom_robust_loss
         optimizer = tfa.optimizers.AdamW(learning_rate=1e-4, weight_decay=1e-4)
-
-        metrics = [dsc, 'BinaryCrossentropy']
+        metrics = [dsc]
 
     # callbacks
     callbacks = []
@@ -128,31 +124,69 @@ def main(config):
     # callbacks = [tensorboard_callback, learning_rate_reduction, early_stop, checkpoint]
 
     # Get Data
-    if pp_dir is None:
-        DM = DataManager(csv_path=csv_path)
-        x_train, x_val, x_test, y_train, y_val, y_test = DM.get_train_val_test()
+    DM = DataManager(csv_path=csv_path)
+    train_images_paths, val_images_paths, test_images_paths = DM.get_train_val_test(wrap_with_dict=True)
 
-        # Define generator
-        train_generator = DataGenerator(x_train, y_train,
-                                        batch_size=batch_size, shuffle=shuffle, augmentation=data_augment,
-                                        target_shape=image_shape, target_voxel_spacing=voxel_spacing,
-                                        resize=resize, normalize=normalize, origin=origin, threshold=threshold)
+    # Define generator
+    train_transforms = Compose([LoadNifti(keys=("pet_img", "ct_img", "mask_img")),
+                                Roi2Mask_otsu_absolute(keys=('pet_img', 'mask_img'), new_key_name='output'),
+                                ResampleReshapeAlign(target_shape=image_shape[::-1],
+                                                     target_voxel_spacing=voxel_spacing[::-1],
+                                                     keys=['pet_img', "ct_img", 'output'],
+                                                     origin='head', origin_key='pet_img',
+                                                     interpolator={'pet_img': sitk.sitkLinear,
+                                                                   'ct_img': sitk.sitkLinear,
+                                                                   'output': sitk.sitkLinear},
+                                                     default_value={'pet_img': 0.0,
+                                                                    'ct_img': -1000.0,
+                                                                    'output': 0.0}),
+                                RandAffine(keys=['pet_img', "ct_img", 'output'],
+                                           translation=10, scaling=0.1, rotation=(pi / 60, pi / 30, pi / 60),
+                                           interpolator={'pet_img': sitk.sitkLinear,
+                                                         'ct_img': sitk.sitkLinear,
+                                                         'output': sitk.sitkLinear},
+                                           default_value={'pet_img': 0.0,
+                                                          'ct_img': -1000.0,
+                                                          'output': 0.0}),
+                                Sitk2Numpy(keys=['pet_img', 'ct_img', 'output']),
+                                # normalize input
+                                ScaleIntensityRanged(keys="pet_img",
+                                                     a_min=0.0, a_max=25.0, b_min=0.0, b_max=1.0, clip=True),
+                                ScaleIntensityRanged(keys="ct_img",
+                                                     a_min=-1000.0, a_max=1000.0, b_min=0.0, b_max=1.0, clip=True),
+                                ConcatModality(keys=('pet_img', 'ct_img'), channel_first=False, new_key='input'),
+                                ])
 
-        val_generator = DataGenerator(x_val, y_val,
-                                      batch_size=batch_size, shuffle=False, augmentation=False,
-                                      target_shape=image_shape, target_voxel_spacing=voxel_spacing,
-                                      resize=resize, normalize=normalize, origin=origin, threshold=threshold)
-    else:
-        # mask_keys = ['mask_img_absolute', 'mask_img_relative', 'mask_img_otsu']
-        mask_keys = 'mask_img_' + threshold if isinstance(threshold, str) else ['mask_img_' + el for el in threshold]
-        train_generator = DataGenerator_3D_from_numpy(pp_dir, 'train',
-                                                      mask_keys,
-                                                      batch_size=batch_size,
-                                                      shuffle=shuffle)
-        val_generator = DataGenerator_3D_from_numpy(pp_dir, 'val',
-                                                    mask_keys,
-                                                    batch_size=batch_size,
-                                                    shuffle=False)
+    val_transforms = Compose([LoadNifti(keys=("pet_img", "ct_img", "mask_img")),
+                              Roi2Mask_otsu_absolute(keys=('pet_img', 'mask_img'), new_key_name='output'),
+                              ResampleReshapeAlign(target_shape=image_shape[::-1],
+                                                   target_voxel_spacing=voxel_spacing[::-1],
+                                                   keys=['pet_img', "ct_img", 'output'],
+                                                   origin='head', origin_key='pet_img',
+                                                   interpolator={'pet_img': sitk.sitkLinear,
+                                                                 'ct_img': sitk.sitkLinear,
+                                                                 'output': sitk.sitkLinear},
+                                                   default_value={'pet_img': 0.0,
+                                                                  'ct_img': -1000.0,
+                                                                  'output': 0.0}),
+                              Sitk2Numpy(keys=['pet_img', 'ct_img', 'output']),
+                              # normalize input
+                              ScaleIntensityRanged(keys="pet_img",
+                                                   a_min=0.0, a_max=25.0, b_min=0.0, b_max=1.0, clip=True),
+                              ScaleIntensityRanged(keys="ct_img",
+                                                   a_min=-1000.0, a_max=1000.0, b_min=0.0, b_max=1.0, clip=True),
+                              ConcatModality(keys=('pet_img', 'ct_img'), channel_first=False, new_key='input'),
+                              ])
+
+    train_generator = DataGenerator_3D_from_nifti(train_images_paths,
+                                                  train_transforms,
+                                                  batch_size=batch_size,
+                                                  shuffle=shuffle)
+
+    val_generator = DataGenerator_3D_from_nifti(val_images_paths,
+                                                val_transforms,
+                                                batch_size=batch_size,
+                                                shuffle=False)
 
     # Define model
     if architecture == 'unet':

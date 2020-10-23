@@ -124,6 +124,25 @@ def custom_loss3D_roche(y_true, y_pred):
     return tf.reduce_sum(mean_abs - dice_coef - sensitivity_coef)
 
 
+def custom_robust_loss(y_true, y_pred):
+    """
+    loss = Dice loss + CE + L1
+    """
+    y_true = tf.cast(y_true, dtype=tf.float32)
+
+    # dice
+    smooth = 10.0
+
+    numerator = 2.0 * tf.math.reduce_sum(y_true * y_pred, axis=(1, 2, 3, 4))
+    denominator = tf.math.reduce_sum(tf.math.square(y_true) + tf.math.square(y_pred), axis=(1, 2, 3, 4))
+    vnet_dice = tf.reduce_mean((numerator + smooth) / (denominator + smooth))
+
+    # L1
+    mean_abs = tf.reduce_sum(tf.math.abs(y_true, y_pred), axis=(1, 2, 3, 4))
+
+    return 1.0 - vnet_dice + tf.keras.losses.BinaryCrossentropy(y_true, y_pred) + mean_abs
+
+
 def custom_loss_DenseX(y_true, y_pred):
     """
     https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8946601

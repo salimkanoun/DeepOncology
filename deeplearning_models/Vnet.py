@@ -46,6 +46,7 @@ class VNet(object):
                  image_shape,
                  num_classes,
                  keep_prob=1.0,
+                 keep_prob_last_layer=1.0,
                  kernel_size=(5, 5, 5),
                  num_channels=16,
                  num_levels=4,
@@ -56,7 +57,10 @@ class VNet(object):
         :param image_shape: Shape of the input image
         :param num_classes: Number of output classes.
         :param kernel_size: Size of the convolutional patch
-        :param keep_prob: Dropout keep probability, set to 1.0 if not training or if no dropout is desired.
+        :param keep_prob: Dropout keep probability in the conv layer,
+                            set to 1.0 if not training or if no dropout is desired.
+        :param keep_prob_last_layer: Dropout keep probability in the last conv layer,
+                                    set to 1.0 if not training or if no dropout is desired.
         :param num_channels: The number of output channels in the first level, this will be doubled every level.
         :param num_levels: The number of levels in the network. Default is 4 as in the paper.
         :param num_convolutions: An array with the number of convolutions at each level.
@@ -68,6 +72,7 @@ class VNet(object):
         self.out_channels = 1 if num_classes == 2 else num_classes
         self.kernel_size = kernel_size
         self.keep_prob = keep_prob
+        self.keep_prob_last_layer = keep_prob_last_layer
         self.num_channels = num_channels
         assert num_levels == len(num_convolutions)
         self.num_levels = num_levels
@@ -108,6 +113,8 @@ class VNet(object):
             x = convolution_block_2(x, f, self.num_convolutions[l], self.kernel_size, keep_prob, activation_fn=self.activation_fn)
 
         # x = tf.keras.layers.BatchNormalization(axis=-1, momentum=0.99, epsilon=0.001, center=True, scale=True)(x)
+        if self.keep_prob_last_layer < 1.0:
+            x = tf.keras.layers.Dropout(1.0 - self.keep_prob_last_layer)(x)
         logits = convolution(x, self.out_channels)
 
         return logits

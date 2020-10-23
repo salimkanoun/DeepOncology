@@ -286,6 +286,114 @@ class AverageImage(object):
         return img_dict
 
 
+class Roi2Mask_otsu_absolute(object):
+
+    def __init__(self, keys=('pet_img', 'mask_img'), new_key_name='mask_img'):
+        self.keys = (keys,) if isinstance(keys, str) else keys
+
+        self.keys = keys
+        self.new_key_name = new_key_name
+
+    def __call__(self, img_dict):
+        pet_key = self.keys[0]
+        roi_key = self.keys[1]
+
+        img_dict[self.new_key_name] = self.roi2mask(img_dict[roi_key], img_dict[pet_key])
+        return img_dict
+
+    def roi2mask(self, mask_img, pet_img):
+        """
+        Generate the mask from the ROI of the pet scan
+        Args:
+            :param mask_img: sitk image, raw mask (i.e ROI)
+            :param pet_img: sitk image, the corresponding pet scan
+
+        :return: sitk image, the ground truth segmentation
+        """
+        # transform to numpy
+        mask_array = sitk.GetArrayFromImage(mask_img)
+        pet_array = sitk.GetArrayFromImage(pet_img)
+
+        # get 3D meta information
+        if len(mask_array.shape) == 3:
+            mask_array = np.expand_dims(mask_array, axis=0)
+
+            origin = mask_img.GetOrigin()
+            spacing = mask_img.GetSpacing()
+            direction = tuple(mask_img.GetDirection())
+            # size = mask_img.GetSize()
+        else:
+            # convert false-4d meta information to 3d information
+            origin = mask_img.GetOrigin()[:-1]
+            spacing = mask_img.GetSpacing()[:-1]
+            direction = tuple(el for i, el in enumerate(mask_img.GetDirection()[:12]) if not (i + 1) % 4 == 0)
+            # size = mask_img.GetSize()[:-1]
+
+        new_masks = []
+        for method in ['otsu', 'absolute']:
+            new_mask = np.zeros(mask_array.shape[1:], dtype=np.float64)
+
+            for num_slice in range(mask_array.shape[0]):
+                mask_slice = mask_array[num_slice]  # R.O.I
+                roi = pet_array[mask_slice > 0]
+                if len(roi) == 0:
+                    continue
+                try:
+                    # apply threshold
+                    new_mask[np.where(mask_slice > 0)] = np.maximum(self.compute_probs(roi, method),
+                                                                    new_mask[np.where(mask_slice > 0)])
+                except Exception as e:
+                    print(e)
+                    print(sys.exc_info()[0])
+            new_masks.append(new_mask)
+
+        new_mask = new_masks[0] if len(new_masks) == 1 else np.prod(np.array(new_masks), axis=0)
+
+        # reconvert to sitk and restore 3D meta-information
+        new_mask = sitk.GetImageFromArray(new_mask)
+        new_mask.SetOrigin(origin)
+        new_mask.SetDirection(direction)
+        new_mask.SetSpacing(spacing)
+
+        return new_mask
+
+    def relative_seg(self, roi):
+        lower, upper = 0.33, 0.60
+        mu, std = 0.42, 0.06
+
+        a, b = (lower - mu) / std, (upper - mu) / std
+
+        return truncnorm.cdf(roi / np.max(roi), a, b, loc=mu, scale=std)
+        # return uniform.cdf(roi / np.max(roi), loc=lower, scale=upper - lower)
+
+    def absolute_seg(self, roi):
+
+        lower, upper = 2.0, 4.0
+        # mu, std = 2.5, 0.5
+        mu, std = 3.0, 0.5
+
+        a, b = (lower - mu) / std, (upper - mu) / std
+
+        return truncnorm.cdf(roi, a, b, loc=mu, scale=std)
+        # return uniform.cdf(roi, loc=lower, scale=upper - lower)
+
+    def otsu_seg(self, roi):
+        t = filters.threshold_otsu(roi)
+        return np.where(roi > t, 1.0, 0.0)
+
+    def compute_probs(self, roi, method):
+
+        if method == 'absolute':
+            return self.absolute_seg(roi)
+        elif method == 'relative':
+            return self.relative_seg(roi)
+        elif method == 'otsu' or 'adaptative':
+            return self.otsu_seg(roi)
+        else:
+            raise ValueError("method '{}' not supported. please use one of {}".format(method, "|".join(
+                ['absolute', 'relative', 'otsu', 'adaptative'])))
+
+
 class ResampleReshapeAlign(object):
     """
     Resample to the same resolution, Reshape and Align to the same view.
