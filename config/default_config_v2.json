@@ -14,8 +14,8 @@
         "number_channels": 2,
         "voxel_spacing": [
             4.0,
-            4.8,
-            4.8
+            4.0,
+            4.0
         ],
         "data_augment": true,
         "origin": "head",
