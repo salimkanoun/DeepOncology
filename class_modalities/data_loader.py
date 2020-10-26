@@ -114,13 +114,16 @@ class DataGenerator_3D_from_nifti(tf.keras.utils.Sequence):
                  images_paths,
                  transforms,
                  batch_size=1,
-                 shuffle=True):
+                 shuffle=True,
+                 x_key='input', y_key='output'):
 
         self.images_paths = images_paths
         self.transforms = transforms
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.on_epoch_end()
+        self.x_key = x_key
+        self.y_key = y_key
 
     def __len__(self):
         """
@@ -146,14 +149,20 @@ class DataGenerator_3D_from_nifti(tf.keras.utils.Sequence):
 
         # prepare the batch
         X_batch = []
+        Y_batch = []
         for idx in indexes:
             img_dict = self.images_paths[idx]
             if self.transforms is not None:
-                for transform in self.transforms:
-                    img_dict = transform(img_dict)
+                img_dict = self.transforms(img_dict)
 
             # add it to the batch
-            X_batch.append(img_dict)
+            X_batch.append(img_dict[self.x_key])
+            Y_batch.append(img_dict[self.y_key])
+
+        X_batch = np.array(X_batch)
+        Y_batch = np.array(Y_batch)
+
+        Y_batch = np.expand_dims(Y_batch, axis=-1)
 
         return X_batch
 

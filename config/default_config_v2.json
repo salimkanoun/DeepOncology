@@ -71,7 +71,7 @@
         }
     },
     "training": {
-        "epochs": 50,
+        "epochs": 20,
         "batch_size": 2,
         "shuffle": true,
         "optimizer": {

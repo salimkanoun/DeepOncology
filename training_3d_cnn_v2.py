@@ -46,7 +46,6 @@ def main(config):
     number_channels = config['preprocessing']['number_channels']
     voxel_spacing = tuple(config['preprocessing']['voxel_spacing'])  # (4.8, 4.8, 4.8)  # in millimeter, (z, y, x)
     data_augment = config['preprocessing']['data_augment']  # True  # for training dataset only
-    resize = config['preprocessing']['resize']  # True  # not use yet
     origin = config['preprocessing']['origin']  # how to set the new origin
     normalize = config['preprocessing']['normalize']  # True  # whether or not to normalize the inputs
     number_class = config['preprocessing']['number_class']  # 2
@@ -181,12 +180,14 @@ def main(config):
     train_generator = DataGenerator_3D_from_nifti(train_images_paths,
                                                   train_transforms,
                                                   batch_size=batch_size,
-                                                  shuffle=shuffle)
+                                                  shuffle=shuffle,
+                                                  x_key='input', y_key='output')
 
     val_generator = DataGenerator_3D_from_nifti(val_images_paths,
                                                 val_transforms,
                                                 batch_size=batch_size,
-                                                shuffle=False)
+                                                shuffle=False,
+                                                x_key='input', y_key='output')
 
     # Define model
     if architecture == 'unet':

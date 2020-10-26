@@ -23,7 +23,7 @@ class Compose(object):
 
 class LoadNifti(object):
     """
-    Load Nifti images and returns Simple itk object
+    Load Nifti images and returns Simple itk image
     """
 
     def __init__(self, keys=("pet_img", "ct_img", "mask_img"),
@@ -523,6 +523,9 @@ class Sitk2Numpy(object):
 
 
 class ScaleIntensityRanged(object):
+    """
+    Linearly Scale value between [a_min, a_max] to [b_min, b_max]
+    """
 
     def __init__(self, keys, a_min, a_max, b_min, b_max, clip=False):
         self.keys = (keys,) if isinstance(keys, str) else keys
@@ -539,7 +542,6 @@ class ScaleIntensityRanged(object):
     def __call__(self, img_dict):
 
         for key in self.keys:
-
             img = img_dict.pop(key)
 
             img = (img - self.a_min) / (self.a_max - self.a_min)
@@ -554,17 +556,36 @@ class ScaleIntensityRanged(object):
 
 
 class ConcatModality(object):
+    """
+    expects data of shape (spatial_dim1, spatial_dim2, ..., spatial_dim2)
+    """
 
     def __init__(self, keys=('pet_img', 'ct_img'), channel_first=True, new_key='image'):
         self.keys = (keys,) if isinstance(keys, str) else keys
-        self.keys = keys
         self.channel_first = channel_first
         self.new_key = new_key
 
     def __call__(self, img_dict):
         idx_channel = 0 if self.channel_first else -1
-        imgs = (img_dict.pop([key]) for key in self.keys)
+        imgs = (img_dict.pop(key) for key in self.keys)
         img_dict[self.new_key] = np.stack(imgs, axis=idx_channel)
+
+        return img_dict
+
+
+class AddChannel(object):
+    """
+    expects data of shape (spatial_dim1, spatial_dim2, ..., spatial_dim2)
+    """
+
+    def __init__(self, keys, channel_first=False):
+        self.keys = (keys,) if isinstance(keys, str) else keys
+        self.channel_first = channel_first
+
+    def __call__(self, img_dict):
+        axis = 0 if self.channel_first else -1
+        for key in self.keys():
+            img_dict[key] = np.expand_dims(img_dict[key], axis=axis)
 
         return img_dict
 

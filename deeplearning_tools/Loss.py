@@ -137,10 +137,13 @@ def custom_robust_loss(y_true, y_pred):
     denominator = tf.math.reduce_sum(tf.math.square(y_true) + tf.math.square(y_pred), axis=(1, 2, 3, 4))
     vnet_dice = tf.reduce_mean((numerator + smooth) / (denominator + smooth))
 
-    # L1
-    mean_abs = tf.reduce_sum(tf.math.abs(y_true, y_pred), axis=(1, 2, 3, 4))
+    # CE
+    ce_loss = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
 
-    return 1.0 - vnet_dice + tf.keras.losses.BinaryCrossentropy(y_true, y_pred) + mean_abs
+    # L1
+    mae = tf.keras.losses.MeanAbsoluteError(reduction=tf.keras.losses.Reduction.NONE)
+
+    return 1.0 - vnet_dice + tf.reduce_mean(ce_loss(y_true, y_pred) + mae(y_true, y_pred))
 
 
 def custom_loss_DenseX(y_true, y_pred):
