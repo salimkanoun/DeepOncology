@@ -117,9 +117,11 @@ def custom_loss3D_roche(y_true, y_pred):
     P = tf.math.reduce_sum(y_pred, axis=(1, 2, 3, 4))
     T = tf.math.reduce_sum(y_true, axis=(1, 2, 3, 4))
 
-    dice_coef = (2.0 * intersection + smooth)/( P + T + smooth)
+    dice_coef = (2.0 * intersection + smooth)/(P + T + smooth)
     sensitivity_coef = (intersection + smooth)/(T + smooth)
-    mean_abs = tf.reduce_sum(tf.math.abs(y_true, y_pred), axis=(1, 2, 3, 4))
+
+    mae = tf.keras.losses.MeanAbsoluteError(reduction=tf.keras.losses.Reduction.NONE)
+    mean_abs = mae(y_true, y_pred)
 
     return tf.reduce_sum(mean_abs - dice_coef - sensitivity_coef)
 
@@ -146,6 +148,15 @@ def custom_robust_loss(y_true, y_pred):
     return 1.0 - vnet_dice + tf.reduce_mean(ce_loss(y_true, y_pred) + mae(y_true, y_pred))
 
 
+def rce(y_true, y_pred):
+    """
+    Reversed Cross Entropy
+    https://arxiv.org/abs/1908.06112
+    """
+    ce_loss = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
+    return tf.reduce_mean(ce_loss(y_true, y_pred) + ce_loss(y_pred, y_true))
+
+
 def custom_loss_DenseX(y_true, y_pred):
     """
     https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8946601
@@ -161,6 +172,9 @@ def custom_loss_DenseX(y_true, y_pred):
 
 
 def vnet_dice_loss(y_true, y_pred):
+    """
+    https://arxiv.org/abs/1606.04797
+    """
     y_true = tf.cast(y_true, dtype=tf.float32)
     return 1.0 - vnet_dice(y_true, y_pred)
 
