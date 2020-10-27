@@ -26,9 +26,9 @@ Implemented model :
 ##  Installation
 Setup package in a virtual environment:
 ```
-git clone https://github.com/pfjaeger/medicaldetectiontoolkit.git .
-cd medicaldetectiontoolkit
-virtualenv -p python3.6 venv
+git clone https://github.com/rnoyelle/MedicalSegmentation.git .
+cd MedicalSegmentation
+virtualenv -p python3.7 venv
 source venv/bin/activate
 pip3 install -e .
 ```

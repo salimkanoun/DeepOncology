@@ -691,16 +691,23 @@ class RandAffine(object):
 
 class PostCNNResampler(object):
 
-    def __init__(self, target_direction, target_voxel_spacing, threshold_prob=None):
-        self.target_direction = target_direction
-        self.target_voxel_spacing = target_voxel_spacing
+    def __init__(self, threshold_prob=0.5):
+        """
+        :param threshold_prob: set to None to yield non-discrete mask
+        """
         self.threshold_prob = threshold_prob
+        self.mode = 'Linear'
+        assert self.mode in ['Linear', 'NearestNeighbor']
+        if self.mode == 'NearestNeighbor':
+            assert self.threshold_prob is not None
 
     def __call__(self, img_dict):
         mask_img = sitk.GetImageFromArray(img_dict['mask_pred'])
+        if self.mode == 'NearestNeighbor':
+            mask_img = np.where(mask_img > self.threshold_prob, 1, 0).astype(int)
         mask_img.SetOrigin(img_dict['meta_info']['new_origin'])
-        mask_img.SetDirection(self.target_direction)  # img_dict['meta_info']['new_direction']
-        mask_img.SetSpacing(self.target_voxel_spacing)  # img_dict['meta_info']['new_spacing']
+        mask_img.SetDirection(img_dict['meta_info']['new_direction'])
+        mask_img.SetSpacing(img_dict['meta_info']['new_spacing'])
 
         # resample to orginal shape, spacing, direction and origin
         transformation = sitk.ResampleImageFilter()
@@ -710,12 +717,15 @@ class PostCNNResampler(object):
         transformation.SetSize(img_dict['meta_info']['original_size'])
 
         transformation.SetDefaultPixelValue(0.0)
-        transformation.SetInterpolator(sitk.sitkLinear)  # sitk.sitkNearestNeighbor
+        if self.mode == 'NearestNeighbor':
+            transformation.SetInterpolator(sitk.sitkNearestNeighbor)
+        else:
+            transformation.SetInterpolator(sitk.sitkLinear)
         mask_img_final = transformation.Execute(mask_img)
 
-        if self.threshold_prob is None:
-            return mask_img_final
-        else:
-            # transform to binary
-            return sitk.BinaryThreshold(mask_img_final, lowerThreshold=0.0, upperThreshold=self.threshold_prob,
-                                        insideValue=0, outsideValue=1)
+        if self.threshold_prob is not None and self.mode != 'NearestNeighbor':
+            mask_img_final = sitk.BinaryThreshold(mask_img_final,
+                                                  lowerThreshold=0.0, upperThreshold=self.threshold_prob,
+                                                  insideValue=0, outsideValue=1)
+        return mask_img_final
+
