@@ -1,6 +1,6 @@
-# MedicalSegmentation
+# DeepOncology
 
-This provides some deep Learning tools for automatic segmentation of medical images (PET & CT scan).
+This provides some deep Learning tools for automatic segmentation of 3D medical images (PET & CT scan).
 
 ### Models
 Models used during this project are deep learning model like [U-Net](https://arxiv.org/abs/1505.04597). 
