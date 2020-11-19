@@ -96,18 +96,3 @@ def AVD(y_true, y_pred, volume_voxel=1.0):
 
     return volume_voxel * np.mean(abs(vol_g - vol_p) / vol_g)
 
-
-def apply_threshold(y_pred, threshold=0.5):
-    """
-    apply threshold to predict mask
-
-    Args :
-        :param y_pred: pred segmentation, image of shape (batch_size, z, y, x) or  (batch_size, z, y, x, 1)
-        :param threshold: threshold to apply, float
-    :return: round mask of shape (batch_size, z, y, x)
-    """
-
-    new_y_pred = np.zeros(y_pred.shape, dtype=int)
-    new_y_pred[y_pred > threshold] = 1
-
-    return new_y_pred

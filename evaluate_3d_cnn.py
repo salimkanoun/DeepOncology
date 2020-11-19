@@ -10,7 +10,7 @@ from class_modalities.datasets import DataManager
 from class_modalities.modality_PETCT import DataGenerator
 from class_modalities.data_loader import DataGenerator_3D_from_numpy
 
-from deeplearning_tools.Metrics import metric_dice
+from losses.Metrics import metric_dice
 
 import tensorflow as tf
 

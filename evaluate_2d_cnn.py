@@ -10,7 +10,7 @@ import SimpleITK as sitk
 from class_modalities.datasets import DataManager
 from class_modalities.modality_PETCT_2D import FullPipeline
 from class_modalities.utils import get_study_uid
-from deeplearning_tools.Metrics import metric_dice
+from losses.Metrics import metric_dice
 
 import os
 from datetime import datetime

@@ -1,7 +1,5 @@
 # MedicalSegmentation
 
-Continuation of  [Thomas Project](https://github.com/ThomasT3563/medical-segmentation) realised during a 6 months internship at IUCT Oncopole, France.
-
 This provides some deep Learning tools for automatic segmentation of medical images (PET & CT scan).
 
 ### Models
@@ -26,24 +24,23 @@ Implemented model :
 ##  Installation
 Setup package in a virtual environment:
 ```
-git clone https://github.com/rnoyelle/MedicalSegmentation.git .
+git clone https://github.com/rnoyelle/MedicalSegmentation.git 
 cd MedicalSegmentation
-virtualenv -p python3.7 venv
-source venv/bin/activate
-pip3 install -e .
+conda create --name <env_name> python=3.7
+source activate <env_name>
+pip install -r requirements.txt
 ```
 
 
 ## Train new model
 - To train V-Net :
-> `python3 training_3d_cnn.py --config=config/default_config.json` 
+```
+python training_3d_cnn.py --config=config/default_config.json
+```
 - To train DenseX-Net :
-> `python3 training_2d_cnn.py --config=config/default_config_2d.json` 
-
-## Check data
-- To generate 2D MIP :
-> `python3 generate_pdf.py`
-
+``
+python3 training_2d_cnn.py --config=config/default_config_2d.json 
+```
 
 
 

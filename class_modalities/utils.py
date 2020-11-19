@@ -11,6 +11,25 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
 
+def secsToHms(secs):
+    hours = secs // 3600
+    secs -= hours * 3600
+    mins = secs // 60
+    secs -= mins * 60
+    return hours, mins, secs
+
+
+def sec2str(seconds):
+    return "%02d:%02d:%02d" % secsToHms(seconds)
+
+
+def read_cfg(filepath):
+    var = dict()
+    exec(open(filepath).read(), var)
+
+    return var
+
+
 def resample_img(img,
                  target_direction, new_origin,
                  target_voxel_spacing, target_shape,
@@ -68,7 +87,7 @@ def one_hot_encode(x, n_classes=None):
     return np.eye(n_classes)[x]
 
 
-def get_info(img):
+def display_info(img):
     print('img information :')
     print('\t Origin    :', img.GetOrigin())
     print('\t Size      :', img.GetSize())

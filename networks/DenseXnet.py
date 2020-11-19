@@ -1,5 +1,5 @@
 import tensorflow as tf
-from deeplearning_models.Layers import prelu
+from networks.Layers import prelu
 
 
 def BatchNorm(x, training=True):

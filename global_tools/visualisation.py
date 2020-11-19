@@ -1,156 +1,178 @@
-import SimpleITK as sitk
-import sys
+import colorsys
+import random
 import numpy as np
-import imageio
-import scipy.ndimage
+import SimpleITK as sitk
+
+from mrcnn import visualize
+
+import seaborn as sns
 import matplotlib.pyplot as plt
-import re
-import os
 
 
-def get_study_uid(img_path):
-    return re.sub('_nifti_(PT|mask|CT)\.nii(\.gz)?', '', os.path.basename(img_path))
-
-
-def create_gif(filenames, duration, output_file):
+def random_colors(N, bright=True, seed_color=0):
     """
-    :param filenames: list, path to images
-    :param duration: int, duration of the gif
-    :param output_file:, str, path/to/name.gif
+    Generate random colors.
+    To get visually distinct colors, generate them in HSV space then
+    convert to RGB.
     """
-    images = []
-    for filename in filenames:
-        images.append(imageio.imread(filename))
+    brightness = 1.0 if bright else 0.7
+    hsv = [(i / N, 1, brightness) for i in range(N)]
+    colors = list(map(lambda c: colorsys.hsv_to_rgb(*c), hsv))
+    random.Random(seed_color).shuffle(colors)
+    return colors
 
-    imageio.mimsave(output_file, images, duration=duration)
+
+def get_src_image(pet_array, axis):
+    # Background image
+    v_max = np.max([np.max(pet_array), 1.0]) * 0.40
+    image = pet_array.copy()
+    image[image > v_max] = v_max
+    image = (255 * image / v_max).astype(int)
+    image = np.max(image, axis=axis)  # MIP
+    # convert to rgb
+    image = image[:, :, None] * np.ones(3, dtype=int)[None, None, :]
+    return image
 
 
-def generate_gif_MIP(img, filename_gif, mask=None, vmax=1.0, duration=0.1, number_of_img=60):
+def get_bbox(mask):
     """
-    Create a gif of rotating 3D img
-
-    :param img: numy array or path/to/image.nii or image.npy
-    :param mask: numpy array or path/to/image.nii or image.npy
-    :param filename_gif: path/to/file.gif
-    :param vmax: max value for plotting
-    :param duration: duration of the gif in seconds
-    :param number_of_img: number images of the gif i.e number of rotation of the img
+    mask : shape (x, y, n_object)
+    return :
+        bbox: shape (n_object, 4)
     """
-    if isinstance(img, str):
-        if img.endswith('.npy'):
-            img = np.load(img)
-        elif img.endswith('.nii.gz') or img.endswith('.nii'):
-            img = sitk.GetArrayFromImage(sitk.ReadImage(img))
+    bbox = []
+    for i in range(mask.shape[2]):
+        indexes = np.where(mask[:, :, i] == 1)
+        if len(indexes[0]) == 0:
+            y1, y2 = 0, 0
+            x1, x2 = 0, 0
+        else:
+            y1, y2 = min(indexes[0]), max(indexes[0])
+            x1, x2 = min(indexes[1]), max(indexes[1])
+        bbox.append([y1, x1, y2, x2])
 
-    if mask is not None:
-        if isinstance(img, str):
-            if mask.endswith('.npy'):
-                mask = np.load(mask)
-            elif mask.endswith('.nii.gz') or mask.endswith('.nii'):
-                mask = sitk.GetArrayFromImage(sitk.ReadImage(mask))
-
-    path_gif = os.path.dirname(filename_gif)
-    if not os.path.exists(os.path.join(path_gif, 'temp')):
-        os.makedirs(os.path.join(path_gif, 'temp'))
-
-    angle_filenames = []
-
-    for i, angle in enumerate(np.linspace(0, 360, number_of_img, endpoint=False)):
-        # definition of loading bar
-        length = round((i + 1) / number_of_img * 30)
-        loading_bar = "[" + "=" * length + ">" + "-" * (30 - length) + "]"
-        sys.stdout.write("\r%s/%s %s" % (str(i + 1), str(number_of_img), loading_bar))
-
-        # rotate img
-        vol_angle = scipy.ndimage.interpolation.rotate(img, angle, reshape=False, axes=(2, 1))
-
-        # calculate MIP
-        MIP = np.max(vol_angle, axis=1)
-
-        # plot MIP
-        f = plt.figure(figsize=(10, 10))
-        axes = plt.gca()
-        plt.imshow(MIP, cmap='Greys', origin='lower', vmax=vmax)
-        del vol_angle
-        del MIP
-        if mask is not None:
-            vol_angle_mask = scipy.ndimage.interpolation.rotate(mask, angle, reshape=False, axes=(2, 1))
-            MIP_mask = np.max(vol_angle_mask, axis=1)
-            plt.imshow(MIP_mask, cmap='jet', alpha=0.5, origin='lower')
-            del vol_angle_mask
-            del MIP_mask
-        axes.set_axis_off()
-        angle_filename = os.path.join(path_gif, 'temp', os.path.basename(filename_gif) + "_" + str(int(angle)) + ".png")
-        angle_filenames.append(angle_filename)
-        f.savefig(angle_filename, bbox_inches='tight')
-
-        plt.close()
-
-    create_gif(angle_filenames, duration, filename_gif)
+    return np.array(bbox)
 
 
-def mip(img, threshold=None):
-    img_array = sitk.GetArrayFromImage(img)
+def plot_diff(pet_array, gt_mask_array, pred_mask_array, axis=1, ax=None):
+    """
+    pet_array : shape (z, y, x)
+    gt_mask_array: shape (z, y, x)
+    pred_mask_array: shape (z, y, x)
+    """
 
-    if threshold:
-        # img_array = np.array(img_array>threshold, dtype=np.int8)
-        img_array[img_array > threshold] = threshold
-    return np.max(img_array, axis=1), np.max(img_array, axis=2)
+    # flip for correct to be at the top of the image
+    pet_array = np.flip(pet_array, axis=0)
+    gt_mask_array = np.flip(gt_mask_array, axis=0)
+    pred_mask_array = np.flip(pred_mask_array, axis=0)
+
+    # background of the plot
+    image = get_src_image(pet_array, axis)
+
+    #
+    gt_mask_array = np.expand_dims(gt_mask_array, axis=-1)
+    pred_mask_array = np.expand_dims(pred_mask_array, axis=-1)
+
+    # mip
+    gt_mask_array = np.max(gt_mask_array, axis=axis)
+    pred_mask_array = np.max(pred_mask_array, axis=axis)
+
+    plot_difference(image, gt_mask_array, pred_mask_array, ax=ax)
 
 
-def plot_pet(pet_img):
+def plot_difference(image, gt_mask, pred_mask, ax=None):
+    """
+    pet_array, shape : (z, y, x)
+    gt_mask_array : (z, y, x, 1)
+    pred_mask_array : (z, y, x, 1)
+    axis: 2 for sagittal, 1 for coronal
+    """
 
-    fig = plt.figure(figsize=(15, 10))
+    gt_bbox = get_bbox(gt_mask)
+    pred_bbox = get_bbox(pred_mask)
 
-    mip1, mip2 = mip(pet_img, threshold=2.5)
-    img_plot = np.hstack((mip1, mip2))
+    # generate things
+    gt_colors = [(0, 1, 0, .8)] * gt_mask.shape[2]  # Ground truth = green.
+    gt_class_ids = np.ones(gt_mask.shape[2], dtype=int)
+
+    pred_colors = [(1, 0, 0, 1)] * pred_mask.shape[2]  # Predictions = red
+    pred_class_ids = np.ones(pred_mask.shape[2], dtype=int)
+
+    # Concatenate GT and predictions
+    class_ids = np.concatenate([gt_class_ids, pred_class_ids])
+    class_names = ["", ""]
+    colors = gt_colors + pred_colors
+    boxes = np.concatenate([gt_bbox, pred_bbox])
+    masks = np.concatenate([gt_mask, pred_mask], axis=-1)
+
+    title = "Ground Truth and Detections\n GT=green, pred=red"
+
+    # Display
+    visualize.display_instances(
+        image,
+        boxes, masks, class_ids,
+        class_names, ax=ax,
+        show_bbox=False, show_mask=True,
+        colors=colors,
+        title=title)
 
 
-    plt.imshow(img_plot, plt.cm.plasma)
-    # plt.axis('off')
-    plt.colorbar()
-    plt.title('PET', fontsize=20)
+def plot_seg(pet_array, mask_array_true, mask_array_pred, axis=1):
+    figsize = (16, 16)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
+
+    #
+    pet_array = pet_array * 25.0
+
+    # flip axial axis
+    pet_array = np.flip(pet_array, axis=0)
+    mask_array_true = np.flip(mask_array_true, axis=0)
+    mask_array_pred = np.flip(mask_array_pred, axis=0)
+
+    # MIP
+    mip_mask_true = np.max(mask_array_true, axis=axis)
+    mip_mask_pred = np.max(mask_array_pred, axis=axis)
+
+    image = get_src_image(pet_array, axis)
+
+    # add dims
+    mip_mask_true = np.expand_dims(mip_mask_true, axis=-1)
+    mip_mask_pred = np.expand_dims(mip_mask_pred, axis=-1)
+
+    bbox = get_bbox(mip_mask_true)
+    colors = random_colors(bbox.shape[0])
+
+    # plot the result for ground-truth
+    class_ids, class_names = np.ones(bbox.shape[0], dtype=int), ["", ""]  # ['background', 'lymphoma']
+
+    visualize.display_instances(image, bbox, mip_mask_true, class_ids, class_names, show_bbox=False,
+                                colors=colors, ax=ax1)
+    # plot the result for pred
+    bbox = get_bbox(mip_mask_pred)
+    colors = random_colors(bbox.shape[0])
+
+    visualize.display_instances(image, bbox, mip_mask_pred, class_ids, class_names, show_bbox=False,
+                                colors=colors, ax=ax2)
+
+    if axis == 1:
+        ax1.set_title('coronal \ntrue')
+        ax2.set_title('coronal \npred')
+    elif axis == 2:
+        ax1.set_title('sagittal \ntrue')
+        ax2.set_title('sagittal \npred')
+    elif axis == 3:
+        ax1.set_title('axial \ntrue')
+        ax2.set_title('axial \npred')
+    else:
+        ax1.set_title('true')
+        ax2.set_title('pred')
+
     plt.show()
 
-#
-# def plot_MIP_pdf(PET_scan, CT_scan, Mask):
-#     study_uid = re.sub('_nifti_PT\.nii(\.gz)?', '', os.path.basename((pet_path)))
-#
-#     # for TEP visualisation
-#     PET_scan = np.where(PET_scan > 1.0, 1.0, PET_scan)
-#     PET_scan = np.where(PET_scan < 0.0, 0.0, PET_scan)
-#
-#     # for CT visualisation
-#     CT_scan = np.where(CT_scan > 1.0, 1.0, CT_scan)
-#     CT_scan = np.where(CT_scan < 0.0, 0.0, CT_scan)
-#
-#     # # for correct visualisation
-#     # PET_scan = np.flip(PET_scan, axis=0)
-#     # CT_scan = np.flip(CT_scan, axis=0)
-#     # Mask = np.flip(Mask, axis=0)
-#
-#     # stacked projections
-#     PET_scan = np.hstack((np.amax(PET_scan, axis=1), np.amax(PET_scan, axis=2)))
-#     CT_scan = np.hstack((np.amax(CT_scan, axis=1), np.amax(CT_scan, axis=2)))
-#     Mask = np.hstack((np.amax(Mask, axis=1), np.amax(Mask, axis=2)))
-#
-#     # Plot
-#     f = plt.figure(figsize=(15, 10))
-#     f.suptitle(study_uid, fontsize=15)
-#     # f.suptitle('splitext(basename(PET_id))[0)', fontsize=15)
-#
-#     plt.subplot(121)
-#     plt.imshow(CT_scan, cmap=color_CT, origin='lower')
-#     plt.imshow(PET_scan, cmap=color_PET, alpha=transparency, origin='lower')
-#     plt.axis('off')
-#     plt.title('PET/CT', fontsize=20)
-#
-#     plt.subplot(122)
-#     plt.imshow(CT_scan, cmap=color_CT, origin='lower')
-#     plt.imshow(PET_scan, cmap=color_PET, alpha=transparency, origin='lower')
-#     plt.imshow(np.where(Mask, 0, np.nan), cmap=color_MASK, origin='lower')
-#     plt.axis('off')
-#     plt.title('PET/CT + Segmentation', fontsize=20)
-#
-#     pdf.savefig()  # saves the current figure into a pdf page
-#     plt.close()
+
+# def plot_roi(pet_img, roi_img, mask_img=None):
+#     if mask_img is None:
+#         mask_img = np.zeros(roi_img.shape)
+#     pass
+
+

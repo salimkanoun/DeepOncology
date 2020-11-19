@@ -4,12 +4,13 @@ import tensorflow_addons as tfa
 
 def metric_dice(y_true, y_pred):
     y_pred = tf.math.round(y_pred)
+    y_true = tf.math.round(y_true)
     return dice_similarity_coefficient(y_true, y_pred)
 
 
 def dice_similarity_coefficient(y_true, y_pred):
     smooth = 1.0
-    axis = (1, 2, 3)  # tuple(range(1, len(y_pred.shape)))  # all axis except first
+    axis = (1, 2, 3)
 
     numerator = 2.0 * tf.math.reduce_sum(y_true * y_pred, axis=axis)
     denominator = tf.math.reduce_sum(y_true + y_pred, axis=axis)

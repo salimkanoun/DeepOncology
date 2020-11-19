@@ -9,12 +9,12 @@ from class_modalities.data_loader import DataGenerator_3D_from_numpy
 import tensorflow as tf
 import tensorflow_addons as tfa
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping, TensorBoard
-from deeplearning_models.Unet import CustomUNet3D
-from deeplearning_models.Vnet import VNet
-from deeplearning_models.Layers import prelu
+from networks.Unet import CustomUNet3D
+from networks.Vnet import VNet
+from networks.Layers import prelu
 
-from deeplearning_tools.Loss import vnet_dice_loss
-from deeplearning_tools.Loss import metric_dice as dsc
+from losses.Loss_3d import vnet_dice_loss
+from losses.Loss_3d import metric_dice as dsc
 
 import os
 from datetime import datetime
