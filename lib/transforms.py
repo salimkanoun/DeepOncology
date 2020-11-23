@@ -152,12 +152,13 @@ class Roi2Mask(object):
         return new_mask
 
 
-class Roi2Mask_probs(object):
+class Roi2MaskProbs(object):
     """
     Apply threshold-based method to calculate the non-binary (probs) segmentation from the ROI
     """
 
-    def __init__(self, keys=('pet_img', 'mask_img'), method=['otsu'], new_key_name='mask_img'):
+    def __init__(self, keys=('pet_img', 'mask_img'), method=['otsu'], tvals_probs=None,
+                 new_key_name='mask_img'):
         """
         :param keys: (pet_img, roi_img) : (3D SimpleITK img, 4D SimpleITK img)
         :param method: method to use for calculate the threshold
@@ -170,6 +171,11 @@ class Roi2Mask_probs(object):
         self.method = [self.method.lower()] if isinstance(self.method, str) else [el.lower() for el in self.method]
         self.new_key_name = new_key_name
 
+        if tvals_probs is None:
+            tvals_probs = dict(absolute=dict(lower=2.0, upper=4.0, mu=2.5, std=0.5),
+                               relative=dict(lower=0.33, upper=0.60, mu=0.42, std=0.06))
+        self.tvals_probs = tvals_probs
+
     def __call__(self, img_dict):
         pet_key = self.keys[0]
         roi_key = self.keys[1]
@@ -178,8 +184,11 @@ class Roi2Mask_probs(object):
         return img_dict
 
     def relative_seg(self, roi):
-        lower, upper = 0.33, 0.60
-        mu, std = 0.42, 0.06
+        # lower, upper = 0.33, 0.60
+        # mu, std = 0.42, 0.06
+
+        lower, upper = self.tvals_probs['lower'], self.tvals_probs['upper']
+        mu, std = self.tvals_probs['mu'], self.tvals_probs['std']
 
         a, b = (lower - mu) / std, (upper - mu) / std
 
@@ -187,9 +196,11 @@ class Roi2Mask_probs(object):
         # return uniform.cdf(roi / np.max(roi), loc=lower, scale=upper - lower)
 
     def absolute_seg(self, roi):
+        # lower, upper = 2.0, 4.0
+        # mu, std = 2.5, 0.5
 
-        lower, upper = 2.0, 4.0
-        mu, std = 2.5, 0.5
+        lower, upper = self.tvals_probs['lower'], self.tvals_probs['upper']
+        mu, std = self.tvals_probs['mu'], self.tvals_probs['std']
 
         a, b = (lower - mu) / std, (upper - mu) / std
 
@@ -287,13 +298,18 @@ class AverageImage(object):
         return img_dict
 
 
-class Roi2Mask_otsu_absolute(object):
+class Roi2MaskOtsuAbsolute(object):
 
-    def __init__(self, keys=('pet_img', 'mask_img'), new_key_name='mask_img'):
+    def __init__(self, keys=('pet_img', 'mask_img'), tvals_probs=None,
+                 new_key_name='mask_img'):
         self.keys = (keys,) if isinstance(keys, str) else keys
 
         self.keys = keys
         self.new_key_name = new_key_name
+        if tvals_probs is None:
+            tvals_probs = dict(absolute=dict(lower=2.0, upper=4.0, mu=2.5, std=0.5),
+                               relative=dict(lower=0.33, upper=0.60, mu=0.42, std=0.06))
+        self.tvals_probs = tvals_probs
 
     def __call__(self, img_dict):
         pet_key = self.keys[0]
@@ -359,8 +375,11 @@ class Roi2Mask_otsu_absolute(object):
         return new_mask
 
     def relative_seg(self, roi):
-        lower, upper = 0.33, 0.60
-        mu, std = 0.42, 0.06
+        # lower, upper = 0.33, 0.60
+        # mu, std = 0.42, 0.06
+
+        lower, upper = self.tvals_probs['lower'], self.tvals_probs['upper']
+        mu, std = self.tvals_probs['mu'], self.tvals_probs['std']
 
         a, b = (lower - mu) / std, (upper - mu) / std
 
@@ -368,10 +387,11 @@ class Roi2Mask_otsu_absolute(object):
         # return uniform.cdf(roi / np.max(roi), loc=lower, scale=upper - lower)
 
     def absolute_seg(self, roi):
-
-        lower, upper = 2.0, 4.0
-        # mu, std = 2.5, 0.5
-        mu, std = 3.0, 0.5
+        # lower, upper = 2.0, 4.0
+        # # mu, std = 2.5, 0.5
+        # mu, std = 3.0, 0.5
+        lower, upper = self.tvals_probs['lower'], self.tvals_probs['upper']
+        mu, std = self.tvals_probs['mu'], self.tvals_probs['std']
 
         a, b = (lower - mu) / std, (upper - mu) / std
 

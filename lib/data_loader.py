@@ -12,6 +12,14 @@ class DataGeneratorFromDict(tf.keras.utils.Sequence):
                  shuffle=True,
                  x_key='input',
                  y_key='output'):
+        """
+        :param images_paths: list[dict] or dict[dict]
+        :param transforms: transformer to apply to data
+        :param batch_size: batch size
+        :param shuffle: bool. If set to true, indexes will be suffled at each end of epoch.
+        :param x_key: key corresponding to input of neural network
+        :param y_key: key correspond to output of neural network
+        """
 
         self.images_paths = images_paths
         self.transforms = transforms
@@ -58,9 +66,7 @@ class DataGeneratorFromDict(tf.keras.utils.Sequence):
         X_batch = np.array(X_batch)
         Y_batch = np.array(Y_batch)
 
-        # Y_batch = np.expand_dims(Y_batch, axis=-1)
-
-        return X_batch
+        return X_batch, Y_batch
 
 
 class DataGenerator_3D_from_numpy(tf.keras.utils.Sequence):

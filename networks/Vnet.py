@@ -44,7 +44,9 @@ class VNet(object):
     """
     def __init__(self,
                  image_shape,
+                 in_channels,
                  out_channels,
+                 channels_last=True,
                  keep_prob=1.0,
                  keep_prob_last_layer=1.0,
                  kernel_size=(5, 5, 5),
@@ -56,7 +58,9 @@ class VNet(object):
                  activation_last_layer='sigmoid'):
         """
         :param image_shape: Shape of the input image
-        :param out_channels: Number of output classes.
+        :param in_channels: Number of input channels.
+        :param out_channels: Number of output channels.
+        :param channels_last: bool, set to True for channels last format
         :param kernel_size: Size of the convolutional patch
         :param keep_prob: Dropout keep probability in the conv layer,
                             set to 1.0 if not training or if no dropout is desired.
@@ -71,8 +75,11 @@ class VNet(object):
                                       Set to None to return logits.
         """
         self.image_shape = image_shape
-        assert len(image_shape) == 4
+        assert len(image_shape) == 3
+        self.in_channels = in_channels
         self.out_channels = out_channels
+        self.channels_last = channels_last
+        assert channels_last  # channels_last=False is not supported
         self.kernel_size = kernel_size
         self.keep_prob = keep_prob
         self.keep_prob_last_layer = keep_prob_last_layer
@@ -129,7 +136,8 @@ class VNet(object):
         return logits
 
     def create_model(self):
-        input_ = tf.keras.layers.Input(shape=self.image_shape, dtype=tf.float32, name="input")
+        input_shape = tuple(list(self.image_shape) + [self.in_channels])
+        input_ = tf.keras.layers.Input(shape=input_shape, dtype=tf.float32, name="input")
         logits = self.build_network(input_)
         if self.activation_last_layer is None:
             output_ = logits

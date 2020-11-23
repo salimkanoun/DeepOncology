@@ -82,10 +82,10 @@ def plot_diff(pet_array, gt_mask_array, pred_mask_array, axis=1, ax=None):
 
 def plot_difference(image, gt_mask, pred_mask, ax=None):
     """
-    pet_array, shape : (z, y, x)
-    gt_mask_array : (z, y, x, 1)
-    pred_mask_array : (z, y, x, 1)
-    axis: 2 for sagittal, 1 for coronal
+    :param image: RGB background image, ndarray of shape (x, y, 3)
+    :param gt_mask: ground-truth image, ndarray of shape (x, y, 1)
+    :param pred_mask: pred image, ndarray of shape (x, y, 1)
+    :param ax:
     """
 
     gt_bbox = get_bbox(gt_mask)
