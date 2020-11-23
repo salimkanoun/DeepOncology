@@ -4,14 +4,14 @@ import json
 
 import os
 # import ntpath
-from class_modalities.utils import get_study_uid
+from lib.utils import get_study_uid
 import numpy as np
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-from class_modalities.datasets import DataManager
-from class_modalities.modality_PETCT import DataGenerator
+from lib.datasets import DataManager
+from lib.modality_PETCT import DataGenerator
 import collections
 
 

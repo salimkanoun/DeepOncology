@@ -3,10 +3,10 @@ import argparse
 import json
 from shutil import copyfile
 
-from class_modalities.datasets import DataManager
-from class_modalities.modality_PETCT import DataGenerator
-from class_modalities.data_loader import DataGenerator_3D_from_nifti
-from class_modalities.transforms import *
+from lib.datasets import DataManager
+from lib.modality_PETCT import DataGenerator
+from lib.data_loader import DataGenerator_3D_from_nifti
+from lib.transforms import *
 
 import tensorflow as tf
 import tensorflow_addons as tfa

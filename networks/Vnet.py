@@ -44,7 +44,7 @@ class VNet(object):
     """
     def __init__(self,
                  image_shape,
-                 num_classes,
+                 out_channels,
                  keep_prob=1.0,
                  keep_prob_last_layer=1.0,
                  kernel_size=(5, 5, 5),
@@ -52,10 +52,11 @@ class VNet(object):
                  num_levels=4,
                  num_convolutions=(1, 2, 3, 3),
                  bottom_convolutions=3,
-                 activation=tf.keras.layers.PReLU()):
+                 activation=tf.keras.layers.PReLU(),
+                 activation_last_layer='sigmoid'):
         """
         :param image_shape: Shape of the input image
-        :param num_classes: Number of output classes.
+        :param out_channels: Number of output classes.
         :param kernel_size: Size of the convolutional patch
         :param keep_prob: Dropout keep probability in the conv layer,
                             set to 1.0 if not training or if no dropout is desired.
@@ -66,10 +67,12 @@ class VNet(object):
         :param num_convolutions: An array with the number of convolutions at each level.
         :param bottom_convolutions: The number of convolutions at the bottom level of the network.
         :param activation: The activation function.
+        :param activation_last_layer: The activation function used in the last layer of the cnn.
+                                      Set to None to return logits.
         """
         self.image_shape = image_shape
-        self.num_classes = num_classes
-        self.out_channels = 1 if num_classes == 2 else num_classes
+        assert len(image_shape) == 4
+        self.out_channels = out_channels
         self.kernel_size = kernel_size
         self.keep_prob = keep_prob
         self.keep_prob_last_layer = keep_prob_last_layer
@@ -79,6 +82,12 @@ class VNet(object):
         self.num_convolutions = num_convolutions
         self.bottom_convolutions = bottom_convolutions
         self.activation_fn = activation
+        if isinstance(self.activation_fn, str):
+            self.activation_fn = self.activation_fn.lower()
+            self.activation_fn = tf.keras.layers.PReLU() if self.activation_fn == 'prelu' \
+                else tf.keras.activations.get(self.activation_fn)
+        self.activation_last_layer = activation_last_layer.lower() if isinstance(activation_last_layer, str) \
+            else activation_last_layer
 
     def build_network(self, input_):
         x = input_
@@ -122,10 +131,14 @@ class VNet(object):
     def create_model(self):
         input_ = tf.keras.layers.Input(shape=self.image_shape, dtype=tf.float32, name="input")
         logits = self.build_network(input_)
-        if self.out_channels == 1:
+        if self.activation_last_layer is None:
+            output_ = logits
+        elif self.activation_last_layer == 'sigmoid':
             output_ = tf.keras.activations.sigmoid(logits)
-        else:
+        elif self.activation_last_layer == 'softmax':
             output_ = tf.keras.layers.Softmax(name='output')(logits)
+        else:
+            output_ = self.activation_last_layer(logits)
         model = tf.keras.models.Model(input_, output_, name='VNet')
         return model
 

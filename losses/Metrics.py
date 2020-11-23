@@ -8,8 +8,8 @@ def hausdorff_distance(y_true, y_pred):
 
     Args :
         Inputs must be ndarray of 0 or 1 (binary)
-        :param y_true: true label image of shape (batch_size, z, y, x)
-        :param y_pred: pred label image of shape (batch_size, z, y, x)
+        :param y_true: true label image of shape (spatial_dim1, spatial_dim2, ..., spatial_dim3)
+        :param y_pred: pred label image of shape (spatial_dim1, spatial_dim2, ..., spatial_dim3)
 
     :return: hausdorff distance
     """
@@ -33,26 +33,21 @@ def IoU(y_true, y_pred):
     return jaccard(y_true.flatten(), y_pred.flatten())
 
 
-def dice_similarity_coefficient(y_true, y_pred):
+def metric_dice(y_true, y_pred, axis=(1, 2, 3, 4)):
     """
     compute dice score for multi-class prediction
 
     Args :
         :param y_true: true label image of shape (batch_size, z, y, x, num_class) or (batch_size, z, y, x, 1)
         :param y_pred: pred label image of shape (batch_size, z, y, x, num_class) or (batch_size, z, y, x, 1)
+        :param axis: tuple,
 
-    :return: dice score
+    :return: dice score, ndarray of shape (batch_size,)
     """
     smooth = 0.1
 
-    numerator = 2 * np.sum(y_true * y_pred, axis=(1, 2, 3, 4))
-    denominator = np.sum(y_true + y_pred, axis=(1, 2, 3, 4))
-
-    return np.mean((numerator + smooth) / (denominator + smooth))
-
-
-def metric_dice(y_true, y_pred, axis=(0, 1, 2)):
-    smooth = 0.1
+    y_true = np.round(y_true)
+    y_pred = np.round(y_pred)
 
     numerator = 2 * np.sum(y_true * y_pred, axis=axis)
     denominator = np.sum(y_true + y_pred, axis=axis)

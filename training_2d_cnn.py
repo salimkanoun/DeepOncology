@@ -2,8 +2,8 @@ import sys
 import argparse
 import json
 
-from class_modalities.datasets import DataManager
-from class_modalities.modality_PETCT_2D import DataGenerator
+from lib.datasets import DataManager
+from lib.modality_PETCT_2D import DataGenerator
 
 import tensorflow as tf
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping, TensorBoard

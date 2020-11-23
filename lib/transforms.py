@@ -510,6 +510,9 @@ class ResampleReshapeAlign(object):
 
 
 class Sitk2Numpy(object):
+    """
+    Convert SimpleITK image into Numpy ndarray
+    """
     def __init__(self, keys=('pet_img', 'ct_img', 'mask_img')):
         self.keys = (keys,) if isinstance(keys, str) else keys
 
@@ -558,7 +561,7 @@ class ScaleIntensityRanged(object):
 
 class ConcatModality(object):
     """
-    expects data of shape (spatial_dim1, spatial_dim2, ..., spatial_dim2)
+    expects data of shape (spatial_dim1, spatial_dim2, ..., spatial_dim3)
     """
 
     def __init__(self, keys=('pet_img', 'ct_img'), channel_first=True, new_key='image'):
@@ -576,7 +579,7 @@ class ConcatModality(object):
 
 class AddChannel(object):
     """
-    expects data of shape (spatial_dim1, spatial_dim2, ..., spatial_dim2)
+    expects data of shape (spatial_dim1, spatial_dim2, ..., spatial_dim3)
     """
 
     def __init__(self, keys, channel_first=False):
@@ -592,15 +595,28 @@ class AddChannel(object):
 
 
 class RandAffine(object):
+    """
+    Data Augmentation for 3D SimpleITK image.
+    The same random deformation is applied for each key.
+    """
 
     def __init__(self, keys,
                  translation=10, scaling=0.1, rotation=(0.0, pi / 30, 0.0),
                  default_value=None, interpolator=None):
+        """
+        :param keys: str or tuple(str)
+        :param translation: float, int or 3D tuple(float, int)
+        :param scaling: float, int or 3D tuple(float, int)
+        :param rotation: float, int or 3D tuple(float, int)
+        :param default_value: dict(float, int)
+        :param interpolator: dict(sitk.interpolator mode).
+        """
 
         if interpolator is None:
-            interpolator = {'pet_img': sitk.sitkBSpline, 'ct_img': sitk.sitkBSpline,
-                            'mask_img': sitk.sitkNearestNeighbor}
             # sitk.sitkLinear, sitk.sitkBSpline, sitk.sitkNearestNeighbor
+            interpolator = {'pet_img': sitk.sitkBSpline,
+                            'ct_img': sitk.sitkBSpline,
+                            'mask_img': sitk.sitkNearestNeighbor}
         if default_value is None:
             default_value = {'pet_img': 0.0, 'ct_img': -1000.0, 'mask_img': 0}
 
@@ -694,7 +710,7 @@ class PostCNNResampler(object):
 
     def __init__(self, threshold_prob=0.5):
         """
-        :param threshold_prob: set to None to yield non-discrete mask
+        :param threshold_prob: set to None to yield probs mask
         """
         self.threshold_prob = threshold_prob
         self.mode = 'Linear'

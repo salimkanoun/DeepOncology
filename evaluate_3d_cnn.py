@@ -6,9 +6,9 @@ from tqdm import tqdm
 import os
 import numpy as np
 
-from class_modalities.datasets import DataManager
-from class_modalities.modality_PETCT import DataGenerator
-from class_modalities.data_loader import DataGenerator_3D_from_numpy
+from lib.datasets import DataManager
+from lib.modality_PETCT import DataGenerator
+from lib.data_loader import DataGenerator_3D_from_numpy
 
 from losses.Metrics import metric_dice
 

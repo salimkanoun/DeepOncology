@@ -2,14 +2,14 @@ import sys
 import json
 
 import os
-from class_modalities.utils import get_study_uid
+from lib.utils import get_study_uid
 
 import SimpleITK as sitk
-from class_modalities.utils import mip
+from lib.utils import mip
 import numpy as np
 
 import collections
-from class_modalities.datasets import DataManager
+from lib.datasets import DataManager
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages

@@ -38,7 +38,7 @@ pip install -r requirements.txt
 python training_3d_cnn.py --config=config/default_config.json
 ```
 - To train DenseX-Net :
-``
+```
 python3 training_2d_cnn.py --config=config/default_config_2d.json 
 ```
 
