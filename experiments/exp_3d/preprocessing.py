@@ -5,7 +5,6 @@ from shutil import copyfile
 
 import numpy as np
 from collections import OrderedDict
-from datetime import datetime
 import time
 
 from lib.datasets import DataManager

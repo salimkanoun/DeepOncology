@@ -1,32 +1,20 @@
 import argparse
 import json
 
-import shutil
-from shutil import copyfile
-import time
+import os
+from datetime import datetime
 
-from lib.datasets import DataManager
 from lib.data_loader import DataGeneratorFromDict
-from lib.transforms import *
+# from lib.transforms import *
+from experiments.exp_3d.preprocessing import *
 
-import numpy as np
 import tensorflow as tf
 import tensorflow_addons as tfa
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping, TensorBoard
 from networks.Vnet import VNet
 
-from losses.Loss_3d import vnet_dice_loss, custom_robust_loss
+from losses.Loss_3d import custom_robust_loss
 from losses.Loss_3d import metric_dice as dsc
-
-from lib.utils import sec2str
-
-import os
-from datetime import datetime
-
-from collections import OrderedDict
-
-
-
 
 
 def main(cfg):
