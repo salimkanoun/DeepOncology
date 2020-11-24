@@ -20,6 +20,7 @@ trained_model_path = "/media/oncopole/DD 2To/RUDY_WEIGTH/training/20200911-14:27
 # Else, the data will be processed and saved on this directory before training.
 # folder architecture pp_dir/<subset>/<study_uid>/<filename>
 pp_dir = None
+pp_flag = ''  # Set to done, if data are already preprocessed at pp_dir
 pp_filenames_dict = {'pet_img': 'nifti_PET.nii',
                      'ct_img': 'nifti_CT.nii',
                      'mask_img': 'nifti_MASK.nii'}
@@ -66,6 +67,9 @@ tvals_binary = dict(absolute=2.5,
 #############
 architecture = "vnet"
 cnn_kwargs = {
+    "image_shape": image_shape,
+    "in_channels": in_channels,
+    "out_channels": out_channels,
     "keep_prob": 1.0,
     "keep_prob_last_layer": 0.8,
     "kernel_size": (5, 5, 5),
@@ -81,7 +85,7 @@ cnn_kwargs = {
 ### TRAINING ###
 ################
 
-epochs = 20
+epochs = 100
 batch_size = 2
 shuffle = True
 data_augmentation = True

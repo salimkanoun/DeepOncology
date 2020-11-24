@@ -53,6 +53,21 @@ class LoadNifti(object):
         return output
 
 
+class LoadNumpy(object):
+    """
+    Load .npy files and return ndimage
+    """
+
+    def __init__(self, keys):
+        self.keys = (keys,) if isinstance(keys, str) else keys
+
+    def __call__(self, img_dict)
+        for key in self.keys:
+            img_dict[key] = np.load(img_dict[key])
+
+        return img_dict
+
+
 class Roi2Mask(object):
     """
     Apply threshold-based method to determine the segmentation from the ROI
@@ -612,6 +627,24 @@ class AddChannel(object):
             img_dict[key] = np.expand_dims(img_dict[key], axis=axis)
 
         return img_dict
+
+
+class RenameDict(object):
+
+    def __init__(self, keys, keys2):
+        """
+        :param keys: str or tuple(str), key to rename
+        :param keys2: str or tuple(str), new name of keys
+        """
+        self.keys = (keys,) if isinstance(keys, str) else keys
+        self.keys2 = (keys2,) if isinstance(keys2, str) else keys2
+
+    def __call__(self, img_dict)
+        for key1, key2 in zip(self.keys, self.keys2):
+            img_dict[key2] = img_dict.pop(key1)
+
+        return img_dict
+
 
 
 class RandAffine(object):
