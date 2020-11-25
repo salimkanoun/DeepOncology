@@ -94,6 +94,35 @@ def get_transform(cfg, subset, from_pp=False, cache_pp=False):
     return transformers
 
 
+def get_transform_test(cfg, from_pp=False):
+    keys = cfg.modalities
+    transformers = [LoadNifti(keys=keys)]  # Load NIFTI file from path
+
+    if not from_pp:
+        # Resample, reshape and align to the same view
+        transformers.append(ResampleReshapeAlign(keys=keys,
+                                                 target_shape=cfg.image_shape[::-1],
+                                                 target_voxel_spacing=cfg.voxel_spacing[::-1],
+                                                 origin=cfg['origin'], origin_key='pet_img',
+                                                 interpolator=cfg['pp_kwargs']['interpolator'],
+                                                 default_value=cfg['pp_kwargs']['default_value']))
+    transformers.append(Sitk2Numpy(keys=keys))
+
+    # Normalize input values
+    for modality in cfg.modalities:
+        transformers.append(ScaleIntensityRanged(keys=modality,
+                                                 **cfg.pp_kwargs[modality]))
+    # Concatenate modalities if necessary
+    if len(cfg.modalities) > 1:
+        transformers.append(ConcatModality(keys=cfg.modalities, channel_first=False, new_key='input'))
+    else:
+        transformers.append(AddChannel(keys=cfg.modalities, channel_first=False))
+        transformers.append(RenameDict(keys=cfg.modalities, keys2='input'))
+
+    transformers = Compose(transformers)
+    return transformers
+
+
 def get_data(cfg):
     pp_dir = cfg.get('pp_dir', None)
 
@@ -145,7 +174,7 @@ def get_data(cfg):
         start_time = time.time()
         total_count = -1
         total = np.sum([len(data) for data in dataset])
-        for subset, data in enumerate(dataset):
+        for subset, data in dataset.items():
             print('{} : {} examples'.format(subset, len(dataset)))
             # for count, img_path in enumerate(tqdm(data)):
             for count, img_path in enumerate(data):
