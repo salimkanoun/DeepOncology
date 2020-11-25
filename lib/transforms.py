@@ -61,7 +61,7 @@ class LoadNumpy(object):
     def __init__(self, keys):
         self.keys = (keys,) if isinstance(keys, str) else keys
 
-    def __call__(self, img_dict)
+    def __call__(self, img_dict):
         for key in self.keys:
             img_dict[key] = np.load(img_dict[key])
 
@@ -639,7 +639,7 @@ class RenameDict(object):
         self.keys = (keys,) if isinstance(keys, str) else keys
         self.keys2 = (keys2,) if isinstance(keys2, str) else keys2
 
-    def __call__(self, img_dict)
+    def __call__(self, img_dict):
         for key1, key2 in zip(self.keys, self.keys2):
             img_dict[key2] = img_dict.pop(key1)
 

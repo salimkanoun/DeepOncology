@@ -170,6 +170,32 @@ def plot_seg(pet_array, mask_array_true, mask_array_pred, axis=1):
     plt.show()
 
 
+def display_instance(pet_array, mask_array=None, axis=1, ax=None):
+    if mask_array is None:
+        mask_array = np.zeros(pet_array.shape)
+    if ax is None:
+        figsize = (16, 16)
+        fig, ax = plt.subplots(figsize=figsize)
+
+    # MIP
+    image = get_src_image(pet_array, axis)
+    mip_mask = np.max(mask_array, axis=axis)
+
+    # add dims
+    mip_mask = np.expand_dims(mip_mask, axis=-1)
+
+    bbox = get_bbox(mip_mask)
+    colors = random_colors(bbox.shape[0])
+
+    # plot the result for ground-truth
+    class_ids, class_names = np.ones(bbox.shape[0], dtype=int), ["", ""]
+
+    visualize.display_instances(image, bbox, mip_mask, class_ids, class_names, show_bbox=False,
+                                colors=colors, ax=ax)
+
+    return ax
+
+
 # def plot_roi(pet_img, roi_img, mask_img=None):
 #     if mask_img is None:
 #         mask_img = np.zeros(roi_img.shape)
