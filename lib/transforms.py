@@ -3,9 +3,10 @@ import sys
 import numpy as np
 import SimpleITK as sitk
 from skimage import filters, measure
-from scipy.stats import truncnorm, uniform
+
 import random
 from math import pi
+from scipy.stats import truncnorm, uniform
 
 from .utils import get_study_uid, one_hot_encode
 
@@ -50,6 +51,21 @@ class LoadNifti(object):
                 output[key] = sitk.GetArrayFromImage(output[key])
 
         return output
+
+
+class LoadNumpy(object):
+    """
+    Load .npy files and return ndimage
+    """
+
+    def __init__(self, keys):
+        self.keys = (keys,) if isinstance(keys, str) else keys
+
+    def __call__(self, img_dict):
+        for key in self.keys:
+            img_dict[key] = np.load(img_dict[key])
+
+        return img_dict
 
 
 class Roi2Mask(object):
@@ -151,12 +167,13 @@ class Roi2Mask(object):
         return new_mask
 
 
-class Roi2Mask_probs(object):
+class Roi2MaskProbs(object):
     """
     Apply threshold-based method to calculate the non-binary (probs) segmentation from the ROI
     """
 
-    def __init__(self, keys=('pet_img', 'mask_img'), method=['otsu'], new_key_name='mask_img'):
+    def __init__(self, keys=('pet_img', 'mask_img'), method=['otsu'], tvals_probs=None,
+                 new_key_name='mask_img'):
         """
         :param keys: (pet_img, roi_img) : (3D SimpleITK img, 4D SimpleITK img)
         :param method: method to use for calculate the threshold
@@ -169,6 +186,11 @@ class Roi2Mask_probs(object):
         self.method = [self.method.lower()] if isinstance(self.method, str) else [el.lower() for el in self.method]
         self.new_key_name = new_key_name
 
+        if tvals_probs is None:
+            tvals_probs = dict(absolute=dict(lower=2.0, upper=4.0, mu=2.5, std=0.5),
+                               relative=dict(lower=0.33, upper=0.60, mu=0.42, std=0.06))
+        self.tvals_probs = tvals_probs
+
     def __call__(self, img_dict):
         pet_key = self.keys[0]
         roi_key = self.keys[1]
@@ -177,8 +199,11 @@ class Roi2Mask_probs(object):
         return img_dict
 
     def relative_seg(self, roi):
-        lower, upper = 0.33, 0.60
-        mu, std = 0.42, 0.06
+        # lower, upper = 0.33, 0.60
+        # mu, std = 0.42, 0.06
+
+        lower, upper = self.tvals_probs['lower'], self.tvals_probs['upper']
+        mu, std = self.tvals_probs['mu'], self.tvals_probs['std']
 
         a, b = (lower - mu) / std, (upper - mu) / std
 
@@ -186,9 +211,11 @@ class Roi2Mask_probs(object):
         # return uniform.cdf(roi / np.max(roi), loc=lower, scale=upper - lower)
 
     def absolute_seg(self, roi):
+        # lower, upper = 2.0, 4.0
+        # mu, std = 2.5, 0.5
 
-        lower, upper = 2.0, 4.0
-        mu, std = 2.5, 0.5
+        lower, upper = self.tvals_probs['lower'], self.tvals_probs['upper']
+        mu, std = self.tvals_probs['mu'], self.tvals_probs['std']
 
         a, b = (lower - mu) / std, (upper - mu) / std
 
@@ -286,13 +313,18 @@ class AverageImage(object):
         return img_dict
 
 
-class Roi2Mask_otsu_absolute(object):
+class Roi2MaskOtsuAbsolute(object):
 
-    def __init__(self, keys=('pet_img', 'mask_img'), new_key_name='mask_img'):
+    def __init__(self, keys=('pet_img', 'mask_img'), tvals_probs=None,
+                 new_key_name='mask_img'):
         self.keys = (keys,) if isinstance(keys, str) else keys
 
         self.keys = keys
         self.new_key_name = new_key_name
+        if tvals_probs is None:
+            tvals_probs = dict(absolute=dict(lower=2.0, upper=4.0, mu=2.5, std=0.5),
+                               relative=dict(lower=0.33, upper=0.60, mu=0.42, std=0.06))
+        self.tvals_probs = tvals_probs
 
     def __call__(self, img_dict):
         pet_key = self.keys[0]
@@ -358,8 +390,11 @@ class Roi2Mask_otsu_absolute(object):
         return new_mask
 
     def relative_seg(self, roi):
-        lower, upper = 0.33, 0.60
-        mu, std = 0.42, 0.06
+        # lower, upper = 0.33, 0.60
+        # mu, std = 0.42, 0.06
+
+        lower, upper = self.tvals_probs['lower'], self.tvals_probs['upper']
+        mu, std = self.tvals_probs['mu'], self.tvals_probs['std']
 
         a, b = (lower - mu) / std, (upper - mu) / std
 
@@ -367,10 +402,11 @@ class Roi2Mask_otsu_absolute(object):
         # return uniform.cdf(roi / np.max(roi), loc=lower, scale=upper - lower)
 
     def absolute_seg(self, roi):
-
-        lower, upper = 2.0, 4.0
-        # mu, std = 2.5, 0.5
-        mu, std = 3.0, 0.5
+        # lower, upper = 2.0, 4.0
+        # # mu, std = 2.5, 0.5
+        # mu, std = 3.0, 0.5
+        lower, upper = self.tvals_probs['lower'], self.tvals_probs['upper']
+        mu, std = self.tvals_probs['mu'], self.tvals_probs['std']
 
         a, b = (lower - mu) / std, (upper - mu) / std
 
@@ -509,6 +545,9 @@ class ResampleReshapeAlign(object):
 
 
 class Sitk2Numpy(object):
+    """
+    Convert SimpleITK image into Numpy ndarray
+    """
     def __init__(self, keys=('pet_img', 'ct_img', 'mask_img')):
         self.keys = (keys,) if isinstance(keys, str) else keys
 
@@ -557,7 +596,7 @@ class ScaleIntensityRanged(object):
 
 class ConcatModality(object):
     """
-    expects data of shape (spatial_dim1, spatial_dim2, ..., spatial_dim2)
+    expects data of shape (spatial_dim1, spatial_dim2, ..., spatial_dim3)
     """
 
     def __init__(self, keys=('pet_img', 'ct_img'), channel_first=True, new_key='image'):
@@ -567,7 +606,7 @@ class ConcatModality(object):
 
     def __call__(self, img_dict):
         idx_channel = 0 if self.channel_first else -1
-        imgs = (img_dict.pop(key) for key in self.keys)
+        imgs = [img_dict.pop(key) for key in self.keys]
         img_dict[self.new_key] = np.stack(imgs, axis=idx_channel)
 
         return img_dict
@@ -575,7 +614,7 @@ class ConcatModality(object):
 
 class AddChannel(object):
     """
-    expects data of shape (spatial_dim1, spatial_dim2, ..., spatial_dim2)
+    expects data of shape (spatial_dim1, spatial_dim2, ..., spatial_dim3)
     """
 
     def __init__(self, keys, channel_first=False):
@@ -590,16 +629,47 @@ class AddChannel(object):
         return img_dict
 
 
+class RenameDict(object):
+
+    def __init__(self, keys, keys2):
+        """
+        :param keys: str or tuple(str), key to rename
+        :param keys2: str or tuple(str), new name of keys
+        """
+        self.keys = (keys,) if isinstance(keys, str) else keys
+        self.keys2 = (keys2,) if isinstance(keys2, str) else keys2
+
+    def __call__(self, img_dict):
+        for key1, key2 in zip(self.keys, self.keys2):
+            img_dict[key2] = img_dict.pop(key1)
+
+        return img_dict
+
+
+
 class RandAffine(object):
+    """
+    Data Augmentation for 3D SimpleITK image.
+    The same random deformation is applied for each key.
+    """
 
     def __init__(self, keys,
                  translation=10, scaling=0.1, rotation=(0.0, pi / 30, 0.0),
                  default_value=None, interpolator=None):
+        """
+        :param keys: str or tuple(str)
+        :param translation: float, int or 3D tuple(float, int)
+        :param scaling: float, int or 3D tuple(float, int)
+        :param rotation: float, int or 3D tuple(float, int)
+        :param default_value: dict(float, int)
+        :param interpolator: dict(sitk.interpolator mode).
+        """
 
         if interpolator is None:
-            interpolator = {'pet_img': sitk.sitkBSpline, 'ct_img': sitk.sitkBSpline,
-                            'mask_img': sitk.sitkNearestNeighbor}
             # sitk.sitkLinear, sitk.sitkBSpline, sitk.sitkNearestNeighbor
+            interpolator = {'pet_img': sitk.sitkBSpline,
+                            'ct_img': sitk.sitkBSpline,
+                            'mask_img': sitk.sitkNearestNeighbor}
         if default_value is None:
             default_value = {'pet_img': 0.0, 'ct_img': -1000.0, 'mask_img': 0}
 
@@ -691,16 +761,23 @@ class RandAffine(object):
 
 class PostCNNResampler(object):
 
-    def __init__(self, target_direction, target_voxel_spacing, threshold_prob=None):
-        self.target_direction = target_direction
-        self.target_voxel_spacing = target_voxel_spacing
+    def __init__(self, threshold_prob=0.5):
+        """
+        :param threshold_prob: set to None to yield probs mask
+        """
         self.threshold_prob = threshold_prob
+        self.mode = 'Linear'
+        assert self.mode in ['Linear', 'NearestNeighbor']
+        if self.mode == 'NearestNeighbor':
+            assert self.threshold_prob is not None
 
     def __call__(self, img_dict):
         mask_img = sitk.GetImageFromArray(img_dict['mask_pred'])
+        if self.mode == 'NearestNeighbor':
+            mask_img = np.where(mask_img > self.threshold_prob, 1, 0).astype(int)
         mask_img.SetOrigin(img_dict['meta_info']['new_origin'])
-        mask_img.SetDirection(self.target_direction)  # img_dict['meta_info']['new_direction']
-        mask_img.SetSpacing(self.target_voxel_spacing)  # img_dict['meta_info']['new_spacing']
+        mask_img.SetDirection(img_dict['meta_info']['new_direction'])
+        mask_img.SetSpacing(img_dict['meta_info']['new_spacing'])
 
         # resample to orginal shape, spacing, direction and origin
         transformation = sitk.ResampleImageFilter()
@@ -710,12 +787,80 @@ class PostCNNResampler(object):
         transformation.SetSize(img_dict['meta_info']['original_size'])
 
         transformation.SetDefaultPixelValue(0.0)
-        transformation.SetInterpolator(sitk.sitkLinear)  # sitk.sitkNearestNeighbor
+        if self.mode == 'NearestNeighbor':
+            transformation.SetInterpolator(sitk.sitkNearestNeighbor)
+        else:
+            transformation.SetInterpolator(sitk.sitkLinear)
         mask_img_final = transformation.Execute(mask_img)
 
-        if self.threshold_prob is None:
-            return mask_img_final
-        else:
-            # transform to binary
-            return sitk.BinaryThreshold(mask_img_final, lowerThreshold=0.0, upperThreshold=self.threshold_prob,
-                                        insideValue=0, outsideValue=1)
+        if self.threshold_prob is not None and self.mode != 'NearestNeighbor':
+            mask_img_final = sitk.BinaryThreshold(mask_img_final,
+                                                  lowerThreshold=0.0, upperThreshold=self.threshold_prob,
+                                                  insideValue=0, outsideValue=1)
+        return mask_img_final
+#
+# import denseCRF3D
+# class DenseCRF(object):
+#     """
+#     https://github.com/HiLab-git/SimpleCRF/blob/master/examples/demo_densecrf3d.py
+#     """
+#
+#     def __init__(self, keys=('image', 'label'), dense_crf_param=None,
+#                  norm_image=False, new_key='label'):
+#         self.keys = keys
+#         self.norm_image = norm_image
+#         self.new_key = new_key
+#
+#         if dense_crf_param is None:
+#             dense_crf_param = dict()
+#             dense_crf_param['MaxIterations'] = 10.0
+#             dense_crf_param['PosW'] = 2.0
+#             dense_crf_param['PosRStd'] = 5
+#             dense_crf_param['PosCStd'] = 5
+#             dense_crf_param['PosZStd'] = 5
+#             dense_crf_param['BilateralW'] = 3.0
+#             dense_crf_param['BilateralRStd'] = 5.0
+#             dense_crf_param['BilateralCStd'] = 5.0
+#             dense_crf_param['BilateralZStd'] = 5.0
+#             dense_crf_param['ModalityNum'] = 2
+#             dense_crf_param['BilateralModsStds'] = (5.0, 5.0)
+#
+#         self.dense_crf_param = dense_crf_param
+#
+#     def __call__(self, img_dict):
+#         image = img_dict[self.keys[0]]
+#         label = img_dict[self.keys[1]]
+#
+#         if self.norm_image:
+#             image = self.normalize(image)
+#         image[image < 0] = 0
+#         image[image > 1] = 1
+#         image = np.asarray(image * 255, np.uint8)
+#
+#         P = label
+#         P = np.asarray([1.0 - P, P], np.float32)
+#         P = np.transpose(P, [1, 2, 3, 0])
+#
+#         img_dict[self.new_key] = self.apply_CRF3D(image, P)
+#
+#         return img_dict
+#
+#     def normalize(self, image):
+#         a_min, a_max = np.min(image, axis=(0, 1, 2)), np.max(image, axis=(0, 1, 2))
+#         image = (image - a_min) / (a_max - a_min)
+#
+#         return image
+#
+#     def apply_CRF3D(self, image, probs):
+#         """
+#         input parameters:
+#             I: a numpy array of shape [D, H, W, C], where C is the channel number
+#                type of I should be np.uint8, and the values are in [0, 255]
+#             P: a probability map of shape [D, H, W, L], where L is the number of classes
+#                type of P should be np.float32
+#             param: a tuple giving parameters of CRF. see the following two examples for details.
+#         """
+#
+#         return denseCRF3D.densecrf3d(image, probs, self.dense_crf_param)
+
+

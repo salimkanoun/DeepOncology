@@ -7,9 +7,9 @@ import pickle
 import os
 import json
 
-from class_modalities.datasets import DataManager
+from lib.datasets import DataManager
 
-from class_modalities.transforms import LoadNifti, Compose, Roi2Mask_probs, ResampleReshapeAlign, Sitk2Numpy, ScaleIntensityRanged
+from lib.transforms import LoadNifti, Compose, Roi2Mask_probs, ResampleReshapeAlign, Sitk2Numpy, ScaleIntensityRanged
 import SimpleITK as sitk
 
 
