@@ -1,11 +1,16 @@
+import os
+from tqdm import tqdm
+
 import colorsys
 import random
 import numpy as np
-import SimpleITK as sitk
+# import SimpleITK as sitk
+import scipy
+import imageio
 
 from mrcnn import visualize
 
-import seaborn as sns
+# import seaborn as sns
 import matplotlib.pyplot as plt
 
 
@@ -196,9 +201,87 @@ def display_instance(pet_array, mask_array=None, axis=1, ax=None):
     return ax
 
 
-# def plot_roi(pet_img, roi_img, mask_img=None):
-#     if mask_img is None:
-#         mask_img = np.zeros(roi_img.shape)
-#     pass
+def display_roi(pet_array, roi_array, mask_array=None, axis=1, ax=None):
+    """
+    :param pet_array: 3d-arrray (z, y, x)
+    :param roi_array: 4d-array, (n_obj, z, y, x)
+    :param mask_array: 4d-array, (n_obj, z, y, x) or None
+    :param axis, MIP axis
+    """
+    if mask_array is None:
+        # mask_array = np.zeros(roi_array.shape)
+        mask_array = roi_array
+    if ax is None:
+        figsize = (16, 16)
+        fig, ax = plt.subplots(figsize=figsize)
 
+    # (n_obj, z, y, x) to (z, y, x, n_obj)
+    roi_array = np.transpose(roi_array, [1, 2, 3, 0])
+    mask_array = np.transpose(mask_array, [1, 2, 3, 0])
+
+    # head up
+    pet_array = np.flip(pet_array, axis=0)
+    roi_array = np.flip(roi_array, axis=0)
+    mask_array = np.flip(mask_array, axis=0)
+
+    # MIP
+    image = get_src_image(pet_array, axis)
+    mip_roi = np.max(roi_array, axis=axis)
+    mip_mask = np.max(mask_array, axis=axis)
+
+    # Generate some additional info
+    bbox = get_bbox(mip_roi)
+    colors = random_colors(bbox.shape[0])
+    class_ids, class_names = np.arange(0, bbox.shape[0], dtype=int), [str(i) for i in range(bbox.shape[0])]
+    # class_ids, class_names = np.ones(bbox.shape[0], dtype=int), ["", ""]
+
+    # plot it
+    visualize.display_instances(image, bbox, mip_mask, class_ids, class_names, show_bbox=True,
+                                colors=colors, ax=ax)
+
+
+def gif(fnames, duration, output_file):
+    images = []
+    for filename in fnames:
+        images.append(imageio.imread(filename))
+
+    imageio.mimsave(output_file, images, duration=duration)
+
+
+def generate_gif(filename, pet_array, mask_array=None, duration=0.1, number_of_img=60):
+    """
+    1 GIF = 360° of PET scan with segmentation if provided
+
+    :param filename: path/to/where/to/save/somename.gif
+    :param pet_array: ndarray
+    :param mask_array: ndarray. If Set to None, no mask will be plotted
+    :param duration: duration of the GIF
+    :param number_of_img: number of img
+    """
+    # Create temp dir
+    dir = os.path.join(os.path.dirname(filename), 'tmp')
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+
+    # Create and save MIP of each rotation
+    filenames_frame = []
+    for i, angle in enumerate(tqdm(np.linspace(0, 360, number_of_img, endpoint=False))):
+        # rotate img
+        img_rotated = scipy.ndimage.interpolation.rotate(pet_array, angle, reshape=False, axes=(2, 1))
+        if mask_array is not None:
+            mask_rotated = scipy.ndimage.interpolation.rotate(mask_array, angle, reshape=False, axes=(2, 1))
+        else:
+            mask_rotated = None
+
+        figsize = (16, 16)
+        fig, ax = plt.subplots(figsize=figsize)
+
+        display_instance(img_rotated, mask_array=mask_rotated, axis=1, ax=ax)
+
+        fname = os.path.join(dir, filename + '_' + str(int(angle)) + '.png')
+        fig.savefig(fname, bbox_inches='tight')
+        filenames_frame.append(fname)
+
+    # Create GIF from saved png
+    gif(filenames_frame, duration, filename)
 
