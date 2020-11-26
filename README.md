@@ -31,15 +31,16 @@ source activate <env_name>
 pip install -r requirements.txt
 ```
 
-
 ## Train new model
 - To train V-Net :
 ```
-python training_3d_cnn.py --config=config/default_config.json
+source activate <env_name>
+python training_3d_cnn_v2.py --config config/config_3d.py
 ```
 - To train DenseX-Net :
 ```
-python3 training_2d_cnn.py --config=config/default_config_2d.json 
+source activate <env_name>
+python3 training_2d_cnn.py --config config/default_config_2d.json 
 ```
 
 
