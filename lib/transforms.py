@@ -202,8 +202,8 @@ class Roi2MaskProbs(object):
         # lower, upper = 0.33, 0.60
         # mu, std = 0.42, 0.06
 
-        lower, upper = self.tvals_probs['lower'], self.tvals_probs['upper']
-        mu, std = self.tvals_probs['mu'], self.tvals_probs['std']
+        lower, upper = self.tvals_probs['relative']['lower'], self.tvals_probs['relative']['upper']
+        mu, std = self.tvals_probs['relative']['mu'], self.tvals_probs['relative']['std']
 
         a, b = (lower - mu) / std, (upper - mu) / std
 
@@ -214,8 +214,8 @@ class Roi2MaskProbs(object):
         # lower, upper = 2.0, 4.0
         # mu, std = 2.5, 0.5
 
-        lower, upper = self.tvals_probs['lower'], self.tvals_probs['upper']
-        mu, std = self.tvals_probs['mu'], self.tvals_probs['std']
+        lower, upper = self.tvals_probs['absolute']['lower'], self.tvals_probs['absolute']['upper']
+        mu, std = self.tvals_probs['absolute']['mu'], self.tvals_probs['absolute']['std']
 
         a, b = (lower - mu) / std, (upper - mu) / std
 
@@ -393,8 +393,8 @@ class Roi2MaskOtsuAbsolute(object):
         # lower, upper = 0.33, 0.60
         # mu, std = 0.42, 0.06
 
-        lower, upper = self.tvals_probs['lower'], self.tvals_probs['upper']
-        mu, std = self.tvals_probs['mu'], self.tvals_probs['std']
+        lower, upper = self.tvals_probs['relative']['lower'], self.tvals_probs['relative']['upper']
+        mu, std = self.tvals_probs['relative']['mu'], self.tvals_probs['relative']['std']
 
         a, b = (lower - mu) / std, (upper - mu) / std
 
@@ -405,8 +405,8 @@ class Roi2MaskOtsuAbsolute(object):
         # lower, upper = 2.0, 4.0
         # # mu, std = 2.5, 0.5
         # mu, std = 3.0, 0.5
-        lower, upper = self.tvals_probs['lower'], self.tvals_probs['upper']
-        mu, std = self.tvals_probs['mu'], self.tvals_probs['std']
+        lower, upper = self.tvals_probs['absolute']['lower'], self.tvals_probs['absolute']['upper']
+        mu, std = self.tvals_probs['absolute']['mu'], self.tvals_probs['absolute']['std']
 
         a, b = (lower - mu) / std, (upper - mu) / std
 
@@ -644,7 +644,6 @@ class RenameDict(object):
             img_dict[key2] = img_dict.pop(key1)
 
         return img_dict
-
 
 
 class RandAffine(object):
