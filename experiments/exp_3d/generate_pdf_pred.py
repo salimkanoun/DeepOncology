@@ -31,7 +31,6 @@ def main(cfg, args):
 
     pipeline = Pipeline(cfg, model_path=model_path)
 
-
     filename = args.filename
     with PdfPages(filename) as pdf:
         for count, img_path in enumerate(dataset):
