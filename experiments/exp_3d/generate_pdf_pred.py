@@ -22,11 +22,6 @@ def main(cfg, args):
     df = pd.read_csv(args.files)
     dataset = df[['study_uid', 'mask_img', 'ct_img']].to_dict('records')
 
-    # Get Data path and transforms
-    data, train_transforms, val_transforms = get_data(cfg)
-    x_key = 'input'
-    y_key = 'mask_img'
-
     if args.weight == '':
         last = sorted(os.listdir('/media/oncopole/DD 2To/RUDY_WEIGTH/training'))[-1]
         model_path = os.path.join(cfg['training_model_folder'], last,
