@@ -1,16 +1,15 @@
-import sys
 import argparse
 import json
 
 from lib.datasets import DataManager
-from lib.modality_PETCT_2D import DataGenerator
+from experiments.exp_2d.lib.modality_PETCT_2D import DataGenerator
 
 import tensorflow as tf
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping, TensorBoard
-from networks.DenseXnet import DenseXNet as cnn
+from experiments.exp_2d.networks.DenseXnet import DenseXNet as cnn
 # from networks.Layers import prelu
 
-from losses.Loss_2d import densexnet_loss, metric_dice
+from experiments.exp_2d.losses.Loss_2d import densexnet_loss, metric_dice
 
 import os
 from datetime import datetime

@@ -19,7 +19,8 @@ trained_model_path = "/media/oncopole/DD 2To/RUDY_WEIGTH/training/20200911-14:27
 # If set to None, the data will be processed "on the fly"
 # Else, the data will be processed and saved on this directory before training.
 # folder architecture pp_dir/<subset>/<study_uid>/<filename>
-pp_dir = None
+# pp_dir = None
+pp_dir = '/media/oncopole/83c5223d-7a01-4ed0-b268-b877a7da96e2/Rudy/pp_dir'
 pp_flag = ''  # Set to done, if data are already preprocessed at pp_dir
 pp_filenames_dict = {'pet_img': 'nifti_PET.nii',
                      'ct_img': 'nifti_CT.nii',
@@ -44,6 +45,7 @@ pet_pp = dict(a_min=0.0, a_max=25.0, b_min=0.0, b_max=1.0, clip=True)
 ct_pp = dict(a_min=-1000.0, a_max=1000.0, b_min=0.0, b_max=1.0, clip=True)
 interpolator = {'pet_img': sitk.sitkLinear,
                 'ct_img': sitk.sitkLinear,
+                'mask_img': sitk.sitkLinear,
                 'output': sitk.sitkLinear}
 default_value = {'pet_img': 0.0, 'ct_img': -1000.0, 'mask_img': 0}
 pp_kwargs = dict(pet_img=pet_pp,
@@ -55,7 +57,9 @@ pp_kwargs = dict(pet_img=pet_pp,
 ### ground_truth ###
 ####################
 mode = ['binary', 'probs', 'mean_probs'][0]
-method = ['otsu', 'absolute', 'relative', 'otsu_abs'][3]
+method = ['otsu', 'absolute', 'relative', 'otsu_abs'][0]
+# To run on a mean ground-truth of multiple run
+# mode, method = 'probs', method = ['otsu', 'absolute', 'relative']
 tvals_probs = dict(absolute=dict(lower=2.0, upper=4.0, mu=2.5, std=0.5),
                    relative=dict(lower=0.33, upper=0.60, mu=0.42, std=0.06))
 tvals_binary = dict(absolute=2.5,

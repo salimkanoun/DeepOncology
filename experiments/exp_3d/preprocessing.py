@@ -4,6 +4,7 @@ import shutil
 from shutil import copyfile
 
 import numpy as np
+import SimpleITK as sitk
 from collections import OrderedDict
 import time
 
@@ -23,9 +24,9 @@ def check_path_is_valid(files):
 
 
 def aggregate_paths(cfg):
-    pp_dir = cfg.pp_dir
+    pp_dir = cfg['pp_dir']
 
-    filenames_dict = cfg.pp_filenames_dict
+    filenames_dict = cfg['pp_filenames_dict']
 
     files = dict()
     for subset in os.listdir(os.path.join(pp_dir)):
@@ -43,27 +44,27 @@ def aggregate_paths(cfg):
 
 
 def get_transform(cfg, subset, from_pp=False, cache_pp=False):
-    keys = tuple(list(cfg.modalities) + ['mask_img'])
+    keys = tuple(list(cfg['modalities']) + ['mask_img'])
     transformers = [LoadNifti(keys=keys)]  # Load NIFTI file from path
 
     if not from_pp:
 
         # Generate ground-truth from PET and VOIs
-        if cfg.mode == 'binary':
+        if cfg['mode'] == 'binary':
             transformers.append(Roi2Mask(keys=('pet_img', 'mask_img'),
-                                         method=cfg.method, tval=cfg.tvals_binary.get(cfg.method, 0.0)))
-        elif cfg.mode == 'probs' and cfg.method == 'otsu_abs':
-            transformers.append(Roi2MaskOtsuAbsolute(keys=('pet_img', 'mask_img'), tvals_probs=cfg.tvals_probs,
+                                         method=cfg['method'], tval=cfg['tvals_binary'].get(cfg['method'], 0.0)))
+        elif cfg['mode'] == 'probs' and cfg['method'] == 'otsu_abs':
+            transformers.append(Roi2MaskOtsuAbsolute(keys=('pet_img', 'mask_img'), tvals_probs=cfg['tvals_probs'],
                                                      new_key_name='mask_img'))
-        elif cfg.mode == 'probs' or cfg.mode == 'mean_probs':
+        elif cfg['mode'] == 'probs' or cfg['mode'] == 'mean_probs':
             transformers.append(
-                Roi2MaskProbs(keys=('pet_img', 'mask_img'), method=cfg.method, tvals_probs=cfg.tvals_probs,
+                Roi2MaskProbs(keys=('pet_img', 'mask_img'), method=cfg['method'], tvals_probs=cfg['tvals_probs'],
                               new_key_name='mask_img'))
 
         # Resample, reshape and align to the same view
         transformers.append(ResampleReshapeAlign(keys=keys,
-                                                 target_shape=cfg.image_shape[::-1],
-                                                 target_voxel_spacing=cfg.voxel_spacing[::-1],
+                                                 target_shape=cfg['image_shape'][::-1],
+                                                 target_voxel_spacing=cfg['voxel_spacing'][::-1],
                                                  origin=cfg['origin'], origin_key='pet_img',
                                                  interpolator=cfg['pp_kwargs']['interpolator'],
                                                  default_value=cfg['pp_kwargs']['default_value']))
@@ -72,22 +73,22 @@ def get_transform(cfg, subset, from_pp=False, cache_pp=False):
         return transformers
 
     # Add Data augmentation
-    if subset == 'train' and cfg.data_augmentation:
+    if subset == 'train' and cfg['data_augmentation']:
         transformers.append(RandAffine(keys=keys,
-                                       **cfg.da_kwargs))
+                                       **cfg['da_kwargs']))
     # Convert Simple ITK image into numpy 3d-array
     transformers.append(Sitk2Numpy(keys=keys))
 
     # Normalize input values
-    for modality in cfg.modalities:
+    for modality in cfg['modalities']:
         transformers.append(ScaleIntensityRanged(keys=modality,
-                                                 **cfg.pp_kwargs[modality]))
+                                                 **cfg['pp_kwargs'][modality]))
     # Concatenate modalities if necessary
-    if len(cfg.modalities) > 1:
-        transformers.append(ConcatModality(keys=cfg.modalities, channel_first=False, new_key='input'))
+    if len(cfg['modalities']) > 1:
+        transformers.append(ConcatModality(keys=cfg['modalities'], channel_first=False, new_key='input'))
     else:
-        transformers.append(AddChannel(keys=cfg.modalities, channel_first=False))
-        transformers.append(RenameDict(keys=cfg.modalities, keys2='input'))
+        transformers.append(AddChannel(keys=cfg['modalities'], channel_first=False))
+        transformers.append(RenameDict(keys=cfg['modalities'], keys2='input'))
 
     transformers.append(AddChannel(keys='mask_img', channel_first=False))
     transformers = Compose(transformers)
@@ -95,29 +96,29 @@ def get_transform(cfg, subset, from_pp=False, cache_pp=False):
 
 
 def get_transform_test(cfg, from_pp=False):
-    keys = cfg.modalities
+    keys = cfg['modalities']
     transformers = [LoadNifti(keys=keys)]  # Load NIFTI file from path
 
     if not from_pp:
         # Resample, reshape and align to the same view
         transformers.append(ResampleReshapeAlign(keys=keys,
-                                                 target_shape=cfg.image_shape[::-1],
-                                                 target_voxel_spacing=cfg.voxel_spacing[::-1],
+                                                 target_shape=cfg['image_shape'][::-1],
+                                                 target_voxel_spacing=cfg['voxel_spacing'][::-1],
                                                  origin=cfg['origin'], origin_key='pet_img',
                                                  interpolator=cfg['pp_kwargs']['interpolator'],
                                                  default_value=cfg['pp_kwargs']['default_value']))
     transformers.append(Sitk2Numpy(keys=keys))
 
     # Normalize input values
-    for modality in cfg.modalities:
+    for modality in cfg['modalities']:
         transformers.append(ScaleIntensityRanged(keys=modality,
-                                                 **cfg.pp_kwargs[modality]))
+                                                 **cfg['pp_kwargs'][modality]))
     # Concatenate modalities if necessary
-    if len(cfg.modalities) > 1:
-        transformers.append(ConcatModality(keys=cfg.modalities, channel_first=False, new_key='input'))
+    if len(cfg['modalities']) > 1:
+        transformers.append(ConcatModality(keys=cfg['modalities'], channel_first=False, new_key='input'))
     else:
-        transformers.append(AddChannel(keys=cfg.modalities, channel_first=False))
-        transformers.append(RenameDict(keys=cfg.modalities, keys2='input'))
+        transformers.append(AddChannel(keys=cfg['modalities'], channel_first=False))
+        transformers.append(RenameDict(keys=cfg['modalities'], keys2='input'))
 
     transformers = Compose(transformers)
     return transformers
@@ -173,19 +174,19 @@ def get_data(cfg):
 
         start_time = time.time()
         total_count = -1
-        total = np.sum([len(data) for data in dataset])
+        total = np.sum([len(data) for subset, data in dataset.items()])
         for subset, data in dataset.items():
-            print('{} : {} examples'.format(subset, len(dataset)))
+            print('{} : {} examples'.format(subset, len(data)))
             # for count, img_path in enumerate(tqdm(data)):
             for count, img_path in enumerate(data):
                 total_count += 1
-                current_time = int(time.time()) - start_time
+                current_time = int(time.time() - start_time)
 
                 if total_count == 0:
-                    print('[{:>3}/{:>3}]: total_time {}'.format(count, len(dataset), sec2str(current_time)))
+                    print('[{:>3}/{:>3}]: total_time {}'.format(count, len(data), sec2str(current_time)))
                 else:
                     print('[{:>3}/{:>3}]: total_time {}, mean loop {}, ETA {}'.format(
-                        count, len(dataset),
+                        count, len(data),
                         sec2str(current_time),
                         sec2str(int(current_time / total_count)),
                         sec2str(int((total - total_count) * current_time / total_count)))
@@ -199,12 +200,12 @@ def get_data(cfg):
                     os.makedirs(folder_path)
 
                 # save PET, CT as NIFTI
-                for modality in cfg.modalities:
+                for modality in cfg['modalities']:
                     sitk.WriteImage(result_dict[modality],
-                                    os.path.join(folder_path, cfg.pp_filenames_dict[modality]))
+                                    os.path.join(folder_path, cfg['pp_filenames_dict'][modality]))
                 # save MASK as NIFTI
                 sitk.WriteImage(result_dict['mask_img'],
-                                os.path.join(folder_path, cfg.pp_filenames_dict['mask_img']))
+                                os.path.join(folder_path, cfg['pp_filenames_dict']['mask_img']))
                 # sitk.WriteImage(result_dict['pet_img'], os.path.join(folder_path, 'nifti_PET.nii'))
                 # sitk.WriteImage(result_dict['ct_img'], os.path.join(folder_path, 'nifti_CT.nii'))
                 # sitk.WriteImage(result_dict['mask_img'], os.path.join(folder_path, 'nifti_MASK.nii'))

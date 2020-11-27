@@ -24,8 +24,8 @@ Implemented model :
 ##  Installation
 Setup package in a virtual environment:
 ```
-git clone https://github.com/rnoyelle/MedicalSegmentation.git 
-cd MedicalSegmentation
+git clone https://github.com/rnoyelle/DeepOncology.git
+cd DeepOncology
 conda create --name <env_name> python=3.7
 source activate <env_name>
 pip install -r requirements.txt
