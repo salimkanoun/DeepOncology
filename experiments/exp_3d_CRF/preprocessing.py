@@ -1,4 +1,3 @@
-
 import os
 import shutil
 from shutil import copyfile
@@ -45,36 +44,9 @@ def aggregate_paths(cfg):
     return files
 
 
-def get_transform_cache(cfg, subset, from_pp=False):
+def get_transform(cfg, subset):
     keys = tuple(list(cfg['modalities']) + ['mask_img'])
     transformers = [LoadNifti(keys=keys)]  # Load NIFTI file from path
-
-    # Generate ground-truth from PET and VOIs
-    if cfg['mode'] == 'binary':
-        transformers.append(Roi2Mask(keys=('pet_img', 'mask_img'),
-                                     method=cfg['method'], tval=cfg['tvals_binary'].get(cfg['method'], 0.0)))
-    elif cfg['mode'] == 'probs' and cfg['method'] == 'otsu_abs':
-        transformers.append(Roi2MaskOtsuAbsolute(keys=('pet_img', 'mask_img'), tvals_probs=cfg['tvals_probs'],
-                                                 new_key_name='mask_img'))
-    elif cfg['mode'] == 'probs' or cfg['mode'] == 'mean_probs':
-        transformers.append(
-            Roi2MaskProbs(keys=('pet_img', 'mask_img'), method=cfg['method'], tvals_probs=cfg['tvals_probs'],
-                          new_key_name='mask_img'))
-
-    transformers.append(Roi2Mask(keys=('pet_img', 'mask_img'),
-                                 method='absolute', tval=1.0, new_key_name='bias'))
-
-
-    # Resample, reshape and align to the same view
-    transformers.append(ResampleReshapeAlign(keys=keys,
-                                             target_shape=cfg['image_shape'][::-1],
-                                             target_voxel_spacing=cfg['voxel_spacing'][::-1],
-                                             origin=cfg['origin'], origin_key='pet_img',
-                                             interpolator=cfg['pp_kwargs']['interpolator'],
-                                             default_value=cfg['pp_kwargs']['default_value']))
-    if cache_pp:
-        transformers = Compose(transformers)
-        return transformers
 
     # Add Data augmentation
     if subset == 'train' and cfg['data_augmentation']:
@@ -94,10 +66,59 @@ def get_transform_cache(cfg, subset, from_pp=False):
         transformers.append(AddChannel(keys=cfg['modalities'], channel_first=False))
         transformers.append(RenameDict(keys=cfg['modalities'], keys2='input'))
 
-    transformers.append(DenseCRFbias(keys=('input', 'probs', 'bias'), dense_crf_param=cfg['dense_crf_param'], ratio=0.5,
-                                     norm_image=False, new_key='label'))
+    transformers.append(AddChannel(keys='mask_img', channel_first=False))
     transformers = Compose(transformers)
     return transformers
+
+
+def get_transform_cache(cfg):
+    keys = tuple(list(cfg['modalities']) + ['mask_img'])
+    transformers = [LoadNifti(keys=keys)]  # Load NIFTI file from path
+
+    # Generate ground-truth from PET and VOIs
+    if cfg['mode'] == 'binary':
+        transformers.append(Roi2Mask(keys=('pet_img', 'mask_img'),
+                                     method=cfg['method'], tval=cfg['tvals_binary'].get(cfg['method'], 0.0)))
+    elif cfg['mode'] == 'probs' and cfg['method'] == 'otsu_abs':
+        transformers.append(Roi2MaskOtsuAbsolute(keys=('pet_img', 'mask_img'), tvals_probs=cfg['tvals_probs'],
+                                                 new_key_name='mask_img'))
+    elif cfg['mode'] == 'probs' or cfg['mode'] == 'mean_probs':
+        transformers.append(
+            Roi2MaskProbs(keys=('pet_img', 'mask_img'), method=cfg['method'], tvals_probs=cfg['tvals_probs'],
+                          new_key_name='mask_img'))
+
+    transformers.append(Roi2Mask(keys=('pet_img', 'mask_img'),
+                                 method='absolute', tval=1.0, new_key_name='bias'))
+
+    # Resample, reshape and align to the same view
+    transformers.append(ResampleReshapeAlign(keys=keys,
+                                             target_shape=cfg['image_shape'][::-1],
+                                             target_voxel_spacing=cfg['voxel_spacing'][::-1],
+                                             origin=cfg['origin'], origin_key='pet_img',
+                                             interpolator=cfg['pp_kwargs']['interpolator'],
+                                             default_value=cfg['pp_kwargs']['default_value']))
+    transformers1 = Compose(transformers)
+    transformers2 = list()
+
+    # Convert Simple ITK image into numpy 3d-array
+    transformers2.append(Sitk2Numpy(keys=keys))
+
+    # Normalize input values
+    for modality in cfg['modalities']:
+        transformers2.append(ScaleIntensityRanged(keys=modality,
+                                                  **cfg['pp_kwargs'][modality]))
+    # Concatenate modalities if necessary
+    if len(cfg['modalities']) > 1:
+        transformers2.append(ConcatModality(keys=cfg['modalities'], channel_first=False, new_key='input'))
+    else:
+        transformers2.append(AddChannel(keys=cfg['modalities'], channel_first=False))
+        transformers2.append(RenameDict(keys=cfg['modalities'], keys2='input'))
+
+    transformers2.append(
+        DenseCRFbias(keys=('input', 'probs', 'bias'), dense_crf_param=cfg['dense_crf_param'], ratio=0.5,
+                     norm_image=False, new_key='mask_img'))
+    transformers2 = Compose(transformers2)
+    return transformers1, transformers2
 
 
 def get_transform_test(cfg, from_pp=False):
@@ -142,8 +163,8 @@ def get_data(cfg):
             print('{} in {} set'.format(len(dataset[subset]), subset))
 
         # Define generator
-        train_transforms = get_transform(cfg, 'train', from_pp=True)
-        val_transforms = get_transform(cfg, 'val', from_pp=True)
+        train_transforms = get_transform(cfg, 'train')
+        val_transforms = get_transform(cfg, 'val')
 
         return dataset, train_transforms, val_transforms
 
@@ -166,7 +187,7 @@ def get_data(cfg):
         dataset['train'], dataset['val'], dataset['test'] = train_images_paths, val_images_paths, test_images_paths
 
         # Get preprocessing transformer
-        pp_transforms = get_transform(cfg, 'train', from_pp=False, cache_pp=True)
+        transfomers1, transformers2 = get_transform_cache(cfg)
 
         print('Preprocessing and saving data at {}'.format(pp_dir))
 
@@ -188,10 +209,10 @@ def get_data(cfg):
                         sec2str(current_time),
                         sec2str(int(current_time / total_count)),
                         sec2str(int((total - total_count) * current_time / total_count)))
-                        )
+                    )
 
-                result_dict = pp_transforms(img_path)
-                study_uid = result_dict['image_id']
+                result_dict1 = transfomers1(img_path)
+                study_uid = result_dict1['image_id']
 
                 folder_path = os.path.join(pp_dir, subset, study_uid)
                 if not os.path.exists(folder_path):
@@ -199,17 +220,15 @@ def get_data(cfg):
 
                 # save PET, CT as NIFTI
                 for modality in cfg['modalities']:
-                    sitk.WriteImage(result_dict[modality],
+                    sitk.WriteImage(result_dict1[modality],
                                     os.path.join(folder_path, cfg['pp_filenames_dict'][modality]))
+
+                result_dict2 = transformers2(result_dict1)
                 # save MASK as NIFTI
-                sitk.WriteImage(result_dict['mask_img'],
+                sitk.WriteImage(result_dict2['mask_img'],
                                 os.path.join(folder_path, cfg['pp_filenames_dict']['mask_img']))
-                # sitk.WriteImage(result_dict['pet_img'], os.path.join(folder_path, 'nifti_PET.nii'))
-                # sitk.WriteImage(result_dict['ct_img'], os.path.join(folder_path, 'nifti_CT.nii'))
-                # sitk.WriteImage(result_dict['mask_img'], os.path.join(folder_path, 'nifti_MASK.nii'))
 
         # set flag
         cfg['pp_flag'] = 'done'
 
         return get_data(cfg)
-

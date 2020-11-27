@@ -37,11 +37,12 @@ pip install -r requirements.txt
 source activate <env_name>
 python training_3d_cnn.py --config config/config_3d.py
 ```
-- To train DenseX-Net :
+
+Then run this command to evaluate the performance
 ```
-source activate <env_name>
-python3 training_2d_cnn.py --config config/default_config_2d.json 
+python evaluate_3d_cnn.py --config config/config_3d.py --weight path/to/weight.h5 -t result
 ```
+And Explore result in the Jupyter Notebook : result_stats.ipynb
 
 
 

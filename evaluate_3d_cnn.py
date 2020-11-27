@@ -15,18 +15,22 @@ def main(cfg, args):
 
     # Get Data path and transforms
     data, train_transforms, val_transforms = get_data(cfg)
-
-    model_path = 'model_weights.h5' if args.weight == '' else args.weight
-    model_cnn = tf.keras.models.load_model(model_path, compile=False)
-
     x_key = 'input'
     y_key = 'mask_img'
+
+    if args.weight == '':
+        last = sorted(os.listdir('/media/oncopole/DD 2To/RUDY_WEIGTH/training'))[-1]
+        model_path = os.path.join(cfg['training_model_folder'], last,
+                                  'model_weights.h5')
+    else:
+        model_path = args.weight
+    model_cnn = tf.keras.models.load_model(model_path, compile=False)
 
     result_csv_path = os.path.join(args.target_dir, 'result_tmtv.csv')
     if not os.path.exists(args.target_dir):
         os.makedirs(args.target_dir)
     if not os.path.isfile(result_csv_path):
-        # csv file do not exist yet => so let's create it
+        # csv file do not exist yet => let's create it
         with open(result_csv_path, 'w') as f:
             writer = csv.writer(f, delimiter='\t')
             writer.writerow(['study_uid', 'subset', 'model', 'config',
