@@ -1,24 +1,17 @@
 import argparse
-import json
 
-import os
-from datetime import datetime
-
-# from lib.transforms import *
-from experiments.exp_3d.preprocessing import *
-
-import tensorflow as tf
-
-from lib.utils import read_cfg
 import csv
 from tqdm import tqdm
+
 import numpy as np
+import tensorflow as tf
+from experiments.exp_3d.preprocessing import *
 from losses.Metrics import metric_dice
+
+from lib.utils import read_cfg
 
 
 def main(cfg, args):
-    # path
-    now = datetime.now().strftime("%Y%m%d-%H:%M:%S")
 
     # Get Data path and transforms
     data, train_transforms, val_transforms = get_data(cfg)
