@@ -35,7 +35,7 @@ pip install -r requirements.txt
 - To train V-Net :
 ```
 source activate <env_name>
-python training_3d_cnn_v2.py --config config/config_3d.py
+python training_3d_cnn.py --config config/config_3d.py
 ```
 - To train DenseX-Net :
 ```

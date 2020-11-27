@@ -32,7 +32,7 @@ def main(cfg):
         os.makedirs(logdir)
 
     # saving the config in the result folder
-    copyfile(config['cfg_path'], os.path.join(training_model_folder, 'config.py'))
+    copyfile(cfg['cfg_path'], os.path.join(training_model_folder, 'config.py'))
 
     # Training params
     epochs = cfg['epochs']

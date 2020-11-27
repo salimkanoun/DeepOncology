@@ -29,7 +29,8 @@ def aggregate_paths(cfg):
     filenames_dict = cfg['pp_filenames_dict']
 
     files = dict()
-    for subset in os.listdir(os.path.join(pp_dir)):
+    subsets = [el for el in ['train', 'val', 'test'] if el in os.listdir(os.path.join(pp_dir))]
+    for subset in subsets:
         files[subset] = OrderedDict()
         for study_uid in os.listdir(os.path.join(pp_dir, subset)):
             d = dict()
@@ -156,14 +157,20 @@ def get_data(cfg):
 
     else:
         # remove old files
-        # if os.path.exists(pp_dir) and os.path.isdir(pp_dir):
-        #     print('cleaning directory : {}'.format(pp_dir))
-        #     shutil.rmtree(pp_dir)
+        if os.path.exists(pp_dir) and os.path.isdir(pp_dir):
+            print('cleaning directory : {}'.format(pp_dir))
+            shutil.rmtree(pp_dir)
+
+        # copy the config file in the root of the dir
+        if not os.path.exists(pp_dir):
+            os.makedirs(pp_dir)
+        copyfile(cfg['cfg_path'], os.path.join(pp_dir, 'config.py'))
 
         # Get Data Paths
         csv_path = cfg['csv_path']
         DM = DataManager(csv_path=csv_path)
         train_images_paths, val_images_paths, test_images_paths = DM.get_train_val_test(wrap_with_dict=True)
+        train_images_paths, val_images_paths, test_images_paths = train_images_paths[:50], val_images_paths[:20], test_images_paths[:10]
         dataset = dict()
         dataset['train'], dataset['val'], dataset['test'] = train_images_paths, val_images_paths, test_images_paths
 
@@ -212,5 +219,6 @@ def get_data(cfg):
 
         # set flag
         cfg['pp_flag'] = 'done'
+
         return get_data(cfg)
 
