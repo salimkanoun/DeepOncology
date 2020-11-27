@@ -89,6 +89,7 @@ def get_transform_cache(cfg):
 
     transformers.append(Roi2Mask(keys=('pet_img', 'mask_img'),
                                  method='absolute', tval=1.0, new_key_name='bias'))
+    keys = tuple(list(cfg['modalities']) + ['bias', 'mask_img'])
 
     # Resample, reshape and align to the same view
     transformers.append(ResampleReshapeAlign(keys=keys,
