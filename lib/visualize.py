@@ -122,9 +122,10 @@ def plot_difference(image, gt_mask, pred_mask, ax=None):
         title=title)
 
 
-def plot_seg(pet_array, mask_array_true, mask_array_pred, axis=1):
+def plot_seg(pet_array, mask_array_true, mask_array_pred, axis=1, suptitle=''):
     figsize = (16, 16)
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
+    fig.suptitle(suptitle)
 
     #
     pet_array = pet_array * 25.0

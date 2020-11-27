@@ -6,12 +6,12 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import SimpleITK as sitk
-import tensorflow as tf
+# import tensorflow as tf
 from experiments.exp_3d.preprocessing import *
 from losses.Metrics import metric_dice
 
 from lib.utils import read_cfg
-from lib.visualize import display_instance, plot_seg, plot_diff
+from lib.visualize import display_instance
 from .inference import Pipeline
 
 import matplotlib.pyplot as plt
@@ -29,39 +29,17 @@ def main(cfg, args):
     else:
         model_path = args.weight
 
-    dataset, train_transforms, val_transforms = get_data(cfg)
-    model = tf.keras.models.load_model(model_path, compile=False)
+    pipeline = Pipeline(cfg, model_path=model_path)
 
     filename = args.filename
     with PdfPages(filename) as pdf:
         for count, img_path in enumerate(dataset):
             study_uid = img_path['study_id']
-            img_dict = val_transforms(img_path)
+            pet_img = sitk.ReadImage(img_path['pet_img'], sitk.sitkFloat32)
+            pet_array = sitk.GetArrayFromImage(pet_img)
 
-            img = img_dict['input']
-            pet_array = np.squeeze(img)[:, :, :, 0]
-            img = np.expand_dims(img, axis=0)
-
-            gt = img_dict['mask_img']
-            gt = np.squeeze(np.round(gt))
-
-            pred = model.predict(img)
-            pred = np.squeeze(np.round(pred))
-
-            # coronal
-            plot_seg(pet_array, gt, pred, axis=1, suptitle=study_uid)
-            pdf.savefig()  # saves the current figure into a pdf page
-            plt.close()
-
-            # sagital
-            plot_seg(pet_array, gt, pred, axis=2, suptitle=study_uid)
-            pdf.savefig()  # saves the current figure into a pdf page
-            plt.close()
-
-            # difference
-            plot_diff(pet_array, gt, pred, axis=1, ax=None)
-            plt.close()
-
+            pred_nifti = pipeline(img_path)
+            pred = sitk.GetArrayFromImage(pred_nifti)
 
             # coronal
             axis = 1
@@ -87,6 +65,18 @@ def main(cfg, args):
 
             display_instance(pet_array, mask_array=pred, axis=axis, ax=ax2)
             ax2.set_title('prediction')
+
+            pdf.savefig()  # saves the current figure into a pdf page
+            plt.close()
+
+
+
+
+
+
+
+
+
 
 
 if __name__ == "__main__":
