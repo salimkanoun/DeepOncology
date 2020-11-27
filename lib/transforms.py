@@ -73,7 +73,7 @@ class Roi2Mask(object):
     Apply threshold-based method to determine the segmentation from the ROI
     """
 
-    def __init__(self, keys=('pet_img', 'mask_img'), method='otsu', tval=0.0):
+    def __init__(self, keys=('pet_img', 'mask_img'), method='otsu', tval=0.0, new_key_name=None):
         """
         :param keys: 'pet_img' must be a 3D simpleITK image
                      'mask_img' must be a 4D simpleITK image. shape = (n_roi, _, _, _)
@@ -88,6 +88,7 @@ class Roi2Mask(object):
         self.keys = keys
         self.method = method.lower()
         self.tval = tval
+        self.new_key_name = new_key_name if new_key_name is not None else keys[1]
 
         assert method in ['absolute', 'relative', 'otsu', 'adaptative']
 
@@ -95,7 +96,7 @@ class Roi2Mask(object):
         pet_key = self.keys[0]
         roi_key = self.keys[1]
 
-        img_dict[roi_key] = self.roi2mask(img_dict[roi_key], img_dict[pet_key])
+        img_dict[self.new_key_name] = self.roi2mask(img_dict[roi_key], img_dict[pet_key])
         return img_dict
 
     def calculate_threshold(self, roi):

@@ -10,6 +10,7 @@ import time
 
 from lib.datasets import DataManager
 from lib.transforms import *
+from lib.CRF import *
 
 from lib.utils import sec2str
 
@@ -44,31 +45,33 @@ def aggregate_paths(cfg):
     return files
 
 
-def get_transform(cfg, subset, from_pp=False, cache_pp=False):
+def get_transform_cache(cfg, subset, from_pp=False):
     keys = tuple(list(cfg['modalities']) + ['mask_img'])
     transformers = [LoadNifti(keys=keys)]  # Load NIFTI file from path
 
-    if not from_pp:
+    # Generate ground-truth from PET and VOIs
+    if cfg['mode'] == 'binary':
+        transformers.append(Roi2Mask(keys=('pet_img', 'mask_img'),
+                                     method=cfg['method'], tval=cfg['tvals_binary'].get(cfg['method'], 0.0)))
+    elif cfg['mode'] == 'probs' and cfg['method'] == 'otsu_abs':
+        transformers.append(Roi2MaskOtsuAbsolute(keys=('pet_img', 'mask_img'), tvals_probs=cfg['tvals_probs'],
+                                                 new_key_name='mask_img'))
+    elif cfg['mode'] == 'probs' or cfg['mode'] == 'mean_probs':
+        transformers.append(
+            Roi2MaskProbs(keys=('pet_img', 'mask_img'), method=cfg['method'], tvals_probs=cfg['tvals_probs'],
+                          new_key_name='mask_img'))
 
-        # Generate ground-truth from PET and VOIs
-        if cfg['mode'] == 'binary':
-            transformers.append(Roi2Mask(keys=('pet_img', 'mask_img'),
-                                         method=cfg['method'], tval=cfg['tvals_binary'].get(cfg['method'], 0.0)))
-        elif cfg['mode'] == 'probs' and cfg['method'] == 'otsu_abs':
-            transformers.append(Roi2MaskOtsuAbsolute(keys=('pet_img', 'mask_img'), tvals_probs=cfg['tvals_probs'],
-                                                     new_key_name='mask_img'))
-        elif cfg['mode'] == 'probs' or cfg['mode'] == 'mean_probs':
-            transformers.append(
-                Roi2MaskProbs(keys=('pet_img', 'mask_img'), method=cfg['method'], tvals_probs=cfg['tvals_probs'],
-                              new_key_name='mask_img'))
+    transformers.append(Roi2Mask(keys=('pet_img', 'mask_img'),
+                                 method='absolute', tval=1.0, new_key_name='bias'))
 
-        # Resample, reshape and align to the same view
-        transformers.append(ResampleReshapeAlign(keys=keys,
-                                                 target_shape=cfg['image_shape'][::-1],
-                                                 target_voxel_spacing=cfg['voxel_spacing'][::-1],
-                                                 origin=cfg['origin'], origin_key='pet_img',
-                                                 interpolator=cfg['pp_kwargs']['interpolator'],
-                                                 default_value=cfg['pp_kwargs']['default_value']))
+
+    # Resample, reshape and align to the same view
+    transformers.append(ResampleReshapeAlign(keys=keys,
+                                             target_shape=cfg['image_shape'][::-1],
+                                             target_voxel_spacing=cfg['voxel_spacing'][::-1],
+                                             origin=cfg['origin'], origin_key='pet_img',
+                                             interpolator=cfg['pp_kwargs']['interpolator'],
+                                             default_value=cfg['pp_kwargs']['default_value']))
     if cache_pp:
         transformers = Compose(transformers)
         return transformers
@@ -91,7 +94,8 @@ def get_transform(cfg, subset, from_pp=False, cache_pp=False):
         transformers.append(AddChannel(keys=cfg['modalities'], channel_first=False))
         transformers.append(RenameDict(keys=cfg['modalities'], keys2='input'))
 
-    transformers.append(AddChannel(keys='mask_img', channel_first=False))
+    transformers.append(DenseCRFbias(keys=('input', 'probs', 'bias'), dense_crf_param=cfg['dense_crf_param'], ratio=0.5,
+                                     norm_image=False, new_key='label'))
     transformers = Compose(transformers)
     return transformers
 
@@ -129,19 +133,7 @@ def get_data(cfg):
     pp_dir = cfg.get('pp_dir', None)
 
     if pp_dir is None:
-        csv_path = cfg['csv_path']
-
-        # Get Data
-        DM = DataManager(csv_path=csv_path)
-        train_images_paths, val_images_paths, test_images_paths = DM.get_train_val_test(wrap_with_dict=True)
-        dataset = dict()
-        dataset['train'], dataset['val'], dataset['test'] = train_images_paths, val_images_paths, test_images_paths
-
-        # Define generator
-        train_transforms = get_transform(cfg, 'train', from_pp=False)
-        val_transforms = get_transform(cfg, 'val', from_pp=False)
-
-        return dataset, train_transforms, val_transforms
+        raise ValueError('You must provide a pp_dir')
 
     elif cfg.get('pp_flag', '') == 'done':
         print('Loading from {} ...'.format(pp_dir))

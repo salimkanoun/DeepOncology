@@ -148,6 +148,4 @@ if __name__ == "__main__":
     config = read_cfg(args.config)
     config['cfg_path'] = args.config
 
-    print(config.keys())
-    print(config)
     main(config)

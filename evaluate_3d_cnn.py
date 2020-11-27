@@ -1,78 +1,33 @@
 import argparse
 import json
-import csv
-from tqdm import tqdm
 
 import os
-import numpy as np
+from datetime import datetime
 
-from lib.datasets import DataManager
-from lib.modality_PETCT import DataGenerator
-from lib.data_loader import DataGenerator_3D_from_numpy
-
-from losses.Metrics import metric_dice
+# from lib.transforms import *
+from experiments.exp_3d.preprocessing import *
 
 import tensorflow as tf
 
+from lib.utils import read_cfg
+import csv
+from tqdm import tqdm
+import numpy as np
+from losses.Metrics import metric_dice
 
-def main(config, args):
+
+def main(cfg, args):
     # path
-    csv_path = config['path']['csv_path']
-    pp_dir = config['path'].get('pp_dir', None)
+    now = datetime.now().strftime("%Y%m%d-%H:%M:%S")
 
-    # PET CT scan params
-    image_shape = tuple(config['preprocessing']['image_shape'])  # (128, 64, 64)  # (368, 128, 128)  # (z, y, x)
-    voxel_spacing = tuple(config['preprocessing']['voxel_spacing'])  # (4.8, 4.8, 4.8)  # in millimeter, (z, y, x)
-    data_augment = False
-    resize = config['preprocessing']['resize']  # True  # not use yet
-    origin = config['preprocessing']['origin']  # how to set the new origin
-    normalize = config['preprocessing']['normalize']  # True  # whether or not to normalize the inputs
+    # Get Data path and transforms
+    data, train_transforms, val_transforms = get_data(cfg)
 
-    # Training params
-    batch_size = 1
-    shuffle = False
+    model_path = 'model_weights.h5' if args.weight == '' else args.weight
+    model_cnn = tf.keras.models.load_model(model_path, compile=False)
 
-    # Get Data
-    if pp_dir is None:
-        DM = DataManager(csv_path=csv_path)
-        x_train, x_val, x_test, y_train, y_val, y_test = DM.get_train_val_test()
-
-        # Define generator
-        train_generator = DataGenerator(x_train, y_train,
-                                        batch_size=batch_size, shuffle=shuffle, augmentation=data_augment,
-                                        target_shape=image_shape, target_voxel_spacing=voxel_spacing,
-                                        resize=resize, normalize=normalize, origin=origin)
-
-        val_generator = DataGenerator(x_val, y_val,
-                                      batch_size=batch_size, shuffle=False, augmentation=False,
-                                      target_shape=image_shape, target_voxel_spacing=voxel_spacing,
-                                      resize=resize, normalize=normalize, origin=origin)
-
-        test_generator = DataGenerator(x_test, y_test,
-                                       batch_size=batch_size, shuffle=False, augmentation=False,
-                                       target_shape=image_shape, target_voxel_spacing=voxel_spacing,
-                                       resize=resize, normalize=normalize, origin=origin)
-    else:
-        mask_keys = ['mask_img_absolute', 'mask_img_relative', 'mask_img_otsu']
-        train_generator = DataGenerator_3D_from_numpy(pp_dir, 'train',
-                                                      mask_keys,
-                                                      batch_size=batch_size,
-                                                      shuffle=False,
-                                                      returns_dict=True)
-        val_generator = DataGenerator_3D_from_numpy(pp_dir, 'val',
-                                                    mask_keys,
-                                                    batch_size=batch_size,
-                                                    shuffle=False,
-                                                    returns_dict=True)
-
-        test_generator = DataGenerator_3D_from_numpy(pp_dir, 'test',
-                                                     mask_keys,
-                                                     batch_size=batch_size,
-                                                     shuffle=False,
-                                                     returns_dict=True)
-
-    # load model
-    model_cnn = tf.keras.models.load_model(args.model_path, compile=False)
+    x_key = 'input'
+    y_key = 'mask_img'
 
     result_csv_path = os.path.join(args.target_dir, 'result_tmtv.csv')
     if not os.path.exists(args.target_dir):
@@ -81,57 +36,52 @@ def main(config, args):
         # csv file do not exist yet => so let's create it
         with open(result_csv_path, 'w') as f:
             writer = csv.writer(f, delimiter='\t')
-            writer.writerow(['study_uid', 'subset', 'model', 'ground_truth',
+            writer.writerow(['study_uid', 'subset', 'model', 'config',
                              'dice_cnn', 'tmtv_cnn_pred', 'tmtv_cnn_true'])
 
     with open(result_csv_path, 'a') as f:
         writer = csv.writer(f, delimiter='\t')
-        for subset, dataset in zip(['train', 'val', 'test'], [train_generator, val_generator, test_generator]):
-            print('dataset {} : {}'.format(subset, len(dataset) * batch_size))
+        for subset, dataset in data.items():
+            print('dataset {} : {}'.format(subset, len(dataset)))
 
             for idx, img_dict in enumerate(tqdm(dataset)):
-                study_uid_batch = img_dict['study_uid']
-                X_batch = img_dict['img']
-                Y_batch = img_dict['seg']
-                Y_batch = np.round(Y_batch)
+                # preprocessing
+                img_dict = val_transforms(img_dict)
+                study_uid = img_dict['image_id']
+                img = img_dict[x_key]
+                gt = img_dict[y_key]
+                gt = np.round(gt)
 
-                Y_pred = model_cnn.predict(X_batch)
-                Y_pred = np.round(Y_pred)
+                # predict cnn
+                img = np.expand_dims(img, axis=0)
+                pred = model_cnn.predict(img)
+                pred = np.round(pred)
 
                 # compute metric and tmtv
+                gt = np.squeeze(gt)
+                pred = np.squeeze(pred)
+                voxel_spacing = img_dict['meta_info']['new_spacing']
                 volume_voxel = np.prod(voxel_spacing) * 10 ** -6  # volume of one voxel in liter
-                dice_batch = metric_dice(Y_batch, Y_pred, axis=(1, 2, 3, 4))
-                tmtv_true = np.sum(Y_batch, axis=(1, 2, 3, 4)) * volume_voxel
-                tmtv_pred = np.sum(Y_pred, axis=(1, 2, 3, 4)) * volume_voxel
+                dice = metric_dice(gt, pred, axis=(0, 1, 2))
+                tmtv_true = np.sum(gt, axis=(0, 1, 2)) * volume_voxel
+                tmtv_pred = np.sum(pred, axis=(0, 1, 2)) * volume_voxel
 
-                for ii in range(X_batch.shape[0]):
-                    if args.save_pred:
-                        np.save(args.target_dir, np.squeeze(Y_pred[ii]))
-                    writer.writerow(
-                        [study_uid_batch[ii], subset, args.model_path, 'mean' + '|'.join(mask_keys),
-                         dice_batch[ii], tmtv_pred[ii], tmtv_true[ii]])
-                    # header =
-                    # writer.writerow(
-                    #     ['study_uid', 'model', 'subset', 'ground_truth', 'dice_cnn', 'tmtv_cnn_pred', 'tmtv_cnn_true'])
+                # save result
+                writer.writerow(
+                    [study_uid, subset, args.model_path, config['cfg_path'], dice, tmtv_pred, tmtv_true])
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config", default='config/default_config.json', type=str,
-                        help="path/to/config.json")
-    parser.add_argument("--model_path", type=str,
-                        help="path/to/model.h5")
-    parser.add_argument("--target_dir", type=str,
+    parser.add_argument("-c", "--config", default='config/config_3d.py', type=str,
+                        help="path/to/config.py")
+    parser.add_argument('-w', "--weight", default='', type=str,
+                        help='path/to/model/weight.h5')
+    parser.add_argument("-t", "--target_dir", type=str,
                         help="path/to/target/directory i.e where the pred and csv will is saved")
-    parser.add_argument("--save_pred", action='store_true', default=False,
-                        help='wheter to save the prediction of the model')
     args = parser.parse_args()
 
-    if args.model_path is None:
-        raise argparse.ArgumentError(parser,
-                                     "model path was noy supplied.\n" + parser.format_help())
-
-    with open(args.config) as f:
-        config = json.load(f)
+    config = read_cfg(args.config)
+    config['cfg_path'] = args.config
 
     main(config, args)
