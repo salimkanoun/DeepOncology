@@ -11,7 +11,16 @@ from scipy.stats import truncnorm, uniform
 from .utils import get_study_uid
 
 
+"""Classes for pre-processing : read NIFTI, threshold mask, reshape PET/CT/mask, 
+    scale intensity, concatenate PET/CT ... 
+
+
+"""
+
 class Compose(object):
+    """A class to applied a list of transformations on dict dataset
+
+    """
     def __init__(self, transformers):
         self.transformers = transformers
 
@@ -100,6 +109,14 @@ class Roi2Mask(object):
         return img_dict
 
     def calculate_threshold(self, roi):
+        """[summary]
+
+        Args:
+            roi ([ndarray]): [ROI array]
+
+        Returns:
+            [float]: [threshold value]
+        """
         if self.method == 'absolute':
             return self.tval
 
@@ -200,6 +217,8 @@ class Roi2MaskProbs(object):
         return img_dict
 
     def relative_seg(self, roi):
+        """Return a truncated mask array 
+        """
         # lower, upper = 0.33, 0.60
         # mu, std = 0.42, 0.06
 
@@ -212,6 +231,8 @@ class Roi2MaskProbs(object):
         # return uniform.cdf(roi / np.max(roi), loc=lower, scale=upper - lower)
 
     def absolute_seg(self, roi):
+        """Return a truncated mask array 
+        """
         # lower, upper = 2.0, 4.0
         # mu, std = 2.5, 0.5
 
@@ -267,13 +288,16 @@ class Roi2MaskProbs(object):
             direction = tuple(el for i, el in enumerate(mask_img.GetDirection()[:12]) if not (i + 1) % 4 == 0)
             # size = mask_img.GetSize()[:-1]
 
+
+        #len(mask_array.shape) = 4 ! 
+
         new_masks = []
         for method in self.method:
-            new_mask = np.zeros(mask_array.shape[1:], dtype=np.float64)
+            new_mask = np.zeros(mask_array.shape[1:], dtype=np.float64) #len(new_mask.shape) = 3
 
             for num_slice in range(mask_array.shape[0]):
-                mask_slice = mask_array[num_slice]  # R.O.I
-                roi = pet_array[mask_slice > 0]
+                mask_slice = mask_array[num_slice]  # R.O.I #matrix 3D
+                roi = pet_array[mask_slice > 0] #vecteur 
                 if len(roi) == 0:
                     continue
                 try:
@@ -287,6 +311,8 @@ class Roi2MaskProbs(object):
 
         new_mask = new_masks[0] if len(new_masks) == 1 else np.mean(np.array(new_masks), axis=0)
         # np.average(imgs, axis=0, weights=self.weights)
+        #new mask = mean de toutes les ROI selon la méthode 
+
 
         # reconvert to sitk and restore 3D meta-information
         new_mask = sitk.GetImageFromArray(new_mask)
@@ -298,6 +324,10 @@ class Roi2MaskProbs(object):
 
 
 class AverageImage(object):
+    """A class to applied average on several ndarray
+
+
+    """
 
     def __init__(self, keys, new_key_name, weights=None):
         self.keys = (keys,) if isinstance(keys, str) else keys
@@ -433,7 +463,7 @@ class Roi2MaskOtsuAbsolute(object):
 
 class ResampleReshapeAlign(object):
     """
-    Resample to the same resolution, Reshape and Align to the same view.
+    Resample to the same resolution, Reshape and Align to the same view the CT, PET and mask.
     """
 
     def __init__(self, target_shape, target_voxel_spacing,
@@ -506,6 +536,14 @@ class ResampleReshapeAlign(object):
         return img_dict
 
     def compute_new_origin_head2hip(self, pet_img):
+        """Calculate new origin for head to hips image
+
+        Args:
+            pet_img ([sitk.Image]): pet image
+
+        Returns:
+            [tuple]: [return (x, y , z) coordonate of new origin]
+        """
         new_shape = self.target_shape
         new_spacing = self.target_voxel_spacing
         pet_size = pet_img.GetSize()
@@ -517,6 +555,14 @@ class ResampleReshapeAlign(object):
         return new_origin
 
     def compute_new_origin_centered_img(self, pet_img):
+        """Calculate new origin for centered image
+
+        Args:
+            pet_img ([sitk.Image]): pet image
+
+        Returns:
+            [tuple]: [return (x, y , z) coordonate of new origin]
+        """
         origin = np.asarray(pet_img.GetOrigin())
         shape = np.asarray(pet_img.GetSize())
         spacing = np.asarray(pet_img.GetSpacing())
@@ -526,6 +572,8 @@ class ResampleReshapeAlign(object):
         return tuple(origin + 0.5 * (shape * spacing - new_shape * new_spacing))
 
     def compute_new_origin(self, img):
+        """compute new origin : centered or head to hips
+        """
         if self.origin == 'middle':
             return self.compute_new_origin_centered_img(img)
         elif self.origin == 'head':
@@ -564,7 +612,8 @@ class Sitk2Numpy(object):
 
 class ScaleIntensityRanged(object):
     """
-    Linearly Scale value between [a_min, a_max] to [b_min, b_max]
+    #Linearly Scale value between [a_min, a_max] to [b_min, b_max]. 
+    Scale intensity of CT and PET from [a_min, a_max] to [b_min, b_max].
     """
 
     def __init__(self, keys, a_min, a_max, b_min, b_max, clip=False):
@@ -598,6 +647,7 @@ class ScaleIntensityRanged(object):
 class ConcatModality(object):
     """
     expects data of shape (spatial_dim1, spatial_dim2, ..., spatial_dim3)
+    Concatenate PET/CT array, returns a 4D array of 3D arrays.
     """
 
     def __init__(self, keys=('pet_img', 'ct_img'), channel_first=True, new_key='image'):
@@ -616,6 +666,7 @@ class ConcatModality(object):
 class AddChannel(object):
     """
     expects data of shape (spatial_dim1, spatial_dim2, ..., spatial_dim3)
+    Add a dimension to one ndarray : return a 4D array of one 3D array
     """
 
     def __init__(self, keys, channel_first=False):
@@ -631,6 +682,8 @@ class AddChannel(object):
 
 
 class RenameDict(object):
+    """A class to rename key's dict
+    """
 
     def __init__(self, keys, keys2):
         """
@@ -650,7 +703,7 @@ class RenameDict(object):
 class RandAffine(object):
     """
     Data Augmentation for 3D SimpleITK image.
-    The same random deformation is applied for each key.
+    The same random deformation is applied for each key (CT, PET, MASK).
     """
 
     def __init__(self, keys,
@@ -699,7 +752,7 @@ class RandAffine(object):
     def generate_random_bool(p):
         """
         :param p : float between 0-1, probability
-        :return: True if a probobility of p
+        :return: True if a probability of p
         """
         return random.random() < p
 
@@ -760,6 +813,9 @@ class RandAffine(object):
 
 
 class PostCNNResampler(object):
+    """ A class to generate sitk Image of predicted mask
+
+    """
 
     def __init__(self, threshold_prob=0.5):
         """

@@ -126,6 +126,10 @@ def get_transform_test(cfg, from_pp=False):
 
 
 def get_data(cfg):
+    """Save or not the pre processed data at nifti format
+
+    Returns dataset, and list of transformers for train and val set. 
+    """
     pp_dir = cfg.get('pp_dir', None)
 
     if pp_dir is None:

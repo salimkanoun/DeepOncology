@@ -7,6 +7,11 @@ from sklearn.model_selection import train_test_split
 
 
 class DataManager(object):
+    """A class to read the CSV file with CT/PET/MASK path, and prepare train, val and test set
+
+    Args:
+        object ([type]): [description]
+    """
 
     def __init__(self, base_path=None, csv_path=None):
         self.base_path = base_path
@@ -23,6 +28,14 @@ class DataManager(object):
         return list(zip(PET_ids, CT_ids)), MASK_ids
 
     def get_train_val_test(self, wrap_with_dict=False):
+        """[summary]
+
+        Args:
+            wrap_with_dict (bool, optional): Wrap dataset in list of dict. Defaults to False.
+
+        Returns:
+            []: [description]
+        """
         if self.csv_path is None:
             X, y = self.get_data()
             return self.split_train_val_test_split(X, y, random_state=self.seed)
@@ -32,7 +45,7 @@ class DataManager(object):
 
             if 'subset' not in df.columns:
                 key_split = 'PATIENT_ID'  # unique id
-                idx = np.arange(df[key_split].nunique())
+                idx = np.arange(df[key_split].nunique()) #0 to number of PET0
                 split = np.empty(df[key_split].nunique(), dtype="<U6")
 
                 idx_train, idx_test = train_test_split(idx, test_size=self.test_size, random_state=self.seed)
@@ -42,17 +55,19 @@ class DataManager(object):
 
                 split[idx_train] = 'train'
                 split[idx_val] = 'val'
-                split[idx_test] = 'test'
+                split[idx_test] = 'test' #put at avery index train, test, val
 
                 df_patient = pd.DataFrame(data={key_split: df[key_split].unique(),
                                                 'subset': split})
                 df = df.merge(df_patient, on=key_split, how='left')
+                #add column subset on the DataFrame/CSV
 
             df_train = df[df['subset'] == 'train']
             df_val = df[df['subset'] == 'val']
             df_test = df[df['subset'] == 'test']
 
             if wrap_with_dict:
+                #wrap in list of dict train, test and val set
                 return self.wrap_in_list_of_dict(df_train), self.wrap_in_list_of_dict(df_val), self.wrap_in_list_of_dict(df_test)
             else:
                 X_train, y_train = list(zip(df_train['NIFTI_PET'].values, df_train['NIFTI_CT'].values)), df_train['NIFTI_MASK'].values
@@ -104,9 +119,9 @@ class DataManager(object):
     @staticmethod
     def wrap_in_list_of_dict(df):
         """
-        :return: [ {'pet_img': pet_img0, 'ct_img': ct_img0, 'mask_img': mask_img0},
-                    {'pet_img': pet_img1, 'ct_img': ct_img1, 'mask_img': mask_img1},
-                    {'pet_img': pet_img2, 'ct_img': ct_img2, 'mask_img': mask_img2}, ...]
+        :return: [ {'pet_img': pet_img0_path, 'ct_img': ct_img0_path, 'mask_img': mask_img0_path},
+                    {'pet_img': pet_img1_path, 'ct_img': ct_img1_path, 'mask_img': mask_img1_path},
+                    {'pet_img': pet_img2_path, 'ct_img': ct_img2_path, 'mask_img': mask_img2_path}, ...]
         """
         # return df[['NIFTI_PET', 'NIFTI_CT', 'NIFTI_MASK']].T.to_dict().values()
         mapper = {'NIFTI_PET': 'pet_img', 'NIFTI_CT': 'ct_img', 'NIFTI_MASK': 'mask_img'}

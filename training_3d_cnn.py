@@ -44,6 +44,12 @@ def main(cfg):
 
     # Get Data path and transforms
     dataset, train_transforms, val_transforms = get_data(cfg)
+    #dataset = dict('train' : [{ct pet mask}, {},] 
+    #                'test' : [{ct pet mask}, {},] 
+    #                 'val' : [{ct pet mask}, {}, ])
+    #train, val_transforms = list of transformers to applied (preprocessing)
+
+
     train_images_paths, val_images_paths = dataset['train'], dataset['val']
 
     train_generator = DataGeneratorFromDict(train_images_paths,

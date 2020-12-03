@@ -4,6 +4,11 @@ import os
 
 
 class DataGeneratorFromDict(tf.keras.utils.Sequence):
+    """A class to create a DataGenerator object for model.fit()
+    
+
+    
+    """
 
     def __init__(self,
                  images_paths,
