@@ -15,7 +15,7 @@ from .utils import get_study_uid
     scale intensity, concatenate PET/CT ... 
 
 
-"""
+    """
 
 class Compose(object):
     """A class to applied a list of transformations on dict dataset
