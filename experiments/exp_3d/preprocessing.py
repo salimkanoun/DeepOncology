@@ -48,7 +48,7 @@ def aggregate_paths(cfg):
     return files
 
 
-def get_transform(cfg, subset, modalities, mode, method, tval, from_pp=False, cache_pp=False):
+def get_transform(subset, modalities, mode, method, tval, data_augmentation=True, from_pp=False, cache_pp=False):
     """[summary]
 
     Args:
@@ -59,7 +59,7 @@ def get_transform(cfg, subset, modalities, mode, method, tval, from_pp=False, ca
         method ([list]): [relative, absolute, otsu, otsu_abs] !!!!!! CHECK HERE 
         tval ([dict]) : [if mode = binary & method = relative : 0.42
                           if mode = binary & method = absolute : 2.5, 
-                          else : don't need tval ]
+                          else : don't need tval, tval = 0.0 ]
 
     """
     
@@ -81,66 +81,85 @@ def get_transform(cfg, subset, modalities, mode, method, tval, from_pp=False, ca
         transformers = Compose(transformers)
         return transformers
 
+    #Dissociated PET and CT 
+    transformers.append(DissociatePETCT(keys=('merged_img'), new_key_name=('pet_img', 'ct_img')))
+
+
     # Add Data augmentation
-    if subset == 'train' and cfg['data_augmentation']:
+    if subset == 'train' and data_augmentation:
         transformers.append(RandAffine(keys=('pet_img', 'ct_img', 'mask_img'),
-                                       **cfg['da_kwargs']))
+                                       **cfg['da_kwargs'])) #ICI CHANGER PARAMETRES
     # Convert Simple ITK image into numpy 3d-array
     transformers.append(Sitk2Numpy(keys=('pet_img', 'ct_img', 'mask_img')))
 
     # Normalize input values
-    for modality in ('pet_img', 'ct_img'):
+    for modality in modalities:
         if modality == 'pet_img' : 
-            pass #define paramters
+            modal_pp = dict(a_min=0.0, a_max=25.0, b_min=0.0, b_max=1.0, clip=True)
         else : 
-            pass #define paramaters and remove cfg pp kwargs etc 
+            modal_pp = dict(a_min=-1000.0, a_max=1000.0, b_min=0.0, b_max=1.0, clip=True)
+        #A METTRE EN PARAMETRES
 
-        transformers.append(ScaleIntensityRanged(keys=modality,
-                                                 **cfg['pp_kwargs'][modality]))
+        transformers.append(ScaleIntensityRanged(keys = modality,
+                                                 a_min =modal_pp['a_min'], a_max = modal_pp['a_max'], b_min=modal_pp['b_min'], b_max=modal_pp['b_max'], clip=modal_pp['clip']))
 
 
     # Concatenate modalities if necessary
-    if len(cfg['modalities']) > 1:
-        transformers.append(ConcatModality(keys=cfg['modalities'], channel_first=False, new_key='input'))
+    if len(modalities) > 1:
+        transformers.append(ConcatModality(keys=modalities, channel_first=False, new_key='input'))
     else:
-        transformers.append(AddChannel(keys=cfg['modalities'], channel_first=False))
-        transformers.append(RenameDict(keys=cfg['modalities'], keys2='input'))
+        transformers.append(AddChannel(keys=modalities, channel_first=False))
+        transformers.append(RenameDict(keys=modalities, keys2='input'))
 
     transformers.append(AddChannel(keys='mask_img', channel_first=False))
     transformers = Compose(transformers)
     return transformers
 
 
-def get_transform_test(cfg, from_pp=False):
-    keys = keys = tuple(list(cfg['modalities']) + ['merged_img'])
+def get_transform_test(modalities):
+    """transformers for test set 
+
+    Args:
+        modalities ([tuple]): [('pet_img, ct_img') or ('pet_img')]
+
+    Returns:
+        [type]: [description]
+    """
+    keys = tuple(list(modalities) + ['merged_img'])
     transformers = [LoadNifti(keys=keys)]  # Load NIFTI file from path
 
-    #if not from_pp:
-        # Resample, reshape and align to the same view
-        #transformers.append(ResampleReshapeAlign(keys=keys,
-        #                                         target_shape=cfg['image_shape'][::-1],
-        #                                         target_voxel_spacing=cfg['voxel_spacing'][::-1],
-        #                                         origin=cfg['origin'], origin_key='pet_img',
-        #                                         interpolator=cfg['pp_kwargs']['interpolator'],
-         #                                        default_value=cfg['pp_kwargs']['default_value']))
+
+
+    transformers.append(DissociatePETCT(keys=('merged_img'), new_key_name=('pet_img', 'ct_img')))
     transformers.append(Sitk2Numpy(keys=keys))
 
     # Normalize input values
-    for modality in cfg['modalities']:
-        transformers.append(ScaleIntensityRanged(keys=modality,
-                                                 **cfg['pp_kwargs'][modality]))
-    # Concatenate modalities if necessary
-    if len(cfg['modalities']) > 1:
-        transformers.append(ConcatModality(keys=cfg['modalities'], channel_first=False, new_key='input'))
-    else:
-        transformers.append(AddChannel(keys=cfg['modalities'], channel_first=False))
-        transformers.append(RenameDict(keys=cfg['modalities'], keys2='input'))
+    for modality in modalities:
+        if modality == 'pet_img' : 
+            modal_pp = dict(a_min=0.0, a_max=25.0, b_min=0.0, b_max=1.0, clip=True)
+        else : 
+            modal_pp = dict(a_min=-1000.0, a_max=1000.0, b_min=0.0, b_max=1.0, clip=True)
+        #A METTRE EN PARAMETRES
 
+        transformers.append(ScaleIntensityRanged(keys = modality,
+                                                 a_min =modal_pp['a_min'], a_max = modal_pp['a_max'], b_min=modal_pp['b_min'], b_max=modal_pp['b_max'], clip=modal_pp['clip']))
+
+
+    # Concatenate modalities if necessary
+    if len(modalities) > 1:
+        transformers.append(ConcatModality(keys=modalities, channel_first=False, new_key='input'))
+    else:
+        transformers.append(AddChannel(keys=modalities, channel_first=False))
+        transformers.append(RenameDict(keys=modalities, keys2='input'))
+
+    transformers.append(AddChannel(keys='mask_img', channel_first=False))
     transformers = Compose(transformers)
     return transformers
 
 
-def get_data(cfg):
+
+#FUNCTION USE IN TRAINING SCRIPT TO GET DATA 
+def get_data(subset, modalities, mode, method, tval, data_augmentation=True, from_pp=False, cache_pp=False):
     """Save or not the pre processed data at nifti format
 
     Returns dataset, and list of transformers for train and val set. 
