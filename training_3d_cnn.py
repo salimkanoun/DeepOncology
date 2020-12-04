@@ -13,8 +13,8 @@ import tensorflow_addons as tfa
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping, TensorBoard
 from networks.Vnet import VNet
 
-from losses.Loss_3d import custom_robust_loss
-from losses.Loss_3d import metric_dice as dsc
+from losses.Loss import custom_robust_loss
+from losses.Loss import metric_dice 
 
 from lib.utils import read_cfg
 
@@ -66,8 +66,9 @@ def main(cfg):
 
     with strategy.scope():
         # definition of loss, optimizer and metrics
-        loss_object = custom_robust_loss
+        loss_object = custom_robust_loss(dim=3)
         optimizer = tfa.optimizers.AdamW(learning_rate=1e-4, weight_decay=1e-4)
+        dsc = metric_dice(dim=3, vnet=True)
         metrics = [dsc, 'Recall', 'Precision']  # [dsc]
 
     # callbacks
