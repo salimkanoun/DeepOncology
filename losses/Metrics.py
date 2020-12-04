@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.spatial.distance import directed_hausdorff, jaccard
 
+#metrics with ndarray 
+
 
 def hausdorff_distance(y_true, y_pred):
     """
@@ -68,7 +70,7 @@ def sensitivity(y_true, y_pred):
     """
 
     tp = np.sum(y_pred * y_true, axis=(1, 2, 3, 4))
-    positive = np.sm(y_true, axis=(1, 2, 3, 4))
+    positive = np.sum(y_true, axis=(1, 2, 3, 4))
 
     return np.mean(tp / positive)
 

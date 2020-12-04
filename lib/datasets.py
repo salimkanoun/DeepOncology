@@ -76,7 +76,7 @@ class DataManager(object):
 
                 return X_train, X_val, X_test, y_train, y_val, y_test
 
-    def load(self, subset):
+    def load_one_subset(self, subset):
         df = pd.read_csv(self.csv_path)
         df = df[df['PET'] == 'pet0']  # select only pet 0 exam
 
@@ -109,23 +109,25 @@ class DataManager(object):
         """
         :return: {'pet_img': [pet_img0, pet_img1, ...],
                   'ct_img': [ct_img0, ct_img1, ..],
-                  'mask_img': [mask_img0, mask_img1, ...]}
+                  'mask_img': [mask_img0, mask_img1, ...],
+                  'merged_img': [merged_img0, merged_img1, ...]}
         """
         # df.T.to_dict().values()
         return {'pet_img': df['NIFTI_PET'].values,
                 'ct_img': df['NIFTI_CT'].values,
-                'mask_img': df['NIFTI_MASK'].values}
+                'mask_img': df['NIFTI_MASK'].values,
+                'merged_img' : df['NIFTI_MERGED'].values}
 
     @staticmethod
     def wrap_in_list_of_dict(df):
         """
-        :return: [ {'pet_img': pet_img0_path, 'ct_img': ct_img0_path, 'mask_img': mask_img0_path},
-                    {'pet_img': pet_img1_path, 'ct_img': ct_img1_path, 'mask_img': mask_img1_path},
-                    {'pet_img': pet_img2_path, 'ct_img': ct_img2_path, 'mask_img': mask_img2_path}, ...]
+        :return: [ {'pet_img': pet_img0_path, 'ct_img': ct_img0_path, 'mask_img': mask_img0_path, 'merged_img': merged_img0},
+                    {'pet_img': pet_img1_path, 'ct_img': ct_img1_path, 'mask_img': mask_img1_path,  'merged_img': merged_img1},
+                    {'pet_img': pet_img2_path, 'ct_img': ct_img2_path, 'mask_img': mask_img2_path,  'merged_img': merged_img2}, ...]
         """
         # return df[['NIFTI_PET', 'NIFTI_CT', 'NIFTI_MASK']].T.to_dict().values()
-        mapper = {'NIFTI_PET': 'pet_img', 'NIFTI_CT': 'ct_img', 'NIFTI_MASK': 'mask_img'}
-        return df[['NIFTI_PET', 'NIFTI_CT', 'NIFTI_MASK']].rename(columns=mapper).to_dict('records')
+        mapper = {'NIFTI_PET': 'pet_img', 'NIFTI_CT': 'ct_img', 'NIFTI_MASK': 'mask_img', 'NIFTI_MERGED': 'merged_img'}
+        return df[['NIFTI_PET', 'NIFTI_CT', 'NIFTI_MASK', 'NIFTI_MERGED']].rename(columns=mapper).to_dict('records')
 
     @staticmethod
     def split_train_val_test_split(X, y, test_size=0.15, val_size=0.15, random_state=42):

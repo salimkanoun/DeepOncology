@@ -49,6 +49,11 @@ def vnet_dice_loss(y_true, y_pred):
     return 1.0 - vnet_dice(y_true, y_pred)
 
 
+
+
+
+
+
 def generalized_dice_loss(class_weight):
     def generalized_dice(y_true, y_pred):
         smooth = 0.1
