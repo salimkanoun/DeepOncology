@@ -24,8 +24,8 @@ Implemented model :
 ##  Installation
 Setup package in a virtual environment:
 ```
-git clone https://github.com/rnoyelle/MedicalSegmentation.git 
-cd MedicalSegmentation
+git clone https://github.com/rnoyelle/DeepOncology.git
+cd DeepOncology
 conda create --name <env_name> python=3.7
 source activate <env_name>
 pip install -r requirements.txt
@@ -35,13 +35,14 @@ pip install -r requirements.txt
 - To train V-Net :
 ```
 source activate <env_name>
-python training_3d_cnn_v2.py --config config/config_3d.py
+python training_3d_cnn.py --config config/config_3d.py
 ```
-- To train DenseX-Net :
+
+Then run this command to evaluate the performance
 ```
-source activate <env_name>
-python3 training_2d_cnn.py --config config/default_config_2d.json 
+python evaluate_3d_cnn.py --config config/config_3d.py --weight path/to/weight.h5 -t result
 ```
+And Explore result in the Jupyter Notebook : result_stats.ipynb
 
 
 

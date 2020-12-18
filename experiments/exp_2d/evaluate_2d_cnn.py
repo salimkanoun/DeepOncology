@@ -1,5 +1,3 @@
-
-import sys
 import argparse
 import json
 import csv
@@ -8,12 +6,9 @@ import numpy as np
 import SimpleITK as sitk
 
 from lib.datasets import DataManager
-from lib.modality_PETCT_2D import FullPipeline
+from experiments.exp_2d.lib.modality_PETCT_2D import FullPipeline
 from lib.utils import get_study_uid
 from losses.Metrics import metric_dice
-
-import os
-from datetime import datetime
 
 
 def main(config):

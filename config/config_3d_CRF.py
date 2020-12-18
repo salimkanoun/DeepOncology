@@ -48,8 +48,10 @@ ct_pp = dict(a_min=-1000.0, a_max=1000.0, b_min=0.0, b_max=1.0, clip=True)
 interpolator = {'pet_img': sitk.sitkLinear,
                 'ct_img': sitk.sitkLinear,
                 'mask_img': sitk.sitkLinear,
+                'bias': sitk.sitkLinear,
                 'output': sitk.sitkLinear}
-default_value = {'pet_img': 0.0, 'ct_img': -1000.0, 'mask_img': 0}
+default_value = {'pet_img': 0.0, 'ct_img': -1000.0, 'mask_img': 0,
+                 'bias': 0}
 pp_kwargs = dict(pet_img=pet_pp,
                  ct_img=ct_pp,
                  interpolator=interpolator,
@@ -58,14 +60,26 @@ pp_kwargs = dict(pet_img=pet_pp,
 ####################
 ### ground_truth ###
 ####################
-mode = ['binary', 'probs', 'mean_probs'][0]
-method = ['otsu', 'absolute', 'relative', 'otsu_abs'][0]
-# To run on a mean ground-truth of multiple run
-# mode, method = 'probs', method = ['otsu', 'absolute', 'relative']
+mode = ['binary', 'probs', 'mean_probs'][1]
+method = ['otsu', 'absolute', 'relative', 'otsu_abs'][1]
+use_bias = True
+ratio = 0.5
 tvals_probs = dict(absolute=dict(lower=2.0, upper=4.0, mu=2.5, std=0.5),
                    relative=dict(lower=0.33, upper=0.60, mu=0.42, std=0.06))
 tvals_binary = dict(absolute=2.5,
                     relative=0.42)
+
+dense_crf_param = {'MaxIterations': 10,
+                   'PosW': 3.0,
+                   'PosRStd': 5,
+                   'PosCStd': 5,
+                   'PosZStd': 5,
+                   'BilateralW': 3.0,
+                   'BilateralRStd': 5.0,
+                   'BilateralCStd': 5.0,
+                   'BilateralZStd': 5.0,
+                   'ModalityNum': 2,
+                   'BilateralModsStds': (7.0, 50.0)}
 
 
 #############

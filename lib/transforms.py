@@ -8,7 +8,7 @@ import random
 from math import pi
 from scipy.stats import truncnorm, uniform
 
-from .utils import get_study_uid, one_hot_encode
+from .utils import get_study_uid
 
 
 class Compose(object):
@@ -73,7 +73,7 @@ class Roi2Mask(object):
     Apply threshold-based method to determine the segmentation from the ROI
     """
 
-    def __init__(self, keys=('pet_img', 'mask_img'), method='otsu', tval=0.0):
+    def __init__(self, keys=('pet_img', 'mask_img'), method='otsu', tval=0.0, new_key_name=None):
         """
         :param keys: 'pet_img' must be a 3D simpleITK image
                      'mask_img' must be a 4D simpleITK image. shape = (n_roi, _, _, _)
@@ -88,6 +88,7 @@ class Roi2Mask(object):
         self.keys = keys
         self.method = method.lower()
         self.tval = tval
+        self.new_key_name = new_key_name if new_key_name is not None else keys[1]
 
         assert method in ['absolute', 'relative', 'otsu', 'adaptative']
 
@@ -95,7 +96,7 @@ class Roi2Mask(object):
         pet_key = self.keys[0]
         roi_key = self.keys[1]
 
-        img_dict[roi_key] = self.roi2mask(img_dict[roi_key], img_dict[pet_key])
+        img_dict[self.new_key_name] = self.roi2mask(img_dict[roi_key], img_dict[pet_key])
         return img_dict
 
     def calculate_threshold(self, roi):
@@ -202,8 +203,8 @@ class Roi2MaskProbs(object):
         # lower, upper = 0.33, 0.60
         # mu, std = 0.42, 0.06
 
-        lower, upper = self.tvals_probs['lower'], self.tvals_probs['upper']
-        mu, std = self.tvals_probs['mu'], self.tvals_probs['std']
+        lower, upper = self.tvals_probs['relative']['lower'], self.tvals_probs['relative']['upper']
+        mu, std = self.tvals_probs['relative']['mu'], self.tvals_probs['relative']['std']
 
         a, b = (lower - mu) / std, (upper - mu) / std
 
@@ -214,8 +215,8 @@ class Roi2MaskProbs(object):
         # lower, upper = 2.0, 4.0
         # mu, std = 2.5, 0.5
 
-        lower, upper = self.tvals_probs['lower'], self.tvals_probs['upper']
-        mu, std = self.tvals_probs['mu'], self.tvals_probs['std']
+        lower, upper = self.tvals_probs['absolute']['lower'], self.tvals_probs['absolute']['upper']
+        mu, std = self.tvals_probs['absolute']['mu'], self.tvals_probs['absolute']['std']
 
         a, b = (lower - mu) / std, (upper - mu) / std
 
@@ -393,8 +394,8 @@ class Roi2MaskOtsuAbsolute(object):
         # lower, upper = 0.33, 0.60
         # mu, std = 0.42, 0.06
 
-        lower, upper = self.tvals_probs['lower'], self.tvals_probs['upper']
-        mu, std = self.tvals_probs['mu'], self.tvals_probs['std']
+        lower, upper = self.tvals_probs['relative']['lower'], self.tvals_probs['relative']['upper']
+        mu, std = self.tvals_probs['relative']['mu'], self.tvals_probs['relative']['std']
 
         a, b = (lower - mu) / std, (upper - mu) / std
 
@@ -405,8 +406,8 @@ class Roi2MaskOtsuAbsolute(object):
         # lower, upper = 2.0, 4.0
         # # mu, std = 2.5, 0.5
         # mu, std = 3.0, 0.5
-        lower, upper = self.tvals_probs['lower'], self.tvals_probs['upper']
-        mu, std = self.tvals_probs['mu'], self.tvals_probs['std']
+        lower, upper = self.tvals_probs['absolute']['lower'], self.tvals_probs['absolute']['upper']
+        mu, std = self.tvals_probs['absolute']['mu'], self.tvals_probs['absolute']['std']
 
         a, b = (lower - mu) / std, (upper - mu) / std
 
@@ -623,7 +624,7 @@ class AddChannel(object):
 
     def __call__(self, img_dict):
         axis = 0 if self.channel_first else -1
-        for key in self.keys():
+        for key in self.keys:
             img_dict[key] = np.expand_dims(img_dict[key], axis=axis)
 
         return img_dict
@@ -644,7 +645,6 @@ class RenameDict(object):
             img_dict[key2] = img_dict.pop(key1)
 
         return img_dict
-
 
 
 class RandAffine(object):
@@ -798,69 +798,6 @@ class PostCNNResampler(object):
                                                   lowerThreshold=0.0, upperThreshold=self.threshold_prob,
                                                   insideValue=0, outsideValue=1)
         return mask_img_final
-#
-# import denseCRF3D
-# class DenseCRF(object):
-#     """
-#     https://github.com/HiLab-git/SimpleCRF/blob/master/examples/demo_densecrf3d.py
-#     """
-#
-#     def __init__(self, keys=('image', 'label'), dense_crf_param=None,
-#                  norm_image=False, new_key='label'):
-#         self.keys = keys
-#         self.norm_image = norm_image
-#         self.new_key = new_key
-#
-#         if dense_crf_param is None:
-#             dense_crf_param = dict()
-#             dense_crf_param['MaxIterations'] = 10.0
-#             dense_crf_param['PosW'] = 2.0
-#             dense_crf_param['PosRStd'] = 5
-#             dense_crf_param['PosCStd'] = 5
-#             dense_crf_param['PosZStd'] = 5
-#             dense_crf_param['BilateralW'] = 3.0
-#             dense_crf_param['BilateralRStd'] = 5.0
-#             dense_crf_param['BilateralCStd'] = 5.0
-#             dense_crf_param['BilateralZStd'] = 5.0
-#             dense_crf_param['ModalityNum'] = 2
-#             dense_crf_param['BilateralModsStds'] = (5.0, 5.0)
-#
-#         self.dense_crf_param = dense_crf_param
-#
-#     def __call__(self, img_dict):
-#         image = img_dict[self.keys[0]]
-#         label = img_dict[self.keys[1]]
-#
-#         if self.norm_image:
-#             image = self.normalize(image)
-#         image[image < 0] = 0
-#         image[image > 1] = 1
-#         image = np.asarray(image * 255, np.uint8)
-#
-#         P = label
-#         P = np.asarray([1.0 - P, P], np.float32)
-#         P = np.transpose(P, [1, 2, 3, 0])
-#
-#         img_dict[self.new_key] = self.apply_CRF3D(image, P)
-#
-#         return img_dict
-#
-#     def normalize(self, image):
-#         a_min, a_max = np.min(image, axis=(0, 1, 2)), np.max(image, axis=(0, 1, 2))
-#         image = (image - a_min) / (a_max - a_min)
-#
-#         return image
-#
-#     def apply_CRF3D(self, image, probs):
-#         """
-#         input parameters:
-#             I: a numpy array of shape [D, H, W, C], where C is the channel number
-#                type of I should be np.uint8, and the values are in [0, 255]
-#             P: a probability map of shape [D, H, W, L], where L is the number of classes
-#                type of P should be np.float32
-#             param: a tuple giving parameters of CRF. see the following two examples for details.
-#         """
-#
-#         return denseCRF3D.densecrf3d(image, probs, self.dense_crf_param)
+
 
 
