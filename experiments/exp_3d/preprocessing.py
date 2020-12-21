@@ -27,11 +27,10 @@ def check_path_is_valid(files):
                 raise IOException('File does not exist: %s' % filepath)
 
 
-def aggregate_paths(cfg):
-    pp_dir = cfg['pp_dir']
-
-    filenames_dict = cfg['pp_filenames_dict']
-
+def aggregate_paths(pp_dir):
+    filenames_dict = {'pet_img': 'nifti_PET.nii',
+                     'ct_img': 'nifti_CT.nii',
+                     'mask_img': 'nifti_MASK.nii'}
     files = dict()
     subsets = [el for el in ['train', 'val', 'test'] if el in os.listdir(os.path.join(pp_dir))]
     for subset in subsets:
@@ -48,11 +47,11 @@ def aggregate_paths(cfg):
     return files
 
 
-def get_transform(subset, modalities, mode, method, tval, data_augmentation=True, from_pp=False, cache_pp=False):
+def get_transform(subset, modalities, mode, method, tval, target_size, target_spacing, target_direction, target_origin = None,  data_augmentation=True, from_pp=False, cache_pp=False):
     """[summary]
 
     Args:
-        cfg ([type]): [description]
+        
         subset ([type]): [description]
         modalities ([tuple]): [('pet_img, ct_img') or ('pet_img')]
         mode ([list]): [binary, probs or mean_props] !!!!!
@@ -66,9 +65,10 @@ def get_transform(subset, modalities, mode, method, tval, data_augmentation=True
     keys = tuple(list(modalities) + ['mask_img'] + ['merged_img'])
     transformers = [LoadNifti(keys=keys)]  # Load NIFTI file from path
 
+    transformers.append(ResampleMask(keys=('merged_img', 'mask_img'), target_size=target_size, target_spacing=target_spacing, target_direction=target_direction, target_origin=target_origin))
     if not from_pp:
 
-        # Generate ground-truth from PET and VOIs
+        # Generate ground-truth from PET and ROIs
         if mode == 'binary':
             transformers.append(Roi2Mask(keys=('merged_img', 'mask_img'),
                                          method=method, tval=tval))
@@ -87,8 +87,11 @@ def get_transform(subset, modalities, mode, method, tval, data_augmentation=True
 
     # Add Data augmentation
     if subset == 'train' and data_augmentation:
-        transformers.append(RandAffine(keys=('pet_img', 'ct_img', 'mask_img'),
-                                       **cfg['da_kwargs'])) #ICI CHANGER PARAMETRES
+        translation = 10
+        scaling = 0.1
+        rotation = (np.pi / 60, np.pi / 30, np.pi / 60)
+        transformers.append(RandAffine(keys=('pet_img', 'ct_img', 'mask_img'), translation=translation, scaling=scaling, rotation=rotation))
+    
     # Convert Simple ITK image into numpy 3d-array
     transformers.append(Sitk2Numpy(keys=('pet_img', 'ct_img', 'mask_img')))
 
@@ -116,7 +119,7 @@ def get_transform(subset, modalities, mode, method, tval, data_augmentation=True
     return transformers
 
 
-def get_transform_test(modalities):
+def get_transform_test(modalities, target_size, target_pacing, target_direction, target_origin=None):
     """transformers for test set 
 
     Args:
@@ -127,7 +130,7 @@ def get_transform_test(modalities):
     """
     keys = tuple(list(modalities) + ['merged_img'])
     transformers = [LoadNifti(keys=keys)]  # Load NIFTI file from path
-
+    transformers.append(ResampleMask(keys=('merged_img', 'mask_img'), target_size=target_size, target_spacing=target_spacing, target_direction=target_direction, target_origin=target_origin))
 
 
     transformers.append(DissociatePETCT(keys=('merged_img'), new_key_name=('pet_img', 'ct_img')))
@@ -159,15 +162,13 @@ def get_transform_test(modalities):
 
 
 #FUNCTION USE IN TRAINING SCRIPT TO GET DATA 
-def get_data(subset, modalities, mode, method, tval, data_augmentation=True, from_pp=False, cache_pp=False):
+def get_data(pp_dir, csv_path, modalities, mode, method, tval, target_size, target_spacing, target_direction, target_origin=None , data_augmentation=True, from_pp=False, cache_pp=False, pp_flag=''):
     """Save or not the pre processed data at nifti format
 
     Returns dataset, and list of transformers for train and val set. 
     """
-    pp_dir = cfg.get('pp_dir', None)
 
     if pp_dir is None:
-        csv_path = cfg['csv_path']
 
         # Get Data
         DM = DataManager(csv_path=csv_path)
@@ -176,20 +177,20 @@ def get_data(subset, modalities, mode, method, tval, data_augmentation=True, fro
         dataset['train'], dataset['val'], dataset['test'] = train_images_paths, val_images_paths, test_images_paths
 
         # Define generator
-        train_transforms = get_transform(cfg, 'train', from_pp=False)
-        val_transforms = get_transform(cfg, 'val', from_pp=False)
+        train_transforms = get_transform('train', modalities, mode, method, tval, target_size, target_spacing, target_direction, target_origin , data_augmentation = True, from_pp=False, cache_pp=False)
+        val_transforms = get_transform('val', modalities, mode, method, tval, target_size, target_spacing, target_direction, target_origin ,  data_augmentation = False, from_pp=False, cache_pp=False)
 
         return dataset, train_transforms, val_transforms
 
-    elif cfg.get('pp_flag', '') == 'done':
+    elif pp_flag == 'done':
         print('Loading from {} ...'.format(pp_dir))
-        dataset = aggregate_paths(cfg)
+        dataset = aggregate_paths(pp_dir)
         for subset in dataset:
             print('{} in {} set'.format(len(dataset[subset]), subset))
 
         # Define generator
-        train_transforms = get_transform(cfg, 'train', from_pp=True)
-        val_transforms = get_transform(cfg, 'val', from_pp=True)
+        train_transforms = get_transform('train', modalities, mode, method, tval, target_size, target_spacing, target_direction, target_origin , data_augmentation = True, from_pp=True, cache_pp=False)
+        val_transforms = get_transform('val', modalities, mode, method, tval, target_size, target_spacing, target_direction, target_origin ,  data_augmentation = False, from_pp=True, cache_pp=False)
 
         return dataset, train_transforms, val_transforms
 
@@ -200,19 +201,19 @@ def get_data(subset, modalities, mode, method, tval, data_augmentation=True, fro
             shutil.rmtree(pp_dir)
 
         # copy the config file in the root of the dir
-        if not os.path.exists(pp_dir):
-            os.makedirs(pp_dir)
-        copyfile(cfg['cfg_path'], os.path.join(pp_dir, 'config.py'))
+        #if not os.path.exists(pp_dir):
+        #    os.makedirs(pp_dir)
+        #copyfile(cfg['cfg_path'], os.path.join(pp_dir, 'config.py'))
 
         # Get Data Paths
-        csv_path = cfg['csv_path']
+        
         DM = DataManager(csv_path=csv_path)
         train_images_paths, val_images_paths, test_images_paths = DM.get_train_val_test(wrap_with_dict=True)
         dataset = dict()
         dataset['train'], dataset['val'], dataset['test'] = train_images_paths, val_images_paths, test_images_paths
 
         # Get preprocessing transformer
-        pp_transforms = get_transform(cfg, 'train', from_pp=False, cache_pp=True)
+        pp_transforms = get_transform('train', modalities, mode, method, tval, target_size, target_spacing, target_direction, target_origin , data_augmentation = True, from_pp=False, cache_pp=True)
 
         print('Preprocessing and saving data at {}'.format(pp_dir))
 
@@ -220,6 +221,7 @@ def get_data(subset, modalities, mode, method, tval, data_augmentation=True, fro
         total_count = -1
         total = np.sum([len(data) for subset, data in dataset.items()])
         for subset, data in dataset.items():
+            #
             print('{} : {} examples'.format(subset, len(data)))
             # for count, img_path in enumerate(tqdm(data)):
             for count, img_path in enumerate(data):
@@ -244,18 +246,31 @@ def get_data(subset, modalities, mode, method, tval, data_augmentation=True, fro
                     os.makedirs(folder_path)
 
                 # save PET, CT as NIFTI
-                for modality in cfg['modalities']:
+                pp_filenames_dict =  {'pet_img': 'nifti_PET.nii',
+                     'ct_img': 'nifti_CT.nii',
+                     'mask_img': 'nifti_MASK.nii'}
+                for modality in modalities:
                     sitk.WriteImage(result_dict[modality],
-                                    os.path.join(folder_path, cfg['pp_filenames_dict'][modality]))
+                                    os.path.join(folder_path, pp_filenames_dict[modality]))
                 # save MASK as NIFTI
                 sitk.WriteImage(result_dict['mask_img'],
-                                os.path.join(folder_path, cfg['pp_filenames_dict']['mask_img']))
+                                os.path.join(folder_path, pp_filenames_dict['mask_img']))
                 # sitk.WriteImage(result_dict['pet_img'], os.path.join(folder_path, 'nifti_PET.nii'))
                 # sitk.WriteImage(result_dict['ct_img'], os.path.join(folder_path, 'nifti_CT.nii'))
                 # sitk.WriteImage(result_dict['mask_img'], os.path.join(folder_path, 'nifti_MASK.nii'))
 
         # set flag
-        cfg['pp_flag'] = 'done'
+        pp_flag = 'done'
 
-        return get_data(cfg)
+        print('Loading from {} ...'.format(pp_dir))
+        dataset = aggregate_paths(pp_dir)
+        for subset in dataset:
+            print('{} in {} set'.format(len(dataset[subset]), subset))
+
+        # Define generator
+        train_transforms = get_transform('train', modalities, mode, method, tval, target_size, target_spacing, target_direction, target_origin , data_augmentation = True, from_pp=True, cache_pp=False)
+        val_transforms = get_transform('val', modalities, mode, method, tval, target_size, target_spacing, target_direction, target_origin ,  data_augmentation = False, from_pp=True, cache_pp=False)
+
+        return dataset, train_transforms, val_transforms
+        
 

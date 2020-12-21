@@ -84,11 +84,15 @@ class ResampleMask(object):
     """
 
     #import fonction from Dicom-To-CNN : resample_mask_nifti
-    def __init__(self, keys=('merged_img', 'mask_img')):
+    def __init__(self, keys=('merged_img', 'mask_img'),target_size, target_spacing, target_direction, target_origin = None):
         self.keys = (keys,) if isinstance(keys, str) else keys
+        self.target_size = target_size
+        self.target_spacing = target_spacing
+        self.target_direction = target_direction
+        self.target_origin = targer_origin
 
-    def __call__(self, img_dict, target_size, target_spacing, target_direction, target_origin = None):
-        img_dict[self.keys[1]] = resample_mask_nifti(img_dict[self.keys[0]], img_dict[self.keys[1]], target_size, target_spacing, target_direction, target_origin = None)
+    def __call__(self, img_dict):
+        img_dict[self.keys[1]] = resample_mask_nifti(img_dict[self.keys[0]], img_dict[self.keys[1]], self.target_size, self.target_spacing, self.target_direction, self.target_origin)
         return img_dict
 
 class Roi2Mask(object):
@@ -410,8 +414,7 @@ class RandAffine(object):
     """
 
     def __init__(self, keys=('pet_img', 'ct_img', 'mask_img'),
-                 translation=10, scaling=0.1, rotation=(0.0, pi / 30, 0.0),
-                 default_value=None, interpolator=None):
+                 translation=10, scaling=0.1, rotation=(0.0, pi / 30, 0.0)):
         """
         :param keys: str or tuple(str)
         :param translation: float, int or 3D tuple(float, int)
@@ -421,13 +424,12 @@ class RandAffine(object):
         :param interpolator: dict(sitk.interpolator mode).
         """
 
-        if interpolator is None:
             # sitk.sitkLinear, sitk.sitkBSpline, sitk.sitkNearestNeighbor
-            interpolator = {'pet_img': sitk.sitkBSpline,
+        interpolator = {'pet_img': sitk.sitkBSpline,
                             'ct_img': sitk.sitkBSpline,
                             'mask_img': sitk.sitkNearestNeighbor}
-        if default_value is None:
-            default_value = {'pet_img': 0.0, 'ct_img': -1000.0, 'mask_img': 0}
+ 
+        default_value = {'pet_img': 0.0, 'ct_img': -1000.0, 'mask_img': 0}
 
         self.keys = (keys,) if isinstance(keys, str) else keys
 

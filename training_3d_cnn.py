@@ -19,6 +19,46 @@ from losses.Loss import metric_dice
 from lib.utils import read_cfg
 
 
+
+csv_path = ''
+pp_dir = ''
+
+#### PRE PROCESSING #####
+
+modalities = ''
+mode = ''
+method = ''
+tval = ''
+target_size = (128, 128, 256)
+target_spacing = (4.0, 4.0, 4.0)
+target_direction = (1,0,0,0,1,0,0,0,1)
+
+from_pp=False
+cache_pp=False
+pp_flag=''
+
+##### TENSORFLOW #####
+trained_model_path = ''
+training_model_folder = ''
+epochs = 100
+batch_size = 2
+shuffle = True 
+
+patience = 10
+ReduceLROnPlateau = False
+EarlyStopping = False
+ModelCheckpoint = True
+TensorBoard = True
+
+#target_size = (128, 128, 256)
+#target_spacing = (4.0, 4.0, 4.0)
+#target_direction = (1,0,0,0,1,0,0,0,1)
+
+
+
+
+
+
 def main(cfg):
     # path
     now = datetime.now().strftime("%Y%m%d-%H:%M:%S")
@@ -32,7 +72,7 @@ def main(cfg):
         os.makedirs(logdir)
 
     # saving the config in the result folder
-    copyfile(cfg['cfg_path'], os.path.join(training_model_folder, 'config.py'))
+    #copyfile(cfg['cfg_path'], os.path.join(training_model_folder, 'config.py'))
 
     # Training params
     epochs = cfg['epochs']
@@ -43,7 +83,7 @@ def main(cfg):
     strategy = tf.distribute.MirroredStrategy()
 
     # Get Data path and transforms
-    dataset, train_transforms, val_transforms = get_data(cfg)
+    dataset, train_transforms, val_transforms = get_data(pp_dir, csv_path, modalities, mode, method, tval, target_size, target_spacing, target_direction, target_origin=None , data_augmentation=True, from_pp=from_pp, cache_pp=cache_pp, pp_flag=pp_flag)
     #dataset = dict('train' : [{ct pet mask}, {},] 
     #                'test' : [{ct pet mask}, {},] 
     #                 'val' : [{ct pet mask}, {}, ])
