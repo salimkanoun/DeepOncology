@@ -16,7 +16,7 @@ from networks.Vnet import VNet
 from losses.Loss import custom_robust_loss
 from losses.Loss import metric_dice 
 
-from lib.utils import read_cfg
+#from lib.utils import read_cfg
 
 
 
@@ -25,9 +25,13 @@ pp_dir = ''
 
 #### PRE PROCESSING #####
 
-modalities = ''
-mode = ''
-method = ''
+modalities = ('pet_img', 'ct_img')
+mode = ['binary', 'probs', 'mean_probs'][0]
+method = ['otsu', 'absolute', 'relative', 'otsu_abs'][0]
+
+#[if mode = binary & method = relative : t_val = 0.42
+#if mode = binary & method = absolute : t_val = 2.5, 
+#else : don't need tval]
 tval = ''
 target_size = (128, 128, 256)
 target_spacing = (4.0, 4.0, 4.0)
@@ -38,33 +42,51 @@ cache_pp=False
 pp_flag=''
 
 ##### TENSORFLOW #####
-trained_model_path = ''
+
+
+trained_model_path = '' #If None, train from scratch 
 training_model_folder = ''
+
+#training paramaters
 epochs = 100
 batch_size = 2
 shuffle = True 
 
+#callbacks
 patience = 10
 ReduceLROnPlateau = False
 EarlyStopping = False
 ModelCheckpoint = True
 TensorBoard = True
 
-#target_size = (128, 128, 256)
-#target_spacing = (4.0, 4.0, 4.0)
-#target_direction = (1,0,0,0,1,0,0,0,1)
+##### ARCHITECTURE #####
+#model
+architecture = 'vnet'
+
+#parameters
+image_shape= (256, 128, 128)
+in_channels= len(modalities)
+out_channels= 1
+keep_prob= 1.0
+keep_prob_last_layer= 0.8
+kernel_size= (5, 5, 5)
+num_channels= 8
+num_levels= 4
+num_convolutions= (1, 2, 3, 3)
+bottom_convolutions= 3
+activation= "relu"
+activation_last_layer= 'sigmoid'
 
 
 
 
 
-
-def main(cfg):
+def main():
     # path
     now = datetime.now().strftime("%Y%m%d-%H:%M:%S")
 
-    trained_model_path = cfg['trained_model_path']  # if None, trained from scratch
-    training_model_folder = os.path.join(cfg['training_model_folder'], now)  # '/path/to/folder'
+    
+    training_model_folder = os.path.join(training_model_folder, now)  # '/path/to/folder'
     if not os.path.exists(training_model_folder):
         os.makedirs(training_model_folder)
     logdir = os.path.join(training_model_folder, 'logs')
@@ -74,10 +96,6 @@ def main(cfg):
     # saving the config in the result folder
     #copyfile(cfg['cfg_path'], os.path.join(training_model_folder, 'config.py'))
 
-    # Training params
-    epochs = cfg['epochs']
-    batch_size = cfg['batch_size']
-    shuffle = cfg['shuffle']
 
     # multi gpu training strategy
     strategy = tf.distribute.MirroredStrategy()
@@ -113,24 +131,24 @@ def main(cfg):
 
     # callbacks
     callbacks = []
-    if cfg.get('ReduceLROnPlateau', False):
+    if ReduceLROnPlateau == True :
         # reduces learning rate if no improvement are seen
         learning_rate_reduction = ReduceLROnPlateau(monitor='val_loss',
-                                                    patience=config['training']['callbacks']['patience'],
+                                                    patience=patience ,
                                                     verbose=1,
                                                     factor=0.5,
                                                     min_lr=0.0000001)
         callbacks.append(learning_rate_reduction)
 
-    if cfg.get('EarlyStopping', False):
+    if EarlyStopping == True :
         # stop training if no improvements are seen
         early_stop = EarlyStopping(monitor="val_loss",
                                    mode="min",
-                                   patience=int(config['training']['callbacks']['patience'] // 2),
+                                   patience=int(patience // 2),
                                    restore_best_weights=True)
         callbacks.append(early_stop)
 
-    if cfg.get('ModelCheckpoint', False):
+    if ModelCheckpoint == True :
         # saves model weights to file
         # 'model_weights.{epoch:02d}-{val_loss:.2f}.hdf5'
         checkpoint = ModelCheckpoint(os.path.join(training_model_folder, 'model_weights.h5'),
@@ -141,7 +159,7 @@ def main(cfg):
                                      save_weights_only=False)
         callbacks.append(checkpoint)
 
-    if cfg.get('TensorBoard', False):
+    if TensorBoard == True :
         tensorboard_callback = TensorBoard(log_dir=logdir,
                                            histogram_freq=0,
                                            batch_size=batch_size,
@@ -151,11 +169,23 @@ def main(cfg):
         callbacks.append(tensorboard_callback)
 
     # Define model
-    if cfg['architecture'].lower() == 'vnet':
+    if architecture.lower() == 'vnet':
         with strategy.scope():
-            model = VNet(**cfg['cnn_kwargs']).create_model()
+            model = VNet(image_shape,
+                 in_channels,
+                 out_channels,
+                 channels_last,
+                 keep_prob,
+                 keep_prob_last_layer,
+                 kernel_size,
+                 num_channels,
+                 num_levels,
+                 num_convolutions,
+                 bottom_convolutions,
+                 activation,
+                 activation_last_layer).create_model()
     else:
-        raise ValueError('Architecture ' + cfg['architecture'] + ' not supported. Please ' +
+        raise ValueError('Architecture ' + architecture + ' not supported. Please ' +
                          'choose one of unet|vnet.')
     with strategy.scope():
         model.compile(loss=loss_object, optimizer=optimizer, metrics=metrics)
@@ -168,7 +198,7 @@ def main(cfg):
 
     # serialize model to JSON before training
     model_json = model.to_json()
-    with open(os.path.join(training_model_folder, 'architecture_{}_model_{}.json'.format(cfg['architecture'], now)),
+    with open(os.path.join(training_model_folder, 'architecture_{}_model_{}.json'.format(architecture, now)),
               "w") as json_file:
         json_file.write(model_json)
 
@@ -187,12 +217,12 @@ def main(cfg):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config", default='config/config_3d.py', type=str,
-                        help="path/to/config.py")
-    args = parser.parse_args()
+    #parser = argparse.ArgumentParser()
+    #parser.add_argument("-c", "--config", default='config/config_3d.py', type=str,
+    #                    help="path/to/config.py")
+    #args = parser.parse_args()
 
-    config = read_cfg(args.config)
-    config['cfg_path'] = args.config
+    #config = read_cfg(args.config)
+    #config['cfg_path'] = args.config
 
-    main(config)
+    main()
