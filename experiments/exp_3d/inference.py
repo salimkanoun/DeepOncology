@@ -9,26 +9,28 @@ from lib.transforms import PostCNNResampler
 
 class Pipeline(object):
 
-    def __init__(self, cfg, model_path=None):
-        self.cfg_path = cfg
-        self.load_cfg()
+    def __init__(self, model_path=None):
+        #self.cfg_path = cfg
+        #self.load_cfg()
 
         self.build_transformers()
         self.model_path = model_path
         self.load_model()
 
-    def load_cfg(self):
-        self.cfg = read_cfg(self.cfg_path)
+    #def load_cfg(self):
+    #    self.cfg = read_cfg(self.cfg_path)
 
     def load_model(self):
         if self.model_path is None:
-            folder_path = os.path.dirname(self.cfg_path)
-            self.model_path = os.path.join(folder_path, 'model_weights.h5')
-
+            #folder_path = os.path.dirname(self.cfg_path)
+            print("No model path to load")
+            #self.model_path = os.path.join(folder_path, 'model_weights.h5')
+        
         self.model = tf.keras.models.load_model(self.model_path, compile=False)
 
     def build_transformers(self):
-        self.pre_transforms = get_transform_test(self.cfg, from_pp=False)
+        modalities = ('pet_img', 'ct_img')
+        self.pre_transforms = get_transform_test(modalities)
         self.post_transforms = PostCNNResampler(0.5)
 
     def __call__(self, img_path):

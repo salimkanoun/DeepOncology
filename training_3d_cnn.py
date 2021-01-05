@@ -67,6 +67,7 @@ architecture = 'vnet'
 image_shape= (256, 128, 128)
 in_channels= len(modalities)
 out_channels= 1
+channels_last=True
 keep_prob= 1.0
 keep_prob_last_layer= 0.8
 kernel_size= (5, 5, 5)
@@ -101,6 +102,7 @@ def main():
     strategy = tf.distribute.MirroredStrategy()
 
     # Get Data path and transforms
+    #get_data function from exp_3D/preprocessing 
     dataset, train_transforms, val_transforms = get_data(pp_dir, csv_path, modalities, mode, method, tval, target_size, target_spacing, target_direction, target_origin=None , data_augmentation=True, from_pp=from_pp, cache_pp=cache_pp, pp_flag=pp_flag)
     #dataset = dict('train' : [{ct pet mask}, {},] 
     #                'test' : [{ct pet mask}, {},] 
@@ -212,6 +214,10 @@ def main():
                         verbose=1
                         )
 
+
+    #SAVE HISTORY ? 
+
+    
     # whole model saving
     model.save(os.path.join(training_model_folder, 'trained_model_{}.h5'.format(now)))
 

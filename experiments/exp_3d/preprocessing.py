@@ -119,7 +119,7 @@ def get_transform(subset, modalities, mode, method, tval, target_size, target_sp
     return transformers
 
 
-def get_transform_test(modalities, target_size, target_pacing, target_direction, target_origin=None):
+def get_transform_test(modalities):
     """transformers for test set 
 
     Args:
@@ -130,7 +130,7 @@ def get_transform_test(modalities, target_size, target_pacing, target_direction,
     """
     keys = tuple(list(modalities) + ['merged_img'])
     transformers = [LoadNifti(keys=keys)]  # Load NIFTI file from path
-    transformers.append(ResampleMask(keys=('merged_img', 'mask_img'), target_size=target_size, target_spacing=target_spacing, target_direction=target_direction, target_origin=target_origin))
+    #transformers.append(ResampleMask(keys=('merged_img', 'mask_img'), target_size=target_size, target_spacing=target_spacing, target_direction=target_direction, target_origin=target_origin))
 
 
     transformers.append(DissociatePETCT(keys=('merged_img'), new_key_name=('pet_img', 'ct_img')))
