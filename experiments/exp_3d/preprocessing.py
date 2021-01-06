@@ -155,7 +155,7 @@ def get_transform_test(modalities):
         transformers.append(AddChannel(keys=modalities, channel_first=False))
         transformers.append(RenameDict(keys=modalities, keys2='input'))
 
-    transformers.append(AddChannel(keys='mask_img', channel_first=False))
+    #transformers.append(AddChannel(keys='mask_img', channel_first=False))
     transformers = Compose(transformers)
     return transformers
 
