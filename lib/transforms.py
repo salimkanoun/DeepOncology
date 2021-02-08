@@ -36,7 +36,7 @@ class LoadNifti(object):
     Load Nifti images and returns Simple itk image
     """
 
-    def __init__(self, keys=("pet_img", "ct_img", "mask_img", "merged_img"),
+    def __init__(self, keys=("pet_img", "ct_img", "mask_img"),
                  dtypes=None,
                  image_only=False):
         self.keys = (keys,) if isinstance(keys, str) else keys
@@ -44,8 +44,7 @@ class LoadNifti(object):
         if dtypes is None:
             dtypes = {'pet_img': sitk.sitkFloat32,
                       'ct_img': sitk.sitkFloat32,
-                      'mask_img': sitk.sitkUInt8, 
-                      'merged_img' : sitk.sitkFloat32}
+                      'mask_img': sitk.sitkUInt8}
         self.keys = keys
         self.image_only = image_only
 
@@ -77,11 +76,37 @@ class LoadNumpy(object):
 
         return img_dict
 
+class ResampleReshapeAlign(object):
+    """1) resample, reshape align PT and CT 
+       2) resample reshape align MASK and PT 
 
-class ResampleMask(object):
-    """Resample mask sitk 
-
+    Args:
+        object ([type]): [description]
     """
+
+    #import Fusion and FusionMask from DicomToCNN
+    def __init__(self,target_size, target_spacing, target_direction, target_origin=None, keys=("pet_img", "ct_img", "mask_img")):
+        self.keys = (keys,) if isinstance(keys, str) else keys
+        self.target_size = target_size
+        self.target_spacing = target_spacing
+        self.target_direction = target_direction
+        self.target_origin = target_origin
+
+    def __call__(self, img_dict):
+        #1
+        fusion_object = Fusion(img_dict[self.keys [0]], img_dict[self.keys[1]], self.target_size, self.target_spacing, self.target_direction, mode ='dict') 
+        img_dict[self.keys[0]], img_dict[self.keys[1]] = fusion_object.resample(mode='head')
+            
+
+        #2
+        fusion_mask_object = FusionMask(img_dict[self.keys[0]], img_dict[self.keys[2]], self.target_size, self.target_spacing, self.target_direction, mode ='dict')
+        img_dict[self.keys[2]] = fusion_mask_object.resample()
+
+        return img_dict 
+
+"""
+class ResampleMask(object):
+
 
     #import fonction from Dicom-To-CNN : resample_mask_nifti
     def __init__(self, keys=('merged_img', 'mask_img'),target_size, target_spacing, target_direction, target_origin = None):
@@ -94,13 +119,16 @@ class ResampleMask(object):
     def __call__(self, img_dict):
         img_dict[self.keys[1]] = resample_mask_nifti(img_dict[self.keys[0]], img_dict[self.keys[1]], self.target_size, self.target_spacing, self.target_direction, self.target_origin)
         return img_dict
+""" 
+
+
 
 class Roi2Mask(object):
     """
     Apply threshold-based method to determine the segmentation from the ROI
     """
 
-    def __init__(self, keys=('merged_img', 'mask_img'), method='otsu', tval=0.0, new_key_name=None):
+    def __init__(self, keys=('pet_img', 'mask_img'), method='otsu', tval=0.0, new_key_name=None):
         """
         :param keys: 'pet_img' must be a 3D simpleITK image
                      'mask_img' must be a 4D simpleITK image. shape = (n_roi, _, _, _)
@@ -147,7 +175,7 @@ class Roi2Mask(object):
             # check len(np.unique(roi)) > 1
             return filters.threshold_otsu(roi)
 
-    def roi2mask(self, mask_img, merged_img):
+    def roi2mask(self, mask_img, pet_img):
         """
         Generate the mask from the ROI of the pet scan
         Args:
@@ -158,7 +186,7 @@ class Roi2Mask(object):
         """
         # transform to numpy
         mask_array = sitk.GetArrayFromImage(mask_img)
-        pet_array = sitk.GetArrayFromImage(merged_img)[0]
+        pet_array = sitk.GetArrayFromImage(pet_img)
 
         # get 3D meta information
         if len(mask_array.shape) == 3:
@@ -208,7 +236,7 @@ class Roi2MaskProbs(object):
     Apply threshold-based method to calculate the non-binary (probs) segmentation from the ROI
     """
 
-    def __init__(self, keys=('merged_img', 'mask_img'),mode = ['probs'], method=['otsu'],
+    def __init__(self, keys=('pet_img', 'mask_img'),mode = ['probs'], method=['otsu'],
                  new_key_name='mask_img'):
         """
         :param keys: (pet_img, roi_img) : (3D SimpleITK img, 4D SimpleITK img)
@@ -289,7 +317,7 @@ class Roi2MaskProbs(object):
         """
         # transform to numpy
         mask_array = sitk.GetArrayFromImage(mask_img)
-        pet_array = sitk.GetArrayFromImage(merged_img)[0]
+        pet_array = sitk.GetArrayFromImage(merged_img)
 
         # get 3D meta information
         if len(mask_array.shape) == 3:
@@ -391,7 +419,7 @@ class AverageImage(object):
 
         return img_dict
 
-class DissociatePETCT(object):
+"""class DissociatePETCT(object):
     def __init__(self, keys=('merged_img'), new_key_name=('pet_img', 'ct_img')):
         self.keys = keys
         self.new_key_name = new_key_name
@@ -406,6 +434,8 @@ class DissociatePETCT(object):
             img_dict[key] = extracted_img
 
         return img_dict
+""" 
+
 
 class RandAffine(object):
     """
