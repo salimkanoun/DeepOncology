@@ -62,27 +62,25 @@ def get_transform(subset, modalities, mode, method, tval, target_size, target_sp
 
     """
     
-    keys = tuple(list(modalities) + ['mask_img'] + ['merged_img'])
+    keys = tuple(list(modalities) + ['mask_img'])
     transformers = [LoadNifti(keys=keys)]  # Load NIFTI file from path
 
-    transformers.append(ResampleMask(keys=('merged_img', 'mask_img'), target_size=target_size, target_spacing=target_spacing, target_direction=target_direction, target_origin=target_origin))
     if not from_pp:
 
         # Generate ground-truth from PET and ROIs
         if mode == 'binary':
-            transformers.append(Roi2Mask(keys=('merged_img', 'mask_img'),
+            transformers.append(Roi2Mask(keys=('pet_img', 'mask_img'),
                                          method=method, tval=tval))
         else : 
             transformers.append(
-                Roi2MaskProbs(keys=('merged_img', 'mask_img'), mode=mode, method=method,
+                Roi2MaskProbs(keys=('pet_img', 'mask_img'), mode=mode, method=method,
                               new_key_name='mask_img'))
 
+    transformers.append(ResampleReshapeAlign(target_size, target_spacing, target_direction, target_origin=None, keys=("pet_img", "ct_img", "mask_img")))
     if cache_pp:
         transformers = Compose(transformers)
         return transformers
 
-    #Dissociated PET and CT 
-    transformers.append(DissociatePETCT(keys=('merged_img'), new_key_name=('pet_img', 'ct_img')))
 
 
     # Add Data augmentation
@@ -101,7 +99,6 @@ def get_transform(subset, modalities, mode, method, tval, target_size, target_sp
             modal_pp = dict(a_min=0.0, a_max=25.0, b_min=0.0, b_max=1.0, clip=True)
         else : 
             modal_pp = dict(a_min=-1000.0, a_max=1000.0, b_min=0.0, b_max=1.0, clip=True)
-        #A METTRE EN PARAMETRES
 
         transformers.append(ScaleIntensityRanged(keys = modality,
                                                  a_min =modal_pp['a_min'], a_max = modal_pp['a_max'], b_min=modal_pp['b_min'], b_max=modal_pp['b_max'], clip=modal_pp['clip']))
@@ -128,12 +125,12 @@ def get_transform_test(modalities):
     Returns:
         [type]: [description]
     """
-    keys = tuple(list(modalities) + ['merged_img'])
+    keys = tuple(list(modalities))
     transformers = [LoadNifti(keys=keys)]  # Load NIFTI file from path
     #transformers.append(ResampleMask(keys=('merged_img', 'mask_img'), target_size=target_size, target_spacing=target_spacing, target_direction=target_direction, target_origin=target_origin))
 
 
-    transformers.append(DissociatePETCT(keys=('merged_img'), new_key_name=('pet_img', 'ct_img')))
+    #transformers.append(DissociatePETCT(keys=('merged_img'), new_key_name=('pet_img', 'ct_img')))
     transformers.append(Sitk2Numpy(keys=keys))
 
     # Normalize input values
