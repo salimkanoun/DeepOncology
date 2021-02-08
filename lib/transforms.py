@@ -419,22 +419,7 @@ class AverageImage(object):
 
         return img_dict
 
-"""class DissociatePETCT(object):
-    def __init__(self, keys=('merged_img'), new_key_name=('pet_img', 'ct_img')):
-        self.keys = keys
-        self.new_key_name = new_key_name
 
-    def __call__(self, img_dict):
-        modal = np.arange(0,2,1)
-        for key, i in zip(self.new_key_name, modal) : 
-            extract = sitk.ExtractImageFilter()
-            extract.setSize([128,128,256,0])
-            extract.setIndex([0,0,0,i])
-            extracted_img = extract.execute(img_dict[self.keys])
-            img_dict[key] = extracted_img
-
-        return img_dict
-""" 
 
 
 class RandAffine(object):

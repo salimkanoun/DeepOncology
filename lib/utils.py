@@ -2,12 +2,6 @@ import os
 import re
 
 
-def read_cfg(filepath):
-    var = dict()
-    exec(open(filepath).read(), var)
-
-    return var
-
 
 def secsToHms(secs):
     hours = secs // 3600
