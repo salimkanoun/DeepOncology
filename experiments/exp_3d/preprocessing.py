@@ -52,7 +52,7 @@ def get_transform(subset, modalities, mode, method, tval, target_size, target_sp
 
     Args:
         
-        subset ([str]): [train, val or test ]
+        subset ([str]): [train, val or test]
         modalities ([tuple]): [('pet_img, ct_img') or ('pet_img')]
         mode ([list]): [binary, probs or mean_props] !!!!!
         method ([list]): [relative, absolute, otsu, otsu_abs] !!!!!! CHECK HERE 
