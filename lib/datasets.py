@@ -25,7 +25,6 @@ class DataManager(object):
         PET_ids = np.sort(glob.glob(os.path.join(self.base_path, '*_nifti_PT.nii')))
         CT_ids = np.sort(glob.glob(os.path.join(self.base_path, '*_nifti_CT.nii')))
         MASK_ids = np.sort(glob.glob(os.path.join(self.base_path, '*_nifti_mask.nii')))
-        MERGED_ids = np.sort(glob.glob(os.path.join(self.base_path, '*_nifti_merged.nii')))
         return list(zip(PET_ids, CT_ids)), MASK_ids
 
     def get_train_val_test(self, wrap_with_dict=False, subset = False):
