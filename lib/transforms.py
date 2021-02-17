@@ -9,7 +9,8 @@ from math import pi
 from scipy.stats import truncnorm, uniform
 
 from .utils import get_study_uid
-
+from library_dicom.dicom_processor.model.Fusion import Fusion 
+from library_dicom.dicom_processor.model.FusionMask import FusionMask 
 
 """Classes for pre-processing : read NIFTI, threshold mask, reshape PET/CT/mask, 
     scale intensity, concatenate PET/CT ... 
@@ -94,7 +95,7 @@ class ResampleReshapeAlign(object):
 
     def __call__(self, img_dict):
         #1
-        fusion_object = Fusion(img_dict[self.keys [0]], img_dict[self.keys[1]], self.target_size, self.target_spacing, self.target_direction, mode ='dict') 
+        fusion_object = Fusion(img_dict[self.keys[0]], img_dict[self.keys[1]], self.target_size, self.target_spacing, self.target_direction, mode ='dict') 
         img_dict[self.keys[0]], img_dict[self.keys[1]] = fusion_object.resample(mode='head')
             
 
