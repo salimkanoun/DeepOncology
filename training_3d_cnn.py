@@ -45,7 +45,7 @@ pp_flag=''
 
 
 trained_model_path = '' #If None, train from scratch 
-training_model_folder = ''
+training_model_folder_name = ''
 
 #training paramaters
 epochs = 100
@@ -87,7 +87,7 @@ def main():
     now = datetime.now().strftime("%Y%m%d-%H:%M:%S")
 
     
-    training_model_folder = os.path.join(training_model_folder, now)  # '/path/to/folder'
+    training_model_folder = os.path.join(training_model_folder_name, now)  # '/path/to/folder'
     if not os.path.exists(training_model_folder):
         os.makedirs(training_model_folder)
     logdir = os.path.join(training_model_folder, 'logs')
