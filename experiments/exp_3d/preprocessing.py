@@ -77,6 +77,8 @@ def get_transform(subset, modalities, mode, method, tval, target_size, target_sp
                               new_key_name='mask_img'))
 
     transformers.append(ResampleReshapeAlign(target_size, target_spacing, target_direction, target_origin=None, keys=("pet_img", "ct_img", "mask_img")), test = False)
+    
+    
     if cache_pp:
         transformers = Compose(transformers)
         return transformers
