@@ -11,8 +11,6 @@ class Pipeline(object):
     def __init__(self, target_size, target_spacing, target_direction, model_path=None, target_origin=None, from_pp = False):
         #self.cfg_path = cfg
         #self.load_cfg()
-
-        #self.build_transformers()
         self.model_path = model_path
         self.load_model()
 
@@ -21,6 +19,7 @@ class Pipeline(object):
         self.target_direction = target_direction
         self.target_origin = target_origin
         self.from_pp = from_pp 
+        self.build_transformers()
 
     #def load_cfg(self):
     #    self.cfg = read_cfg(self.cfg_path)
@@ -35,7 +34,7 @@ class Pipeline(object):
                 print('No model to load') #alerte #return
             #self.model_path = os.path.join(folder_path, 'model_weights.h5')
         
-        #self.model = tf.keras.models.load_model(self.model_path, compile=False)
+        self.model = tf.keras.models.load_model(self.model_path, compile=False)
 
     def build_transformers(self):
         modalities = ('pet_img', 'ct_img')

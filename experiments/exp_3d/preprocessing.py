@@ -130,7 +130,7 @@ def get_transform_test(modalities, target_size, target_spacing, target_direction
     keys = tuple(list(modalities))
     transformers = [LoadNifti(keys=keys)]  # Load NIFTI file from path
     if not from_pp : 
-        transformers.append(ResampleReshapeAlign(target_size, target_spacing, target_direction, target_origin=None, keys=("pet_img", "ct_img", "mask_img")), test = True )
+        transformers.append(ResampleReshapeAlign(target_size, target_spacing, target_direction, target_origin=None, keys=("pet_img", "ct_img", "mask_img"), test = True))
     transformers.append(Sitk2Numpy(keys=keys))
 
     # Normalize input values
