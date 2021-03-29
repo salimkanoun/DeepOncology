@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 
 
 class DataManager(object):
-    """A class to read the CSV file with CT/PET/MERGED/MASK path, and prepare train, val and test set
+    """A class to read the CSV file with CT/PET/MASK path, and prepare train, val and test set
 
     Args:
         object ([type]): [description]
@@ -25,8 +25,7 @@ class DataManager(object):
         PET_ids = np.sort(glob.glob(os.path.join(self.base_path, '*_nifti_PT.nii')))
         CT_ids = np.sort(glob.glob(os.path.join(self.base_path, '*_nifti_CT.nii')))
         MASK_ids = np.sort(glob.glob(os.path.join(self.base_path, '*_nifti_mask.nii')))
-        MERGED_ids = np.sort(glob.glob(os.path.join(self.base_path, '*_nifti_merged.nii')))
-        return list(zip(PET_ids, CT_ids, MERGED_ids)), MASK_ids
+        return list(zip(PET_ids, CT_ids)), MASK_ids
 
     def get_train_val_test(self, wrap_with_dict=False, subset = False):
         """[summary]
@@ -89,25 +88,23 @@ class DataManager(object):
         """
         :return: {'pet_img': [pet_img0, pet_img1, ...],
                   'ct_img': [ct_img0, ct_img1, ..],
-                  'mask_img': [mask_img0, mask_img1, ...],
-                  'merged_img': [merged_img0, merged_img1, ...]}
+                  'mask_img': [mask_img0, mask_img1, ...]}
         """
         # df.T.to_dict().values()
         return {'pet_img': df['NIFTI_PET'].values,
                 'ct_img': df['NIFTI_CT'].values,
-                'mask_img': df['NIFTI_MASK'].values,
-                'merged_img' : df['NIFTI_MERGED'].values}
+                'mask_img': df['NIFTI_MASK'].values}
 
     @staticmethod
     def wrap_in_list_of_dict(df):
         """
-        :return: [ {'pet_img': pet_img0_path, 'ct_img': ct_img0_path, 'mask_img': mask_img0_path, 'merged_img': merged_img0},
-                    {'pet_img': pet_img1_path, 'ct_img': ct_img1_path, 'mask_img': mask_img1_path,  'merged_img': merged_img1},
-                    {'pet_img': pet_img2_path, 'ct_img': ct_img2_path, 'mask_img': mask_img2_path,  'merged_img': merged_img2}, ...]
+        :return: [ {'pet_img': pet_img0_path, 'ct_img': ct_img0_path, 'mask_img': mask_img0_path}
+                    {'pet_img': pet_img1_path, 'ct_img': ct_img1_path, 'mask_img': mask_img1_path}
+                    {'pet_img': pet_img2_path, 'ct_img': ct_img2_path, 'mask_img': mask_img2_path} ...]
         """
         # return df[['NIFTI_PET', 'NIFTI_CT', 'NIFTI_MASK']].T.to_dict().values()
-        mapper = {'NIFTI_PET': 'pet_img', 'NIFTI_CT': 'ct_img', 'NIFTI_MASK': 'mask_img', 'NIFTI_MERGED': 'merged_img'}
-        return df[['NIFTI_PET', 'NIFTI_CT', 'NIFTI_MASK', 'NIFTI_MERGED']].rename(columns=mapper).to_dict('records')
+        mapper = {'NIFTI_PET': 'pet_img', 'NIFTI_CT': 'ct_img', 'NIFTI_MASK': 'mask_img'}
+        return df[['NIFTI_PET', 'NIFTI_CT', 'NIFTI_MASK']].rename(columns=mapper).to_dict('records')
 
 
     @staticmethod

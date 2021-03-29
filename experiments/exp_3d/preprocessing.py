@@ -52,7 +52,7 @@ def get_transform(subset, modalities, mode, method, tval, target_size, target_sp
 
     Args:
         
-        subset ([type]): [description]
+        subset ([str]): [train, val or test]
         modalities ([tuple]): [('pet_img, ct_img') or ('pet_img')]
         mode ([list]): [binary, probs or mean_props] !!!!!
         method ([list]): [relative, absolute, otsu, otsu_abs] !!!!!! CHECK HERE 
@@ -76,7 +76,9 @@ def get_transform(subset, modalities, mode, method, tval, target_size, target_sp
                 Roi2MaskProbs(keys=('pet_img', 'mask_img'), mode=mode, method=method,
                               new_key_name='mask_img'))
 
-    transformers.append(ResampleReshapeAlign(target_size, target_spacing, target_direction, target_origin=None, keys=("pet_img", "ct_img", "mask_img")))
+    transformers.append(ResampleReshapeAlign(target_size, target_spacing, target_direction, target_origin=None, keys=("pet_img", "ct_img", "mask_img")), test = False)
+    
+    
     if cache_pp:
         transformers = Compose(transformers)
         return transformers
@@ -116,7 +118,7 @@ def get_transform(subset, modalities, mode, method, tval, target_size, target_sp
     return transformers
 
 
-def get_transform_test(modalities):
+def get_transform_test(modalities, target_size, target_spacing, target_direction, target_origin=None, from_pp = False):
     """transformers for test set 
 
     Args:
@@ -127,10 +129,8 @@ def get_transform_test(modalities):
     """
     keys = tuple(list(modalities))
     transformers = [LoadNifti(keys=keys)]  # Load NIFTI file from path
-    #transformers.append(ResampleMask(keys=('merged_img', 'mask_img'), target_size=target_size, target_spacing=target_spacing, target_direction=target_direction, target_origin=target_origin))
-
-
-    #transformers.append(DissociatePETCT(keys=('merged_img'), new_key_name=('pet_img', 'ct_img')))
+    if not from_pp : 
+        transformers.append(ResampleReshapeAlign(target_size, target_spacing, target_direction, target_origin=None, keys=("pet_img", "ct_img", "mask_img"), test = True))
     transformers.append(Sitk2Numpy(keys=keys))
 
     # Normalize input values

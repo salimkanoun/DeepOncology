@@ -9,7 +9,8 @@ from math import pi
 from scipy.stats import truncnorm, uniform
 
 from .utils import get_study_uid
-
+from library_dicom.dicom_processor.model.Fusion import Fusion 
+from library_dicom.dicom_processor.model.FusionMask import FusionMask 
 
 """Classes for pre-processing : read NIFTI, threshold mask, reshape PET/CT/mask, 
     scale intensity, concatenate PET/CT ... 
@@ -85,23 +86,39 @@ class ResampleReshapeAlign(object):
     """
 
     #import Fusion and FusionMask from DicomToCNN
-    def __init__(self,target_size, target_spacing, target_direction, target_origin=None, keys=("pet_img", "ct_img", "mask_img")):
+    def __init__(self,target_size, target_spacing, target_direction, target_origin=None, keys=("pet_img", "ct_img", "mask_img"), test = False):
         self.keys = (keys,) if isinstance(keys, str) else keys
         self.target_size = target_size
         self.target_spacing = target_spacing
         self.target_direction = target_direction
         self.target_origin = target_origin
+        self.test = test 
 
     def __call__(self, img_dict):
+        
+        #save meta info for CNNResampler while predict 
+        img_dict['meta_info'] = img_dict.get('meta_info', dict())
+        img_dict['meta_info']['original_size'] = img_dict['pet_img'].GetSize()
+        img_dict['meta_info']['original_spacing'] = img_dict['pet_img'].GetSpacing()
+        img_dict['meta_info']['original_origin'] = img_dict['pet_img'].GetOrigin()
+        img_dict['meta_info']['original_direction'] = img_dict['pet_img'].GetDirection()
+
         #1
-        fusion_object = Fusion(img_dict[self.keys [0]], img_dict[self.keys[1]], self.target_size, self.target_spacing, self.target_direction, mode ='dict') 
+        fusion_object = Fusion(img_dict[self.keys[0]], img_dict[self.keys[1]], self.target_size, self.target_spacing, self.target_direction, mode ='dict') 
         img_dict[self.keys[0]], img_dict[self.keys[1]] = fusion_object.resample(mode='head')
             
 
         #2
-        fusion_mask_object = FusionMask(img_dict[self.keys[0]], img_dict[self.keys[2]], self.target_size, self.target_spacing, self.target_direction, mode ='dict')
-        img_dict[self.keys[2]] = fusion_mask_object.resample()
+        if self.test != True : 
+            fusion_mask_object = FusionMask(img_dict[self.keys[0]], img_dict[self.keys[2]], self.target_size, self.target_spacing, self.target_direction, mode ='dict')
+            img_dict[self.keys[2]] = fusion_mask_object.resample()
 
+        # save meta information of preprocessed data
+        img_dict['meta_info']['new_size'] = img_dict['pet_img'].GetSize()
+        img_dict['meta_info']['new_spacing'] = img_dict['pet_img'].GetSpacing()
+        img_dict['meta_info']['new_origin'] = img_dict['pet_img'].GetOrigin()
+        img_dict['meta_info']['new_direction'] = img_dict['pet_img'].GetDirection()
+        
         return img_dict 
 
 """
