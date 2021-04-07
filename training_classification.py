@@ -7,7 +7,7 @@ import os
 import pandas as pd 
 import tensorflow as tf 
 from sklearn.model_selection import train_test_split 
-
+print("Num GPU available: ", len(tf.config.list_physical_devices('GPU')))
 from classification.pre_process.Prep_CSV import Prep_CSV
 from classification.pre_process.Preprocessing import Preprocessing 
 from classification.model.classification import *
