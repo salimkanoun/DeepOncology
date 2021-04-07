@@ -20,8 +20,8 @@ from losses.Loss import metric_dice
 
 
 
-csv_path = ''
-pp_dir = ''
+csv_path = '/media/deeplearning/78ca2911-9e9f-4f78-b80a-848024b95f92/FLIP_NIFTI/FLIP_PET0_NIFTI.csv'
+pp_dir = None 
 
 #### PRE PROCESSING #####
 
@@ -44,8 +44,8 @@ pp_flag=''
 ##### TENSORFLOW #####
 
 
-trained_model_path = '' #If None, train from scratch 
-training_model_folder_name = ''
+trained_model_path = None #If None, train from scratch 
+training_model_folder_name = '/media/deeplearning/78ca2911-9e9f-4f78-b80a-848024b95f92/SEGMENTATION'
 
 #training paramaters
 epochs = 100
@@ -54,10 +54,11 @@ shuffle = True
 
 #callbacks
 patience = 10
-ReduceLROnPlateau = False
-EarlyStopping = False
-ModelCheckpoint = True
-TensorBoard = True
+ReduceLROnPlateau_val = False
+EarlyStopping_val = False
+ModelCheckpoint_val = False
+TensorBoard_val = False 
+
 
 ##### ARCHITECTURE #####
 #model
@@ -93,13 +94,13 @@ def main():
     logdir = os.path.join(training_model_folder, 'logs')
     if not os.path.exists(logdir):
         os.makedirs(logdir)
-
+    
     # saving the config in the result folder
     #copyfile(cfg['cfg_path'], os.path.join(training_model_folder, 'config.py'))
 
 
     # multi gpu training strategy
-    strategy = tf.distribute.MirroredStrategy()
+    #strategy = tf.distribute.MirroredStrategy()
 
     # Get Data path and transforms
     #get_data function from exp_3D/preprocessing 
@@ -111,7 +112,7 @@ def main():
 
 
     train_images_paths, val_images_paths = dataset['train'], dataset['val']
-
+    
     train_generator = DataGeneratorFromDict(train_images_paths,
                                             train_transforms,
                                             batch_size=batch_size,
@@ -123,17 +124,22 @@ def main():
                                           batch_size=batch_size,
                                           shuffle=False,
                                           x_key='input', y_key='mask_img')
-
-    with strategy.scope():
+    
+    #with strategy.scope():
         # definition of loss, optimizer and metrics
-        loss_object = custom_robust_loss(dim=3)
-        optimizer = tfa.optimizers.AdamW(learning_rate=1e-4, weight_decay=1e-4)
-        dsc = metric_dice(dim=3, vnet=True)
-        metrics = [dsc, 'Recall', 'Precision']  # [dsc]
+    loss_object = custom_robust_loss(dim=3)
+    optimizer = tfa.optimizers.AdamW(learning_rate=1e-4, weight_decay=1e-4)
+    dsc = metric_dice(dim=3, vnet=True)
+    metrics = [dsc, 'Recall', 'Precision']  # [dsc]
 
+
+
+
+
+    
     # callbacks
     callbacks = []
-    if ReduceLROnPlateau == True :
+    if ReduceLROnPlateau_val == True :
         # reduces learning rate if no improvement are seen
         learning_rate_reduction = ReduceLROnPlateau(monitor='val_loss',
                                                     patience=patience ,
@@ -142,7 +148,7 @@ def main():
                                                     min_lr=0.0000001)
         callbacks.append(learning_rate_reduction)
 
-    if EarlyStopping == True :
+    if EarlyStopping_val == True :
         # stop training if no improvements are seen
         early_stop = EarlyStopping(monitor="val_loss",
                                    mode="min",
@@ -150,7 +156,7 @@ def main():
                                    restore_best_weights=True)
         callbacks.append(early_stop)
 
-    if ModelCheckpoint == True :
+    if ModelCheckpoint_val == True :
         # saves model weights to file
         # 'model_weights.{epoch:02d}-{val_loss:.2f}.hdf5'
         checkpoint = ModelCheckpoint(os.path.join(training_model_folder, 'model_weights.h5'),
@@ -161,7 +167,7 @@ def main():
                                      save_weights_only=False)
         callbacks.append(checkpoint)
 
-    if TensorBoard == True :
+    if TensorBoard_val == True :
         tensorboard_callback = TensorBoard(log_dir=logdir,
                                            histogram_freq=0,
                                            batch_size=batch_size,
@@ -169,11 +175,11 @@ def main():
                                            write_grads=True,
                                            write_images=False)
         callbacks.append(tensorboard_callback)
-
+    
     # Define model
     if architecture.lower() == 'vnet':
-        with strategy.scope():
-            model = VNet(image_shape,
+        #with strategy.scope():
+        model = VNet(image_shape,
                  in_channels,
                  out_channels,
                  channels_last,
@@ -189,15 +195,15 @@ def main():
     else:
         raise ValueError('Architecture ' + architecture + ' not supported. Please ' +
                          'choose one of unet|vnet.')
-    with strategy.scope():
-        model.compile(loss=loss_object, optimizer=optimizer, metrics=metrics)
+    #with strategy.scope():
+    model.compile(loss=loss_object, optimizer=optimizer, metrics=metrics)
 
     if trained_model_path is not None:
-        with strategy.scope():
-            model.load_weights(trained_model_path)
+        #with strategy.scope():
+        model.load_weights(trained_model_path)
 
     print(model.summary())
-
+    """
     # serialize model to JSON before training
     model_json = model.to_json()
     with open(os.path.join(training_model_folder, 'architecture_{}_model_{}.json'.format(architecture, now)),
@@ -220,7 +226,7 @@ def main():
     
     # whole model saving
     model.save(os.path.join(training_model_folder, 'trained_model_{}.h5'.format(now)))
-
+    """
 
 if __name__ == "__main__":
     #parser = argparse.ArgumentParser()
