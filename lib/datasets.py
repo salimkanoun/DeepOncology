@@ -27,7 +27,7 @@ class DataManager(object):
         MASK_ids = np.sort(glob.glob(os.path.join(self.base_path, '*_nifti_mask.nii')))
         return list(zip(PET_ids, CT_ids)), MASK_ids
 
-    def get_train_val_test(self, wrap_with_dict=False, subset = False):
+    def get_train_val_test(self, wrap_with_dict=False, subset = None):
         """[summary]
 
         Args:
@@ -42,7 +42,7 @@ class DataManager(object):
         else:
             df = pd.read_csv(self.csv_path)
             df = df[df['PET'] == 'pet0']  # select only pet 0 exam
-
+            
             if 'subset' not in df.columns:
                 key_split = 'PATIENT_ID'  # unique id
                 idx = np.arange(df[key_split].nunique()) #0 to number of PET0
@@ -67,7 +67,6 @@ class DataManager(object):
             df_val = df[df['subset'] == 'val']
             df_test = df[df['subset'] == 'test']
             #a la fin du csv avec pandas, rajoute train, val ou test 
-
             if subset is not None : 
                 return self.wrap_in_list_of_dict(df[df['subset'] == subset])
 
