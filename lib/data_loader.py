@@ -70,7 +70,6 @@ class DataGeneratorFromDict(tf.keras.utils.Sequence):
 
         X_batch = np.array(X_batch)
         Y_batch = np.array(Y_batch)
-
         return X_batch, Y_batch
 
 

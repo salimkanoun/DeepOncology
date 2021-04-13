@@ -20,19 +20,24 @@ from losses.Loss import metric_dice
 
 
 
-csv_path = '/media/deeplearning/78ca2911-9e9f-4f78-b80a-848024b95f92/FLIP_NIFTI/FLIP_PET0_NIFTI.csv'
+csv_path = '/media/oncopole/DD 2To/SEGMENTATION/SEG_NIFTI_PATH.csv'
 pp_dir = None 
 
 #### PRE PROCESSING #####
 
 modalities = ('pet_img', 'ct_img')
-mode = ['binary', 'probs', 'mean_probs'][0]
-method = ['otsu', 'absolute', 'relative', 'otsu_abs'][0]
+mode = ['binary', 'probs', 'mean_probs'][1]
+method = ['otsu', 'absolute', 'relative', 'otsu_abs'][0:3]
+
+# To run on a mean ground-truth of multiple run
+# mode, method = 'probs', 
+#method = ['otsu', 'absolute', 'relative']
 
 #[if mode = binary & method = relative : t_val = 0.42
 #if mode = binary & method = absolute : t_val = 2.5, 
 #else : don't need tval]
-tval = ''
+tval_rel = 0.42
+tval_abs = 2.5
 target_size = (128, 128, 256)
 target_spacing = (4.0, 4.0, 4.0)
 target_direction = (1,0,0,0,1,0,0,0,1)
@@ -44,8 +49,8 @@ pp_flag=''
 ##### TENSORFLOW #####
 
 
-trained_model_path = None #If None, train from scratch 
-training_model_folder_name = '/media/deeplearning/78ca2911-9e9f-4f78-b80a-848024b95f92/SEGMENTATION'
+trained_model_path = '/media/oncopole/DD 2To/RUDY_WEIGTH/training/20201111-17:37:11/model_weights.h5' #If None, train from scratch 
+training_model_folder_name = '/media/oncopole/DD 2To/SEGMENTATION/training'
 
 #training paramaters
 epochs = 100
@@ -54,10 +59,10 @@ shuffle = True
 
 #callbacks
 patience = 10
-ReduceLROnPlateau_val = False
+ReduceLROnPlateau_val = True 
 EarlyStopping_val = False
-ModelCheckpoint_val = False
-TensorBoard_val = False 
+ModelCheckpoint_val = True
+TensorBoard_val = True
 
 
 ##### ARCHITECTURE #####
@@ -87,24 +92,32 @@ def main():
     # path
     now = datetime.now().strftime("%Y%m%d-%H:%M:%S")
 
-    
     training_model_folder = os.path.join(training_model_folder_name, now)  # '/path/to/folder'
     if not os.path.exists(training_model_folder):
         os.makedirs(training_model_folder)
+        
     logdir = os.path.join(training_model_folder, 'logs')
     if not os.path.exists(logdir):
         os.makedirs(logdir)
+    
     
     # saving the config in the result folder
     #copyfile(cfg['cfg_path'], os.path.join(training_model_folder, 'config.py'))
 
 
     # multi gpu training strategy
-    #strategy = tf.distribute.MirroredStrategy()
+    strategy = tf.distribute.MirroredStrategy()
+
+    print('')
+    print('NUMBER OF GPU : ')
+    physical_devices = tf.config.list_physical_devices('GPU')
+    print("Num GPUs:", len(physical_devices))
+    print('')
+    print(' ')
 
     # Get Data path and transforms
     #get_data function from exp_3D/preprocessing 
-    dataset, train_transforms, val_transforms = get_data(pp_dir, csv_path, modalities, mode, method, tval, target_size, target_spacing, target_direction, target_origin=None , data_augmentation=True, from_pp=from_pp, cache_pp=cache_pp, pp_flag=pp_flag)
+    dataset, train_transforms, val_transforms = get_data(pp_dir, csv_path, modalities, mode, method, tval_rel, target_size, target_spacing, target_direction, target_origin=None , data_augmentation=True, from_pp=from_pp, cache_pp=cache_pp, pp_flag=pp_flag)
     #dataset = dict('train' : [{ct pet mask}, {},] 
     #                'test' : [{ct pet mask}, {},] 
     #                 'val' : [{ct pet mask}, {}, ])
@@ -125,15 +138,13 @@ def main():
                                           shuffle=False,
                                           x_key='input', y_key='mask_img')
     
-    #with strategy.scope():
+    with strategy.scope():
         # definition of loss, optimizer and metrics
-    loss_object = custom_robust_loss(dim=3)
-    optimizer = tfa.optimizers.AdamW(learning_rate=1e-4, weight_decay=1e-4)
-    dsc = metric_dice(dim=3, vnet=True)
-    metrics = [dsc, 'Recall', 'Precision']  # [dsc]
-
-
-
+        loss_object = custom_robust_loss(dim=3)
+        #optimizer = tfa.optimizers.AdamW(learning_rate=1e-4, weight_decay=1e-4)
+        optimizer = tf.optimizers.SGD(learning_rate =0.001, momentum = 0.9 )
+        dsc = metric_dice(dim=3, vnet=True)
+        metrics = [dsc, 'Recall', 'Precision']  # [dsc]
 
 
     
@@ -178,38 +189,38 @@ def main():
     
     # Define model
     if architecture.lower() == 'vnet':
-        #with strategy.scope():
-        model = VNet(image_shape,
-                 in_channels,
-                 out_channels,
-                 channels_last,
-                 keep_prob,
-                 keep_prob_last_layer,
-                 kernel_size,
-                 num_channels,
-                 num_levels,
-                 num_convolutions,
-                 bottom_convolutions,
-                 activation,
-                 activation_last_layer).create_model()
+        with strategy.scope():
+            model = VNet(image_shape,
+                    in_channels,
+                    out_channels,
+                    channels_last,
+                    keep_prob,
+                    keep_prob_last_layer,
+                    kernel_size,
+                    num_channels,
+                    num_levels,
+                    num_convolutions,
+                    bottom_convolutions,
+                    activation,
+                    activation_last_layer).create_model()
     else:
         raise ValueError('Architecture ' + architecture + ' not supported. Please ' +
                          'choose one of unet|vnet.')
-    #with strategy.scope():
-    model.compile(loss=loss_object, optimizer=optimizer, metrics=metrics)
+    with strategy.scope():
+        model.compile(loss=loss_object, optimizer=optimizer, metrics=metrics)
 
     if trained_model_path is not None:
-        #with strategy.scope():
-        model.load_weights(trained_model_path)
+        with strategy.scope():
+            model.load_weights(trained_model_path)
 
     print(model.summary())
-    """
+    
     # serialize model to JSON before training
-    model_json = model.to_json()
-    with open(os.path.join(training_model_folder, 'architecture_{}_model_{}.json'.format(architecture, now)),
-              "w") as json_file:
-        json_file.write(model_json)
-
+    #model_json = model.to_json()
+    #with open(os.path.join(training_model_folder, 'architecture_{}_model_{}.json'.format(architecture, now)),
+    #          "w") as json_file:
+    #    json_file.write(model_json)
+    
     # training model
     history = model.fit(train_generator,
                         steps_per_epoch=len(train_generator),
@@ -226,9 +237,9 @@ def main():
     
     # whole model saving
     model.save(os.path.join(training_model_folder, 'trained_model_{}.h5'.format(now)))
-    """
-
-if __name__ == "__main__":
+    
+    
+#if __name__ == "__main__":
     #parser = argparse.ArgumentParser()
     #parser.add_argument("-c", "--config", default='config/config_3d.py', type=str,
     #                    help="path/to/config.py")
@@ -236,5 +247,5 @@ if __name__ == "__main__":
 
     #config = read_cfg(args.config)
     #config['cfg_path'] = args.config
-
-    main()
+ 
+main()
