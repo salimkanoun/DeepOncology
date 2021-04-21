@@ -7,6 +7,7 @@ from skimage import filters, measure
 import random
 from math import pi
 from scipy.stats import truncnorm, uniform
+import time 
 
 from .utils import get_study_uid
 from library_dicom.dicom_processor.model.Fusion import Fusion 
@@ -52,6 +53,7 @@ class LoadNifti(object):
         self.dtypes = dtypes
 
     def __call__(self, img_dict):
+        
         output = dict()
         output['image_id'] = get_study_uid(img_dict[self.keys[0]])
         for key in self.keys:
@@ -59,7 +61,7 @@ class LoadNifti(object):
             output[key] = sitk.ReadImage(img_dict[key], self.dtypes[key])
             if self.image_only:
                 output[key] = sitk.GetArrayFromImage(output[key])
-
+        
         return output
 
 
@@ -76,68 +78,6 @@ class LoadNumpy(object):
             img_dict[key] = np.load(img_dict[key])
 
         return img_dict
-
-class ResampleReshapeAlign(object):
-    """1) resample, reshape align PT and CT 
-       2) resample reshape align MASK and PT 
-
-    Args:
-        object ([type]): [description]
-    """
-
-    #import Fusion and FusionMask from DicomToCNN
-    def __init__(self,target_size, target_spacing, target_direction, target_origin=None, keys=("pet_img", "ct_img", "mask_img"), test = False):
-        self.keys = (keys,) if isinstance(keys, str) else keys
-        self.target_size = target_size
-        self.target_spacing = target_spacing
-        self.target_direction = target_direction
-        self.target_origin = target_origin
-        self.test = test 
-
-    def __call__(self, img_dict):
-        
-        #save meta info for CNNResampler while predict 
-        img_dict['meta_info'] = img_dict.get('meta_info', dict())
-        img_dict['meta_info']['original_size'] = img_dict['pet_img'].GetSize()
-        img_dict['meta_info']['original_spacing'] = img_dict['pet_img'].GetSpacing()
-        img_dict['meta_info']['original_origin'] = img_dict['pet_img'].GetOrigin()
-        img_dict['meta_info']['original_direction'] = img_dict['pet_img'].GetDirection()
-
-        #1
-        fusion_object = Fusion(img_dict[self.keys[0]], img_dict[self.keys[1]], self.target_size, self.target_spacing, self.target_direction, mode ='dict') 
-        img_dict[self.keys[0]], img_dict[self.keys[1]] = fusion_object.resample(mode='head')
-            
-
-        #2
-        if self.test != True : 
-            fusion_mask_object = FusionMask(img_dict[self.keys[0]], img_dict[self.keys[2]], self.target_size, self.target_spacing, self.target_direction, mode ='dict')
-            img_dict[self.keys[2]] = fusion_mask_object.resample()
-
-        # save meta information of preprocessed data
-        img_dict['meta_info']['new_size'] = img_dict['pet_img'].GetSize()
-        img_dict['meta_info']['new_spacing'] = img_dict['pet_img'].GetSpacing()
-        img_dict['meta_info']['new_origin'] = img_dict['pet_img'].GetOrigin()
-        img_dict['meta_info']['new_direction'] = img_dict['pet_img'].GetDirection()
-        
-        return img_dict 
-
-"""
-class ResampleMask(object):
-
-
-    #import fonction from Dicom-To-CNN : resample_mask_nifti
-    def __init__(self, keys=('merged_img', 'mask_img'),target_size, target_spacing, target_direction, target_origin = None):
-        self.keys = (keys,) if isinstance(keys, str) else keys
-        self.target_size = target_size
-        self.target_spacing = target_spacing
-        self.target_direction = target_direction
-        self.target_origin = targer_origin
-
-    def __call__(self, img_dict):
-        img_dict[self.keys[1]] = resample_mask_nifti(img_dict[self.keys[0]], img_dict[self.keys[1]], self.target_size, self.target_spacing, self.target_direction, self.target_origin)
-        return img_dict
-""" 
-
 
 
 class Roi2Mask(object):
@@ -277,6 +217,7 @@ class Roi2MaskProbs(object):
         roi_key = self.keys[1]
 
         img_dict[self.new_key_name] = self.roi2mask(img_dict[roi_key], img_dict[pet_key])
+        
         return img_dict
 
     def relative_seg(self, roi):
@@ -355,6 +296,7 @@ class Roi2MaskProbs(object):
         #len(mask_array.shape) = 4 ! 
 
         if self.mode == 'probs' and self.method == 'otsu_abs' : 
+            
             new_masks = []
             for method in ['otsu', 'absolute']:
                 new_mask = np.zeros(mask_array.shape[1:], dtype=np.float64)
@@ -384,6 +326,7 @@ class Roi2MaskProbs(object):
             return new_mask
 
         else : 
+            
             new_masks = []
             for method in self.method:
                 new_mask = np.zeros(mask_array.shape[1:], dtype=np.float64) #len(new_mask.shape) = 3
@@ -415,6 +358,53 @@ class Roi2MaskProbs(object):
 
             return new_mask
 
+class ResampleReshapeAlign(object):
+    """
+    1) resample, reshape align PT and CT 
+       2) resample reshape align MASK and PT 
+
+    Args:
+        object ([type]): [description]
+    """
+
+    #import Fusion and FusionMask from DicomToCNN
+    def __init__(self,target_size, target_spacing, target_direction, target_origin=None, keys=("pet_img", "ct_img", "mask_img"), test = False):
+        self.keys = (keys,) if isinstance(keys, str) else keys
+        self.target_size = target_size
+        self.target_spacing = target_spacing
+        self.target_direction = target_direction
+        self.target_origin = target_origin
+        self.test = test 
+
+    def __call__(self, img_dict):
+        
+        #save meta info for CNNResampler while predict 
+        img_dict['meta_info'] = img_dict.get('meta_info', dict())
+        img_dict['meta_info']['original_size'] = img_dict['pet_img'].GetSize()
+        img_dict['meta_info']['original_spacing'] = img_dict['pet_img'].GetSpacing()
+        img_dict['meta_info']['original_origin'] = img_dict['pet_img'].GetOrigin()
+        img_dict['meta_info']['original_direction'] = img_dict['pet_img'].GetDirection()
+
+        #1
+        
+        fusion_object = Fusion(img_dict[self.keys[0]], img_dict[self.keys[1]], self.target_size, self.target_spacing, self.target_direction, mode ='dict') 
+        img_dict[self.keys[0]], img_dict[self.keys[1]] = fusion_object.resample(mode='head')
+        
+
+        #2
+        if self.test != True : 
+           
+            fusion_mask_object = FusionMask(img_dict[self.keys[0]], img_dict[self.keys[2]], self.target_size, self.target_spacing, self.target_direction, mode ='dict')
+            img_dict[self.keys[2]] = fusion_mask_object.resample()
+            
+
+        # save meta information of preprocessed data
+        img_dict['meta_info']['new_size'] = img_dict['pet_img'].GetSize()
+        img_dict['meta_info']['new_spacing'] = img_dict['pet_img'].GetSpacing()
+        img_dict['meta_info']['new_origin'] = img_dict['pet_img'].GetOrigin()
+        img_dict['meta_info']['new_direction'] = img_dict['pet_img'].GetDirection()
+        
+        return img_dict 
 
 class AverageImage(object):
     """A class to applied average on several ndarray
@@ -437,7 +427,113 @@ class AverageImage(object):
         return img_dict
 
 
+class Sitk2Numpy(object):
+    """
+    Convert SimpleITK image into Numpy ndarray
+    """
+    def __init__(self, keys=('pet_img', 'ct_img', 'mask_img')):
+        self.keys = (keys,) if isinstance(keys, str) else keys
 
+    def __call__(self, img_dict):
+        
+        for key in self.keys:
+            img_dict[key] = sitk.GetArrayFromImage(img_dict.pop(key))
+            # img = sitk.GetArrayFromImage(img_dict[key])
+            # img = np.transpose(img, (2, 1, 0))  # (z, y, x) to (x, y, z)
+            # img_dict[key] = img
+        
+        return img_dict
+
+class ScaleIntensityRanged(object):
+    """
+    #Linearly Scale value between [a_min, a_max] to [b_min, b_max]. 
+    Scale intensity of CT and PET from [a_min, a_max] to [b_min, b_max].
+    """
+
+    def __init__(self, keys, a_min, a_max, b_min, b_max, clip=False):
+        self.keys = (keys,) if isinstance(keys, str) else keys
+
+        self.a_min = a_min
+        self.a_max = a_max
+        self.b_min = b_min
+        self.b_max = b_max
+        self.clip = clip
+
+        assert a_min < a_max
+        assert b_min < b_max
+
+    def __call__(self, img_dict):
+        
+        for key in self.keys:
+            img = img_dict.pop(key)
+
+            img = (img - self.a_min) / (self.a_max - self.a_min)
+            img = img * (self.b_max - self.b_min) + self.b_min
+
+            if self.clip:
+                img = np.clip(img, self.b_min, self.b_max)
+
+            img_dict[key] = img
+        
+        return img_dict
+
+
+
+class ConcatModality(object):
+    """
+    expects data of shape (spatial_dim1, spatial_dim2, ..., spatial_dim3)
+    Concatenate PET/CT array, returns a 4D array of 3D arrays.
+    """
+
+    def __init__(self, keys=('pet_img', 'ct_img'), channel_first=True, new_key='image'):
+        self.keys = (keys,) if isinstance(keys, str) else keys
+        self.channel_first = channel_first
+        self.new_key = new_key
+
+    def __call__(self, img_dict):
+        
+        idx_channel = 0 if self.channel_first else -1
+        imgs = [img_dict.pop(key) for key in self.keys]
+        img_dict[self.new_key] = np.stack(imgs, axis=idx_channel)
+        
+        return img_dict
+
+
+class AddChannel(object):
+    """
+    expects data of shape (spatial_dim1, spatial_dim2, ..., spatial_dim3)
+    Add a dimension to one ndarray : return a 4D array of one 3D array
+    """
+
+    def __init__(self, keys, channel_first=False):
+        self.keys = (keys,) if isinstance(keys, str) else keys
+        self.channel_first = channel_first
+
+    def __call__(self, img_dict):
+        axis = 0 if self.channel_first else -1
+        for key in self.keys:
+            img_dict[key] = np.expand_dims(img_dict[key], axis=axis)
+
+        return img_dict
+
+
+class RenameDict(object):
+    """A class to rename key's dict
+    """
+
+    def __init__(self, keys, keys2):
+        """
+        :param keys: str or tuple(str), key to rename
+        :param keys2: str or tuple(str), new name of keys
+        """
+        self.keys = (keys,) if isinstance(keys, str) else keys
+        self.keys2 = (keys2,) if isinstance(keys2, str) else keys2
+
+    def __call__(self, img_dict):
+        for key1, key2 in zip(self.keys, self.keys2):
+            img_dict[key2] = img_dict.pop(key1)
+
+        return img_dict
 
 class RandAffine(object):
     """
@@ -547,114 +643,6 @@ class RandAffine(object):
         reference_image = image
 
         return sitk.Resample(image, reference_image, transformation, interpolator, default_value)
-
-
-
-class Sitk2Numpy(object):
-    """
-    Convert SimpleITK image into Numpy ndarray
-    """
-    def __init__(self, keys=('pet_img', 'ct_img', 'mask_img')):
-        self.keys = (keys,) if isinstance(keys, str) else keys
-
-    def __call__(self, img_dict):
-        for key in self.keys:
-            img_dict[key] = sitk.GetArrayFromImage(img_dict.pop(key))
-            # img = sitk.GetArrayFromImage(img_dict[key])
-            # img = np.transpose(img, (2, 1, 0))  # (z, y, x) to (x, y, z)
-            # img_dict[key] = img
-
-        return img_dict
-
-
-class ScaleIntensityRanged(object):
-    """
-    #Linearly Scale value between [a_min, a_max] to [b_min, b_max]. 
-    Scale intensity of CT and PET from [a_min, a_max] to [b_min, b_max].
-    """
-
-    def __init__(self, keys, a_min, a_max, b_min, b_max, clip=False):
-        self.keys = (keys,) if isinstance(keys, str) else keys
-
-        self.a_min = a_min
-        self.a_max = a_max
-        self.b_min = b_min
-        self.b_max = b_max
-        self.clip = clip
-
-        assert a_min < a_max
-        assert b_min < b_max
-
-    def __call__(self, img_dict):
-
-        for key in self.keys:
-            img = img_dict.pop(key)
-
-            img = (img - self.a_min) / (self.a_max - self.a_min)
-            img = img * (self.b_max - self.b_min) + self.b_min
-
-            if self.clip:
-                img = np.clip(img, self.b_min, self.b_max)
-
-            img_dict[key] = img
-
-        return img_dict
-
-
-class ConcatModality(object):
-    """
-    expects data of shape (spatial_dim1, spatial_dim2, ..., spatial_dim3)
-    Concatenate PET/CT array, returns a 4D array of 3D arrays.
-    """
-
-    def __init__(self, keys=('pet_img', 'ct_img'), channel_first=True, new_key='image'):
-        self.keys = (keys,) if isinstance(keys, str) else keys
-        self.channel_first = channel_first
-        self.new_key = new_key
-
-    def __call__(self, img_dict):
-        idx_channel = 0 if self.channel_first else -1
-        imgs = [img_dict.pop(key) for key in self.keys]
-        img_dict[self.new_key] = np.stack(imgs, axis=idx_channel)
-
-        return img_dict
-
-
-class AddChannel(object):
-    """
-    expects data of shape (spatial_dim1, spatial_dim2, ..., spatial_dim3)
-    Add a dimension to one ndarray : return a 4D array of one 3D array
-    """
-
-    def __init__(self, keys, channel_first=False):
-        self.keys = (keys,) if isinstance(keys, str) else keys
-        self.channel_first = channel_first
-
-    def __call__(self, img_dict):
-        axis = 0 if self.channel_first else -1
-        for key in self.keys:
-            img_dict[key] = np.expand_dims(img_dict[key], axis=axis)
-
-        return img_dict
-
-
-class RenameDict(object):
-    """A class to rename key's dict
-    """
-
-    def __init__(self, keys, keys2):
-        """
-        :param keys: str or tuple(str), key to rename
-        :param keys2: str or tuple(str), new name of keys
-        """
-        self.keys = (keys,) if isinstance(keys, str) else keys
-        self.keys2 = (keys2,) if isinstance(keys2, str) else keys2
-
-    def __call__(self, img_dict):
-        for key1, key2 in zip(self.keys, self.keys2):
-            img_dict[key2] = img_dict.pop(key1)
-
-        return img_dict
 
 
 

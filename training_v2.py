@@ -1,8 +1,8 @@
-import argparse
 import json
-
+import numpy as np 
 import os
 from datetime import datetime
+import time 
 
 from lib.data_loader import DataGeneratorFromDict
 # from lib.transforms import *
@@ -15,6 +15,8 @@ from networks.Vnet import VNet
 
 from losses.Loss import custom_robust_loss
 from losses.Loss import metric_dice 
+
+from library_dicom.dicom_processor.tools.folders import *
 
 #from lib.utils import read_cfg
 
@@ -87,103 +89,109 @@ activation_last_layer= 'sigmoid'
 
 
 
+### PREPROCESSING ###
+now = datetime.now().strftime("%Y%m%d-%H:%M:%S")
 
-def main():
-    # path
-    now = datetime.now().strftime("%Y%m%d-%H:%M:%S")
-
-    training_model_folder = os.path.join(training_model_folder_name, now)  # '/path/to/folder'
-    if not os.path.exists(training_model_folder):
-        os.makedirs(training_model_folder)
+training_model_folder = os.path.join(training_model_folder_name, now)  # '/path/to/folder'
+if not os.path.exists(training_model_folder):
+    os.makedirs(training_model_folder)
         
-    logdir = os.path.join(training_model_folder, 'logs')
-    if not os.path.exists(logdir):
-        os.makedirs(logdir)
-    
-    
-    # saving the config in the result folder
-    #copyfile(cfg['cfg_path'], os.path.join(training_model_folder, 'config.py'))
-
+logdir = os.path.join(training_model_folder, 'logs')
+if not os.path.exists(logdir):
+    os.makedirs(logdir)
 
     # multi gpu training strategy
-    strategy = tf.distribute.MirroredStrategy()
+strategy = tf.distribute.MirroredStrategy()
 
     # Get Data path and transforms
     #get_data function from exp_3D/preprocessing 
-    dataset, train_transforms, val_transforms = get_data(pp_dir, csv_path, modalities, mode, method, tval_rel, target_size, target_spacing, target_direction, target_origin=None , data_augmentation=True, from_pp=from_pp, cache_pp=cache_pp, pp_flag=pp_flag)
+dataset, train_transforms, val_transforms = get_data(pp_dir, csv_path, modalities, mode, method, tval_rel, target_size, target_spacing, target_direction, target_origin=None , data_augmentation=True, from_pp=from_pp, cache_pp=cache_pp, pp_flag=pp_flag)
     #dataset = dict('train' : [{ct pet mask}, {},] 
     #                'test' : [{ct pet mask}, {},] 
     #                 'val' : [{ct pet mask}, {}, ])
     #train, val_transforms = list of transformers to applied (preprocessing)
 
 
-    train_images_paths, val_images_paths = dataset['train'], dataset['val']
-    
-    train_generator = DataGeneratorFromDict(train_images_paths,
+train_images_paths, val_images_paths = dataset['train'], dataset['val']
+
+train_generator = DataGeneratorFromDict(train_images_paths,
                                             train_transforms,
                                             batch_size=batch_size,
                                             shuffle=shuffle,
                                             x_key='input', y_key='mask_img')
 
-    val_generator = DataGeneratorFromDict(val_images_paths,
+val_generator = DataGeneratorFromDict(val_images_paths,
                                           val_transforms,
                                           batch_size=batch_size,
                                           shuffle=False,
                                           x_key='input', y_key='mask_img')
-    
-    with strategy.scope():
+
+def make_train_gen():
+    return train_generator 
+def make_val_gen():
+    return val_generator
+
+
+training_dataset = tf.data.Dataset.from_generator(make_train_gen, (tf.float16, tf.float16))
+training_dataset = training_dataset.cache().prefetch()
+val_dataset = tf.data.Dataset.from_generator(make_val_gen, (tf.float16, tf.float16))
+val_dataset = val_dataset.cache().prefetch()
+
+with strategy.scope():
         # definition of loss, optimizer and metrics
-        loss_object = custom_robust_loss(dim=3)
-        #optimizer = tfa.optimizers.AdamW(learning_rate=1e-4, weight_decay=1e-4)
-        optimizer = tf.optimizers.SGD(learning_rate =0.001, momentum = 0.9 )
-        dsc = metric_dice(dim=3, vnet=True)
-        metrics = [dsc, 'Recall', 'Precision']  # [dsc]
+    loss_object = custom_robust_loss(dim=3)
+    #optimizer = tfa.optimizers.AdamW(learning_rate=1e-4, weight_decay=1e-4)
+    optimizer = tf.optimizers.SGD(learning_rate =0.001, momentum = 0.9 )
+    dsc = metric_dice(dim=3, vnet=True)
+    metrics = [dsc, 'Recall', 'Precision']  # [dsc]
 
 
     
     # callbacks
-    callbacks = []
-    if ReduceLROnPlateau_val == True :
+callbacks = []
+if ReduceLROnPlateau_val == True :
         # reduces learning rate if no improvement are seen
-        learning_rate_reduction = ReduceLROnPlateau(monitor='val_loss',
+    learning_rate_reduction = ReduceLROnPlateau(monitor='val_loss',
                                                     patience=patience ,
                                                     verbose=1,
                                                     factor=0.5,
                                                     min_lr=0.0000001)
-        callbacks.append(learning_rate_reduction)
+    callbacks.append(learning_rate_reduction)
 
-    if EarlyStopping_val == True :
+if EarlyStopping_val == True :
         # stop training if no improvements are seen
-        early_stop = EarlyStopping(monitor="val_loss",
+    early_stop = EarlyStopping(monitor="val_loss",
                                    mode="min",
                                    patience=int(patience // 2),
                                    restore_best_weights=True)
-        callbacks.append(early_stop)
+    callbacks.append(early_stop)
 
-    if ModelCheckpoint_val == True :
+if ModelCheckpoint_val == True :
         # saves model weights to file
         # 'model_weights.{epoch:02d}-{val_loss:.2f}.hdf5'
-        checkpoint = ModelCheckpoint(os.path.join(training_model_folder, 'model_weights.h5'),
+    checkpoint = ModelCheckpoint(os.path.join(training_model_folder, 'model_weights.h5'),
                                      monitor='val_loss',  # metric_dice
                                      verbose=1,
                                      save_best_only=True,
                                      mode='min',  # max
                                      save_weights_only=False)
-        callbacks.append(checkpoint)
+    callbacks.append(checkpoint)
 
-    if TensorBoard_val == True :
-        tensorboard_callback = TensorBoard(log_dir=logdir,
+if TensorBoard_val == True :
+    tensorboard_callback = TensorBoard(log_dir=logdir,
                                            histogram_freq=0,
                                            batch_size=batch_size,
                                            write_graph=True,
                                            write_grads=True,
                                            write_images=False)
-        callbacks.append(tensorboard_callback)
-    
-    # Define model
-    if architecture.lower() == 'vnet':
-        with strategy.scope():
-            model = VNet(image_shape,
+    callbacks.append(tensorboard_callback)
+
+
+   # Define model
+if architecture.lower() == 'vnet':
+        
+    with strategy.scope():
+        model = VNet(image_shape,
                     in_channels,
                     out_channels,
                     channels_last,
@@ -196,63 +204,33 @@ def main():
                     bottom_convolutions,
                     activation,
                     activation_last_layer).create_model()
-    else:
-        raise ValueError('Architecture ' + architecture + ' not supported. Please ' +
+else:
+    raise ValueError('Architecture ' + architecture + ' not supported. Please ' +
                          'choose one of unet|vnet.')
+with strategy.scope():
+    model.compile(loss=loss_object, optimizer=optimizer, metrics=metrics)
+
+if trained_model_path is not None:
     with strategy.scope():
-        model.compile(loss=loss_object, optimizer=optimizer, metrics=metrics)
+        model.load_weights(trained_model_path)
 
-    if trained_model_path is not None:
-        with strategy.scope():
-            model.load_weights(trained_model_path)
+print(model.summary())
 
-    print(model.summary())
-    
-    # serialize model to JSON before training
-    #model_json = model.to_json()
-    #with open(os.path.join(training_model_folder, 'architecture_{}_model_{}.json'.format(architecture, now)),
-    #          "w") as json_file:
-    #    json_file.write(model_json)
-    
-    # training model
-    """
-    history = model.fit(train_generator,
+
+history = model.fit(training_dataset,
                         steps_per_epoch=len(train_generator),
-                        validation_data=val_generator,
+                        validation_data=val_dataset,
                         validation_steps=len(val_generator),
                         epochs=epochs,
                         callbacks=callbacks,  # initial_epoch=0,
                         verbose=1
                         )
-    """ 
-
-    history = model.fit_generator(train_generator,
-                                    steps_per_epoch=len(train_generator),
-                                    validation_data=val_generator,
-                                    validation_steps=len(val_generator),
-                                    epochs=epochs,
-                                    callbacks=callbacks,  # initial_epoch=0,
-                                    verbose=1,
-                                    max_queue_size=2, 
-                                    workers = 2,
-                                    use_multiprocessing = False
-    )
 
 
     #SAVE HISTORY ? 
 
     
     # whole model saving
-    model.save(os.path.join(training_model_folder, 'trained_model_{}.h5'.format(now)))
+model.save(os.path.join(training_model_folder, 'trained_model_{}.h5'.format(now)))
     
     
-if __name__ == "__main__":
-    #parser = argparse.ArgumentParser()
-    #parser.add_argument("-c", "--config", default='config/config_3d.py', type=str,
-    #                    help="path/to/config.py")
-    #args = parser.parse_args()
-
-    #config = read_cfg(args.config)
-    #config['cfg_path'] = args.config
- 
-    main()

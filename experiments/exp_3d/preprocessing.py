@@ -12,7 +12,7 @@ from lib.datasets import DataManager
 from lib.transforms import *
 
 from lib.utils import sec2str
-
+import time 
 #put modalities in paramters 
 
 
@@ -66,7 +66,7 @@ def get_transform(subset, modalities, mode, method, tval, target_size, target_sp
     transformers = [LoadNifti(keys=keys)]  # Load NIFTI file from path
 
     if not from_pp:
-
+       
         # Generate ground-truth from PET and ROIs
         if mode == 'binary':
             transformers.append(Roi2Mask(keys=('pet_img', 'mask_img'),
@@ -76,9 +76,9 @@ def get_transform(subset, modalities, mode, method, tval, target_size, target_sp
                 Roi2MaskProbs(keys=('pet_img', 'mask_img'), mode=mode, method=method,
                               new_key_name='mask_img'))
 
-    transformers.append(ResampleReshapeAlign(target_size, target_spacing, target_direction, target_origin=None, keys=("pet_img", "ct_img", "mask_img"), test = False))
-    
-    
+        transformers.append(ResampleReshapeAlign(target_size, target_spacing, target_direction, target_origin=None, keys=("pet_img", "ct_img", "mask_img"), test = False))
+        #transformers.append(ResampleReshapeAlign(target_size, target_spacing, keys=('pet_img', 'ct_img', 'mask_img'), origin='head', origin_key='pet_img', interpolator = None, default_value=None, add_meta_info=True))
+        
     if cache_pp:
         transformers = Compose(transformers)
         return transformers
@@ -86,6 +86,7 @@ def get_transform(subset, modalities, mode, method, tval, target_size, target_sp
 
 
     # Add Data augmentation
+    
     if subset == 'train' and data_augmentation:
         translation = 10
         scaling = 0.1
@@ -96,6 +97,7 @@ def get_transform(subset, modalities, mode, method, tval, target_size, target_sp
     transformers.append(Sitk2Numpy(keys=('pet_img', 'ct_img', 'mask_img')))
 
     # Normalize input values
+    
     for modality in modalities:
         if modality == 'pet_img' : 
             modal_pp = dict(a_min=0.0, a_max=25.0, b_min=0.0, b_max=1.0, clip=True)

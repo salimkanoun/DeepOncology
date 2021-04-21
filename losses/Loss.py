@@ -137,8 +137,10 @@ def custom_robust_loss(dim):
     loss = Dice loss + CE + L1
     """
     axis = tuple(i for i in range(1, dim + 1))
+
     def loss(y_true, y_pred): 
-        y_true = tf.cast(y_true, dtype=tf.float32)
+
+        y_true = tf.cast(y_true, tf.float32)
 
         # dice
         smooth = 10.0

@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import os
-
+import time 
 
 class DataGeneratorFromDict(tf.keras.utils.Sequence):
     """A class to create a DataGenerator object for model.fit()
@@ -55,7 +55,8 @@ class DataGeneratorFromDict(tf.keras.utils.Sequence):
 
         # select indices of data for next batch
         indexes = self.indexes[index * self.batch_size: (index + 1) * self.batch_size]
-
+        #print('PREPARE THE BATCH')
+        #start_time = time.time()
         # prepare the batch
         X_batch = []
         Y_batch = []
@@ -70,6 +71,7 @@ class DataGeneratorFromDict(tf.keras.utils.Sequence):
 
         X_batch = np.array(X_batch)
         Y_batch = np.array(Y_batch)
+        #print("END BATCH --- %s seconds ---" % (time.time() - start_time))
         return X_batch, Y_batch
 
 
