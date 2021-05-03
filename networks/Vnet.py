@@ -137,6 +137,7 @@ class VNet(object):
 
     def create_model(self):
         input_shape = tuple(list(self.image_shape) + [self.in_channels])
+        
         input_ = tf.keras.layers.Input(shape=input_shape, dtype=tf.float32, name="input")
         logits = self.build_network(input_)
         if self.activation_last_layer is None:

@@ -15,18 +15,20 @@ def metric_dice(dim, vnet = True):
         :param y_pred: pred label image of shape (batch_size, z, y, x, num_class) or (batch_size, z, y, x, 1)
         :return: dice score
         """
-        smooth = 1.0
-
+        smooth = 0.1
+        #y_true = tf.cast(y_true, tf.float32)
         numerator = 2.0 * tf.math.reduce_sum(y_true * y_pred, axis=axis)
         if vnet : 
-            denominator = tf.math.reduce_sum(tf.math.square(y_true) + tf.math.square(y_pred), axis=axis)
+            #denominator = tf.math.reduce_sum(tf.math.square(y_true) + tf.math.square(y_pred), axis=axis)
+            denominator = tf.math.reduce_sum(tf.math.square(y_true), axis=axis) + tf.math.reduce_sum(tf.math.square(y_pred), axis=axis)
         else : 
-            denominator = tf.math.reduce_sum(y_true + y_pred, axis=axis)
+            #denominator = tf.math.reduce_sum(y_true + y_pred, axis=axis)
+            denominateur = tf.math.reduce_sum(y_true, axis=axis) + tf.math.reduce_sum(y_pred, axis=axis)
 
         return tf.reduce_mean((numerator + smooth) / (denominator + smooth))
 
     def dice(y_true, y_pred):
-        y_pred = tf.math.round(y_pred)
+        #y_pred = tf.math.round(y_pred)
         y_true = tf.math.round(y_true)
         return dice_similarity_coefficient(y_true, y_pred)
 
@@ -38,19 +40,26 @@ def loss_dice(dim, vnet=True):
     axis = tuple(i for i in range(1, dim + 1))
 
     def dice_similarity_coefficient(y_true, y_pred):
-        smooth = 1.0
+        smooth = 0.1
 
         y_true = tf.cast(y_true, tf.float32)
 
         numerator = 2.0 * tf.math.reduce_sum(y_true * y_pred, axis=axis)
         if vnet:
-            denominator = tf.math.reduce_sum(tf.math.square(y_true) + tf.math.square(y_pred), axis=axis)
+            #denominator = tf.math.reduce_sum(tf.math.square(y_true) + tf.math.square(y_pred), axis=axis)
+            denominator = tf.math.reduce_sum(tf.math.square(y_true), axis=axis) + tf.math.reduce_sum(tf.math.square(y_pred), axis=axis)
         else:
-            denominator = tf.math.reduce_sum(y_true + y_pred, axis=axis)
+            #denominator = tf.math.reduce_sum(y_true + y_pred, axis=axis)
+            denominateur = tf.math.reduce_sum(y_true, axis=axis) + tf.math.reduce_sum(y_pred, axis=axis)
 
         return tf.reduce_mean((numerator + smooth) / (denominator + smooth))
 
-    return 1.0 - dice_similarity_coefficient
+    def loss(y_true, y_pred):
+        #y_pred = tf.math.round(y_pred)
+        y_true = tf.math.round(y_true)
+        return 1.0 - dice_similarity_coefficient(y_true, y_pred)
+
+    return loss
 
 
 #RCE loss

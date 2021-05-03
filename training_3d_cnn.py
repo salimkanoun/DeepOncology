@@ -224,19 +224,8 @@ def main():
                         callbacks=callbacks,  # initial_epoch=0,
                         verbose=1
                         )
-    """ 
-
-    history = model.fit_generator(train_generator,
-                                    steps_per_epoch=len(train_generator),
-                                    validation_data=val_generator,
-                                    validation_steps=len(val_generator),
-                                    epochs=epochs,
-                                    callbacks=callbacks,  # initial_epoch=0,
-                                    verbose=1,
-                                    max_queue_size=2, 
-                                    workers = 2,
-                                    use_multiprocessing = False
-    )
+   
+   
 
 
     #SAVE HISTORY ? 
@@ -244,7 +233,7 @@ def main():
     
     # whole model saving
     model.save(os.path.join(training_model_folder, 'trained_model_{}.h5'.format(now)))
-    
+    """
     
 if __name__ == "__main__":
     #parser = argparse.ArgumentParser()
