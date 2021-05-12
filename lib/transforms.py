@@ -88,7 +88,7 @@ class Roi2Mask(object):
     def __init__(self, keys=('pet_img', 'mask_img'), method='otsu', tval=0.0, new_key_name=None):
         """
         :param keys: 'pet_img' must be a 3D simpleITK image
-                     'mask_img' must be a 4D simpleITK image. shape = (n_roi, _, _, _)
+                     'mask_img' must be a 3D simpleITK Vector Pixel image. shape = (x,y,z)
         :param method: method to use for calculate the threshold
                 Must be one of 'absolute', 'relative', 'otsu', 'adaptative'
         :param tval: Used only for method= 'absolute' or 'relative'. threshold value of the method.
@@ -143,6 +143,7 @@ class Roi2Mask(object):
         """
         # transform to numpy
         mask_array = sitk.GetArrayFromImage(mask_img)
+        mask_array = np.transpose(mask_array, (3,0,1,2))
         pet_array = sitk.GetArrayFromImage(pet_img)
 
         # get 3D meta information
@@ -156,9 +157,12 @@ class Roi2Mask(object):
         else:
 
             # convert false-4d meta information to 3d information
-            origin = mask_img.GetOrigin()[:-1]
-            spacing = mask_img.GetSpacing()[:-1]
-            direction = tuple(el for i, el in enumerate(mask_img.GetDirection()[:12]) if not (i + 1) % 4 == 0)
+            #origin = mask_img.GetOrigin()[:-1]
+            #spacing = mask_img.GetSpacing()[:-1]
+            #direction = tuple(el for i, el in enumerate(mask_img.GetDirection()[:12]) if not (i + 1) % 4 == 0)
+            origin = mask_img.GetOrigin()
+            spacing = mask_img.GetSpacing()
+            direction = tuple(mask_img.GetDirection())
             # size = mask_img.GetSize()[:-1]
 
         new_mask = np.zeros(mask_array.shape[1:], dtype=np.int8)
@@ -264,7 +268,7 @@ class Roi2MaskProbs(object):
             raise ValueError("method '{}' not supported. please use one of {}".format(method, "|".join(
                 ['absolute', 'relative', 'otsu', 'otsu_abs'])))
 
-    def roi2mask(self, mask_img, merged_img):
+    def roi2mask(self, mask_img, pet_img):
         """
         Generate the mask from the ROI of the pet scan
         Args:
@@ -275,7 +279,8 @@ class Roi2MaskProbs(object):
         """
         # transform to numpy
         mask_array = sitk.GetArrayFromImage(mask_img)
-        pet_array = sitk.GetArrayFromImage(merged_img)
+        mask_array = np.transpose(mask_array, (3,0,1,2))
+        pet_array = sitk.GetArrayFromImage(pet_img)
 
         # get 3D meta information
         if len(mask_array.shape) == 3:
@@ -287,9 +292,12 @@ class Roi2MaskProbs(object):
             # size = mask_img.GetSize()
         else:
             # convert false-4d meta information to 3d information
-            origin = mask_img.GetOrigin()[:-1]
-            spacing = mask_img.GetSpacing()[:-1]
-            direction = tuple(el for i, el in enumerate(mask_img.GetDirection()[:12]) if not (i + 1) % 4 == 0)
+            #origin = mask_img.GetOrigin()[:-1]
+            #spacing = mask_img.GetSpacing()[:-1]
+            #direction = tuple(el for i, el in enumerate(mask_img.GetDirection()[:12]) if not (i + 1) % 4 == 0)
+            origin = mask_img.GetOrigin()
+            spacing = mask_img.GetSpacing()
+            direction = tuple(mask_img.GetDirection())
             # size = mask_img.GetSize()[:-1]
 
 
