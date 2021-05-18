@@ -16,9 +16,9 @@ import matplotlib.pyplot as plt
 
 
 
-def inference_pet_projection(pet_array, inference_array, study_uid, patient_id, axis, directory , vmin, vmax):
+def inference_pet_projection(pet_array, inference_array, study_uid, patient_id, study, axis, directory , vmin, vmax):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 15))
-    fig.suptitle("patient_id = {} \n study_uid : {}".format(patient_id, study_uid))
+    fig.suptitle("patient_id = {} \n study_uid : {} \n study : {}".format(patient_id, study_uid, study))
 
 
     MIP_pet = np.amax(pet_array, axis = axis)
@@ -34,7 +34,7 @@ def inference_pet_projection(pet_array, inference_array, study_uid, patient_id, 
     ax2.axis('off')
     
 
-    filename = os.path.join(directory, patient_id+'_mip_inference_'+str(axis)+'.jpg')
+    filename = os.path.join(directory, study_uid+'_mip_inference_'+str(axis)+'.jpg')
     fig.savefig(filename, bbox_inches='tight')
     plt.close()
     return filename
