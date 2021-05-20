@@ -7,27 +7,27 @@ import matplotlib.pyplot as plt
 methods to decode predictions, truths and show true/false predictions 
 """
 
-def decodage_predictions(array):
+def decodage_predictions(inference):
     """[summary]
 
     Args:
-        array ([ndarray]): [ [number_of_predictions, ]]
+        inference ([list]): [ [(array_predictions_head,size=(nombre_inference,2)), (array_predictions_legs,size=(nombre_inference,3)), (array_predictions_right_arm,size=(nombre_inference,2)), (array_predictions_left_arm,size=(nombre_inference,2))]]
 
     Returns:
         [type]: [description]
     """
     result = []
-    for i in range(len(array[0])):
+    for i in range(len(inference[0])):
+        #i = number of inferences
         sub_result = []
         for j in range(0,4) : 
-            a = array[j][i].tolist()
+            #j = head,legs, right_arm, left_arm
+            a = inference[j][i].tolist()
             maxi = np.max(a)
             index = a.index(maxi)
             if j == 0 : #head 
                 if index == 0 : 
                     sub_result.append('Vertex')
-                #elif index == 1  : 
-                    #sub_result.append('Eye')
                 else : 
                     sub_result.append('Eye / Mouth')
             elif j == 1 : #leg 
@@ -54,6 +54,14 @@ def decodage_predictions(array):
 
 
 def decodage_truth(array) : 
+    """decode truth label array
+
+    Args:
+        array ([type]): [array of size (number_of_labelled_img, 4)]
+
+    Returns:
+        [type]: [description]
+    """
     truth = []
     for i in range(array.shape[0]): 
         sub = []
@@ -63,10 +71,6 @@ def decodage_truth(array) :
             sub.append('Vertex')
         else : 
             sub.append('Eye / Mouth')
-        #if liste[0] == 1 : 
-        #    sub.append('Eye')
-        #if liste[0] == 2 : 
-            #sub.append('Mouth')
         #leg 
         if liste[1] == 0 : 
             sub.append('Hips')
@@ -91,6 +95,14 @@ def decodage_truth(array) :
         
 
 def affichage(liste_array, liste_pred_label, liste_true_label, directory):
+    """generate image with true and predict labels, and save them in True or False folder.
+
+    Args:
+        liste_array ([list]): [description]
+        liste_pred_label ([list]): [description]
+        liste_true_label ([list]): [description]
+        directory ([str]): [description]
+    """
     for i in range(len(liste_array)):
         image = liste_array[i][:,:,0]
         f = plt.figure(figsize=(5,8))

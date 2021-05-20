@@ -81,15 +81,15 @@ class JSON_TO_CSV :
 
             maj_data.append(liste)
         
-        folder = os.listdir(img_png_directory) 
+        folder = os.listdir(image_png_directory) 
         
         for image in maj_data : 
             study_uid = image[0]
             for fold in folder : 
-                liste_mip = os.listdir(img_png_directory+'/'+fold)
+                liste_mip = os.listdir(image_png_directory+'/'+fold)
                 for mip in liste_mip : 
                     if study_uid in mip : 
-                        image.append(img_png_directory+'/'+fold+'/'+mip)
+                        image.append(image_png_directory+'/'+fold+'/'+mip)
 
 
         with open(os.path.join(csv_directory, 'classification_dataset.csv'), 'w') as csv_file : 

@@ -35,7 +35,7 @@ class Preprocessing:
         for serie in self.dataset : 
 
             instance_object = Instance(serie[1]) 
-            instance_array = instance_object.ct_array #matrice normalisé
+            instance_array = instance_object.image_2d #matrice normalisé
             liste.append(instance_array)
                 
             #encoding

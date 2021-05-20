@@ -6,6 +6,7 @@ import csv
 import os 
 import pandas as pd 
 import tensorflow as tf 
+import datetime
 from sklearn.model_selection import train_test_split 
 from classification.tools.prepare_csv_from_json import *
 from classification.pre_process.Preprocessing import Preprocessing 
@@ -19,9 +20,9 @@ model_directory = 'path/save/model'
 
 objet = JSON_TO_CSV(json_path)
 csv_path = objet.result_csv(image_directory, model_directory)
-print(objet.csv_path)
+print(objet.dataset)
 
-preprocessing_objet = Preprocessing(objet.csv_path)
+preprocessing_objet = Preprocessing(csv_path)
 X, y = preprocessing_objet.normalize_encoding_dataset()
 
 X_train, X_test, y_train, y_test = train_test_split(X,y, random_state = 42, test_size = 0.15) #random state 
@@ -56,12 +57,12 @@ model.compile(optimizer = optimizer,
 
 now = datetime.now().strftime("%Y%m%d-%H:%M:%S")
 training_model_folder = os.path.join(model_directory, now)  # '/path/to/folder'
-    if not os.path.exists(training_model_folder):
-        os.makedirs(training_model_folder)
+if not os.path.exists(training_model_folder):
+    os.makedirs(training_model_folder)
             
 log_dir = os.path.join(training_model_folder, 'logs')
-if not os.path.exists(logdir):
-    os.makedirs(logdir)
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
 
 
 tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, update_freq='epoch', write_graph=True, write_images=True)
