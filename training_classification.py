@@ -7,21 +7,22 @@ import os
 import pandas as pd 
 import tensorflow as tf 
 from sklearn.model_selection import train_test_split 
-print("Num GPU available: ", len(tf.config.list_physical_devices('GPU')))
-from classification.pre_process.Prep_CSV import Prep_CSV
+from classification.tools.prepare_csv_from_json import *
 from classification.pre_process.Preprocessing import Preprocessing 
-from classification.model.classification import *
-from utils.modality_CT import *
+from networks.classification import *
+from classification.tools.generate_2d_image import *
 
 
 json_path = '/media/deeplearning/78ca2911-9e9f-4f78-b80a-848024b95f92/result.json'
-nifti_directory = '/media/deeplearning/78ca2911-9e9f-4f78-b80a-848024b95f92'
-objet = Prep_CSV(json_path)
-objet.result_csv(nifti_directory)
-print(objet.csv_result_path)
+image_directory = 'path/to/directory/image_png'
+model_directory = 'path/save/model'
 
-prep_objet = Preprocessing(objet.csv_result_path)
-X, y = prep_objet.normalize_encoding_dataset()
+objet = JSON_TO_CSV(json_path)
+csv_path = objet.result_csv(image_directory, model_directory)
+print(objet.csv_path)
+
+preprocessing_objet = Preprocessing(objet.csv_path)
+X, y = preprocessing_objet.normalize_encoding_dataset()
 
 X_train, X_test, y_train, y_test = train_test_split(X,y, random_state = 42, test_size = 0.15) #random state 
 X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, random_state = 42, test_size = 0.15)
@@ -53,9 +54,15 @@ model.compile(optimizer = optimizer,
                     'leg':['accuracy']}) #a voir pour loss
 
 
-log_dir = '/home/deeplearning/Deep_Learning_result/classic_model_test/logs_21_10_2020'
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
+now = datetime.now().strftime("%Y%m%d-%H:%M:%S")
+training_model_folder = os.path.join(model_directory, now)  # '/path/to/folder'
+    if not os.path.exists(training_model_folder):
+        os.makedirs(training_model_folder)
+            
+log_dir = os.path.join(training_model_folder, 'logs')
+if not os.path.exists(logdir):
+    os.makedirs(logdir)
+
 
 tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, update_freq='epoch', write_graph=True, write_images=True)
 
@@ -70,7 +77,6 @@ history = model.fit(X_train, {'head': y_train[:,0],
                         epochs = 20, 
                         batch_size = 256, 
                         verbose = 1, 
-                        #validation_split= 0.20,
                         validation_data = (X_val, {'head': y_val[:,0], 
                                     'leg': y_val[:,1],
                                     'right_arm' : y_val[:,2],
@@ -82,12 +88,12 @@ history = model.fit(X_train, {'head': y_train[:,0],
 
 hist_df = pd.DataFrame(history.history)
 hist_json_file = 'history.json'
-with open('/home/deeplearning/Deep_Learning_result/classic_model_test'+'/'+hist_json_file, mode = 'w') as f : 
+with open(model_directory+'/'+hist_json_file, mode = 'w') as f : 
     hist_df.to_json(f)
 print("history saved")
 
 #save 
-folder = '/home/deeplearning/Deep_Learning_result/classic_model_test'
-if not os.path.exists(folder) : 
-    os.makedirs(folder)
-model.save(folder + '/' + 'classic_model', save_format='h5')
+model.save(model_directory + '/' + 'classification_model', save_format='h5')
+print('model saved as .h5')
+model.save(model_directory+'/'+ 'classification_model_fold')
+print('model saved')

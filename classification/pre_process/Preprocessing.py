@@ -1,8 +1,7 @@
 import numpy as np 
 import SimpleITK as sitk 
 import csv
-from classification.pre_process.Prep_Instance import Prep_Instance
-import pandas as pd 
+from classification.pre_process.Instance import Instance
 
 
 class Preprocessing:
@@ -10,7 +9,7 @@ class Preprocessing:
     """
 
     def __init__(self, csv_path): 
-        """ csv contains path png and json with annotation
+        """ csv contains [study_uid, png_path_img, upper_limit, lower_limit, right_arm, left_arm] on each row
         """
         self.csv_path = csv_path
         self.dataset = self.extract_dataset()
@@ -32,39 +31,17 @@ class Preprocessing:
     def normalize_encoding_dataset(self):
         liste = []
         label = []
-        #liste_test = []
-        #label_test = []
-        #liste_val = []
-        #label_val = []
+ 
         for serie in self.dataset : 
-            #if "train" in serie : 
-            #sub = []
-            instance_object = Prep_Instance(serie[1]) 
+
+            instance_object = Instance(serie[1]) 
             instance_array = instance_object.ct_array #matrice normalisé
-            #sub.append(serie[0])
-            #sub.append(instance_array)
             liste.append(instance_array)
                 
-                #encoding
+            #encoding
             subliste = instance_object.encoding_instance(serie)
             label.append(subliste)
-            #elif "test" in serie : 
-                #instance_object = Prep_Instance(serie[1]) 
-                #instance_array = instance_object.ct_norm_array #matrice normalisé
-                #liste_test.append(instance_array)
-                
-                #encoding
-                #subliste = instance_object.encoding_instance(serie)
-                #label_test.append(subliste)
 
-            #else : #val
-                #instance_object = Prep_Instance(serie[1]) 
-                #instance_array = instance_object.ct_norm_array #matrice normalisé
-                #liste_val.append(instance_array)
-                
-                #encoding
-                #subliste = instance_object.encoding_instance(serie)
-                #label_val.append(subliste)
         return np.asarray(liste), np.asarray(label)
 
 

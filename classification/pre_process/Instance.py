@@ -3,14 +3,14 @@ import SimpleITK as sitk
 import json 
 from PIL import Image 
 
-class Prep_Instance : 
+class Instance : 
     """class to prepare an instance : transform png -> array, + encoding labels (for one image)
     """
 
     def __init__(self, png_img_path):
         self.png_img_path = png_img_path 
-        self.ct_array = self.normalise_instance()
-        self.ct_array = np.reshape(self.ct_array, (self.ct_array.shape[0], self.ct_array.shape[1], 1))
+        self.image_2d = self.normalise_instance()
+        self.image_2d = np.reshape(self.image_2d, (self.image_2d.shape[0], self.image_2d.shape[1], 1))
 
     def normalise_instance(self): 
         img = Image.open(self.png_img_path).convert('LA')
@@ -20,18 +20,16 @@ class Prep_Instance :
 
         return array
 
-    """
-    def normalize_instance(self):
-        intensityWindowingFilter = sitk.IntensityWindowingImageFilter()
-        intensityWindowingFilter.SetOutputMaximum(1)
-        intensityWindowingFilter.SetOutputMinimum(0)
-        new_img = intensityWindowingFilter.Execute(self.ct_img)
 
-        return new_img 
-    """
-
-    #ici mettre methode encodage pour une instance 
     def encoding_instance(self, liste):
+        """encoding label 
+
+        Args:
+            liste ([list]): [study_id, png_img_path, upper_limit, lower_limit, right_arm, left_arm]
+
+        Returns:
+            [list]: [return a list with encoded labels ]
+        """
         label = []
     
         #upper Limit 
@@ -43,7 +41,7 @@ class Prep_Instance :
         #lower Limit
         if liste[3] == 'Hips' : 
             label.append(0)
-        if liste[3] == 'Knee': # or liste[3] == 'Foot': 
+        if liste[3] == 'Knee': 
             label.append(1)
         if liste[3] == 'Foot':
             label.append(2)
