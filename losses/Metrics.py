@@ -35,6 +35,7 @@ def IoU(y_true, y_pred):
     return jaccard(y_true.flatten(), y_pred.flatten())
 
 
+
 def metric_dice(y_true, y_pred, axis=(1, 2, 3, 4)):
     """
     compute dice score for multi-class prediction
@@ -46,14 +47,12 @@ def metric_dice(y_true, y_pred, axis=(1, 2, 3, 4)):
 
     :return: dice score, ndarray of shape (batch_size,)
     """
-    smooth = 0.1
-
-    y_true = np.round(y_true)
-    y_pred = np.round(y_pred)
-
+    smooth = 0.0
+    #y_true = np.round(y_true)
+    #y_pred = np.round(y_pred)
     numerator = 2 * np.sum(y_true * y_pred, axis=axis)
-    denominator = np.sum(y_true + y_pred, axis=axis)
 
+    denominator = np.sum(y_true, axis=axis) + np.sum(y_pred, axis=axis)
     return (numerator + smooth) / (denominator + smooth)
 
 
