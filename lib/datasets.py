@@ -41,7 +41,7 @@ class DataManager(object):
             return self.split_train_val_test_split(X, y, random_state=self.seed)
         else:
             df = pd.read_csv(self.csv_path)
-            df = df[df['PET'] == 'pet0']  # select only pet 0 exam
+            #df = df[df['PET'] == 'pet0']  # select only pet 0 exam
             
             if 'subset' not in df.columns:
                 key_split = 'PATIENT_ID'  # unique id
