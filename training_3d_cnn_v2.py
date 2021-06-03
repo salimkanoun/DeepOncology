@@ -126,6 +126,7 @@ def main() :
     
     write_json_file(training_model_folder, 'test_dataset', test_images_paths)
 
+   
     train_generator = DataGeneratorFromDict(train_images_paths,
                                                 train_transforms,
                                                 batch_size=batch_size,
@@ -247,6 +248,5 @@ def main() :
         # whole model saving
     model.save(os.path.join(training_model_folder, 'trained_model_{}.h5'.format(now)))
         
-
 if __name__ == "__main__":
     main()
