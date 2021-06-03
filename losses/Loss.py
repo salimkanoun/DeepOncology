@@ -65,7 +65,6 @@ def loss_dice(dim, vnet=True):
 #RCE loss
 def rce_loss(y_true, y_pred):
     ce_loss = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
-
     return tf.reduce_mean(ce_loss(y_true, y_pred) + ce_loss(y_pred, y_true))
 
 #TVERSKY Loss 
@@ -172,7 +171,6 @@ def custom_robust_loss(dim):
 
 def transform_to_onehot(y_true, y_pred):
     num_classes = y_pred.shape[-1]
-
     indices = tf.cast(y_true, dtype=tf.int32)
     onehot_labels = tf.one_hot(indices=indices, depth=num_classes, dtype=tf.float32, name='onehot_labels')
     return onehot_labels, y_pred
