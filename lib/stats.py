@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 
 from library_dicom.dicom_processor.tools.threshold_mask import * 
 from library_dicom.post_processing.WatershedModel import WatershedModel
-#from losses.Metrics import * 
-from Metrics import * 
+from losses.Metrics import * 
+
 
 def get_array_from_nifti(nifti_path): 
     img = sitk.ReadImage(nifti_path)
@@ -124,6 +124,9 @@ def calcul_tmtv(pred_array, true_array, pet_array, spacing, thresh = 0.41):
 
 def calcul_mean_on_tmtv(list_tmtv_pred, list_tmtv_true):
     return np.mean(np.array(list_tmtv_pred)), np.mean(np.array(list_tmtv_true))
+
+def calcul_median_on_tmtv(list_tmtv_pred, list_tmtv_true):
+    return np.median(np.array(list_tmtv_pred)), np.median(np.array(list_tmtv_true))
 
 def calcul_min_tmtv(list_tmtv_pred, list_tmtv_true):
     return np.min(np.array(list_tmtv_pred)), np.min(np.array(list_tmtv_true))

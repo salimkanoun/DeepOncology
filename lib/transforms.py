@@ -393,16 +393,13 @@ class ResampleReshapeAlign(object):
         img_dict['meta_info']['original_origin'] = img_dict['pet_img'].GetOrigin()
         img_dict['meta_info']['original_direction'] = img_dict['pet_img'].GetDirection()
 
-        #1
-        
-        fusion_object = Fusion(img_dict[self.keys[0]], img_dict[self.keys[1]], self.target_size, self.target_spacing, self.target_direction, mode ='dict') 
+        #1 : PET AND CT 
+        fusion_object = Fusion(img_dict[self.keys[0]], img_dict[self.keys[1]], self.target_size, self.target_spacing, self.target_direction) 
         img_dict[self.keys[0]], img_dict[self.keys[1]] = fusion_object.resample(mode='head')
         
-
-        #2
+        #2 : MASK AND PET
         if self.test != True : 
-           
-            fusion_mask_object = FusionMask(img_dict[self.keys[0]], img_dict[self.keys[2]], self.target_size, self.target_spacing, self.target_direction, mode ='dict')
+            fusion_mask_object = FusionMask(img_dict[self.keys[0]], img_dict[self.keys[2]], self.target_size, self.target_spacing, self.target_direction)
             img_dict[self.keys[2]] = fusion_mask_object.resample()
             
 
@@ -416,7 +413,6 @@ class ResampleReshapeAlign(object):
 
 class AverageImage(object):
     """A class to applied average on several ndarray
-
 
     """
 

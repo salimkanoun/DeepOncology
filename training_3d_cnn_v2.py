@@ -22,7 +22,7 @@ from library_dicom.dicom_processor.tools.folders import *
 
 
 
-csv_path = '/media/oncopole/DD 2To/SEGMENTATION/SEG_NIFTI_PATH.csv'
+csv_path = '/media/oncopole/DD 2To/SEGMENTATION/SEG_NIFTI_PATH_V2.csv'
 pp_dir = None 
 
 #### PRE PROCESSING #####
@@ -88,6 +88,7 @@ activation_last_layer= 'sigmoid'
 
 
 def main() : 
+    
     now = datetime.now().strftime("%Y%m%d-%H:%M:%S")
 
     training_model_folder = os.path.join(training_model_folder_name, now)  # '/path/to/folder'
@@ -105,7 +106,7 @@ def main() :
         os.makedirs(cachedir_train)
     if not os.path.exists(cachedir_val):
         os.makedirs(cachedir_val)
-
+    
         # multi gpu training strategy
     strategy = tf.distribute.MirroredStrategy()
 
@@ -125,6 +126,7 @@ def main() :
     
     write_json_file(training_model_folder, 'test_dataset', test_images_paths)
 
+   
     train_generator = DataGeneratorFromDict(train_images_paths,
                                                 train_transforms,
                                                 batch_size=batch_size,
@@ -246,6 +248,5 @@ def main() :
         # whole model saving
     model.save(os.path.join(training_model_folder, 'trained_model_{}.h5'.format(now)))
         
-    
 if __name__ == "__main__":
     main()
