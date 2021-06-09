@@ -165,10 +165,10 @@ class Roi2Mask(object):
             direction = tuple(mask_img.GetDirection())
             # size = mask_img.GetSize()[:-1]
 
-        new_mask = np.zeros(mask_array.shape[1:], dtype=np.int8)
+        new_mask = np.zeros(mask_array.shape[0:3], dtype=np.int8)
 
-        for num_slice in range(mask_array.shape[0]):
-            mask_slice = mask_array[num_slice] #ROI 3D MATRIX
+        for num_slice in range(mask_array.shape[-1]):
+            mask_slice = mask_array[:,:,:,num_slice] #ROI 3D MATRIX
             roi = pet_array[mask_slice > 0]
             if len(roi) == 0:
                 # R.O.I is empty
@@ -235,7 +235,12 @@ class Roi2MaskProbs(object):
 
         a, b = (lower - mu) / std, (upper - mu) / std
 
-        return truncnorm.cdf(roi / np.max(roi), a, b, loc=mu, scale=std)
+        return truncnorm.cdf(roi / np.max(roi), a, b, loc=mu, scale=std) #cdf cumulative distribution function
+        #of a real-valued random variable X, or just distribution function of X, 
+        # evaluated at x, is the probability that X will take a value less than or equal to x.
+        #The CDF provides the cumulative probability for each x-value
+
+
         # return uniform.cdf(roi / np.max(roi), loc=lower, scale=upper - lower)
 
     def absolute_seg(self, roi):
@@ -307,10 +312,10 @@ class Roi2MaskProbs(object):
             
             new_masks = []
             for method in ['otsu', 'absolute']:
-                new_mask = np.zeros(mask_array.shape[1:], dtype=np.float64)
+                new_mask = np.zeros(mask_array.shape[0:3], dtype=np.float64)
 
-                for num_slice in range(mask_array.shape[0]):
-                    mask_slice = mask_array[num_slice]  # R.O.I
+                for num_slice in range(mask_array.shape[-1]):
+                    mask_slice = mask_array[:,:,:,num_slice]  # R.O.I
                     roi = pet_array[mask_slice > 0]
                     if len(roi) == 0:
                         continue
@@ -334,13 +339,13 @@ class Roi2MaskProbs(object):
             return new_mask
 
         else : 
-            
+            #mask_array (z,y,x,c)
             new_masks = []
             for method in self.method:
-                new_mask = np.zeros(mask_array.shape[1:], dtype=np.float64) #len(new_mask.shape) = 3
+                new_mask = np.zeros(mask_array.shape[0:3], dtype=np.float64) #len(new_mask.shape) = 3
 
-                for num_slice in range(mask_array.shape[0]):
-                    mask_slice = mask_array[num_slice]  # R.O.I #matrix 3D
+                for num_slice in range(mask_array.shape[-1]):
+                    mask_slice = mask_array[:,:,:,num_slice]  # R.O.I #matrix 3D
                     roi = pet_array[mask_slice > 0] #vecteur 
                     if len(roi) == 0:
                         continue
