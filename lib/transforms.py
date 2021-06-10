@@ -1,4 +1,5 @@
 import sys
+from typing import DefaultDict
 
 import numpy as np
 import SimpleITK as sitk
@@ -10,8 +11,7 @@ from scipy.stats import truncnorm, uniform
 import time 
 
 from .utils import get_study_uid
-from library_dicom.dicom_processor.model.Fusion import Fusion 
-from library_dicom.dicom_processor.model.FusionMask import FusionMask 
+from dicom_to_cnn.model.fusion.Fusion import Fusion 
 
 """Classes for pre-processing : read NIFTI, threshold mask, reshape PET/CT/mask, 
     scale intensity, concatenate PET/CT ... 
@@ -398,16 +398,19 @@ class ResampleReshapeAlign(object):
         img_dict['meta_info']['original_origin'] = img_dict['pet_img'].GetOrigin()
         img_dict['meta_info']['original_direction'] = img_dict['pet_img'].GetDirection()
 
-        #1 : PET AND CT 
-        fusion_object = Fusion(img_dict[self.keys[0]], img_dict[self.keys[1]], self.target_size, self.target_spacing, self.target_direction) 
-        img_dict[self.keys[0]], img_dict[self.keys[1]] = fusion_object.resample(mode='head')
-        
-        #2 : MASK AND PET
-        if self.test != True : 
-            fusion_mask_object = FusionMask(img_dict[self.keys[0]], img_dict[self.keys[2]], self.target_size, self.target_spacing, self.target_direction)
-            img_dict[self.keys[2]] = fusion_mask_object.resample()
-            
+        fusion_objet = Fusion()
+        fusion_objet.set_origin_image(img_dict['pet_img'])
+        fusion_objet.set_target_volume(self.target_size, self.target_spacing, self.target_direction)
+        #pet 
+        img_dict['pet_img'] = fusion_objet.resample(img_dict['pet_img'], defaultValuePixel = 0.0)
 
+        #ct 
+        img_dict['ct_img'] = fusion_objet.resample(img_dict['ct_img'], defaultValuePixel = -1000.0)
+
+        #mask 
+        if self.test != True : 
+            img_dict['mask_img'] = fusion_objet.resample(img_dict['mask_img'], defaultValuePixel = 0.0)
+            
         # save meta information of preprocessed data
         img_dict['meta_info']['new_size'] = img_dict['pet_img'].GetSize()
         img_dict['meta_info']['new_spacing'] = img_dict['pet_img'].GetSpacing()
