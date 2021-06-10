@@ -28,18 +28,18 @@ pp_dir = None
 #### PRE PROCESSING #####
 
 modalities = ('pet_img', 'ct_img')
-mode = ['binary', 'probs', 'mean_probs'][1]
-method = ['otsu', 'absolute', 'relative', 'otsu_abs'][0:3]
 
-# To run on a mean ground-truth of multiple run
-# mode, method = 'probs', 
-#method = ['otsu', 'absolute', 'relative']
+#iIF mode == binary : choose a method 
+#mode = 'binary'
+#method = ['relative', 'absolute', 'otsu'][0]
+#tval = 0.41 for relative, 2.5 for absolute. No need for otsu 
 
-#[if mode = binary & method = relative : t_val = 0.42
-#if mode = binary & method = absolute : t_val = 2.5, 
-#else : don't need tval]
-tval_rel = 0.42
-tval_abs = 2.5
+#ELSE mode == probs
+mode = 'probs'
+# automatically calcul the segmentation mask with method : otsu, 41%, 2.5 and 4.0
+
+
+
 target_size = (128, 128, 256)
 target_spacing = (4.0, 4.0, 4.0)
 target_direction = (1,0,0,0,1,0,0,0,1)
@@ -112,7 +112,7 @@ def main() :
 
         # Get Data path and transforms
         #get_data function from exp_3D/preprocessing 
-    dataset, train_transforms, val_transforms = get_data(pp_dir, csv_path, modalities, mode, method, tval_rel, target_size, target_spacing, target_direction, target_origin=None , data_augmentation=True, from_pp=from_pp, cache_pp=cache_pp, pp_flag=pp_flag)
+    dataset, train_transforms, val_transforms = get_data(pp_dir, csv_path, modalities, mode, None, None , target_size, target_spacing, target_direction, target_origin=None , data_augmentation=True, from_pp=from_pp, cache_pp=cache_pp, pp_flag=pp_flag)
         #dataset = dict('train' : [{ct pet mask}, {},] 
         #                'test' : [{ct pet mask}, {},] 
         #                 'val' : [{ct pet mask}, {}, ])

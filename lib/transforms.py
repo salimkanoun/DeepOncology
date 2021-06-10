@@ -85,7 +85,7 @@ class Roi2Mask(object):
     Apply threshold-based method to determine the segmentation from the ROI
     """
 
-    def __init__(self, keys=('pet_img', 'mask_img'), method='otsu', tval=0.0, new_key_name=None):
+    def __init__(self, keys=('pet_img', 'mask_img'), method='otsu', tval=0.41, new_key_name=None):
         """
         :param keys: 'pet_img' must be a 3D simpleITK image
                      'mask_img' must be a 3D simpleITK Vector Pixel image. shape = (x,y,z)
@@ -142,30 +142,19 @@ class Roi2Mask(object):
         :return: sitk image, the ground truth segmentation
         """
         # transform to numpy
-        mask_array = sitk.GetArrayFromImage(mask_img)
-        mask_array = np.transpose(mask_array, (3,0,1,2))
-        pet_array = sitk.GetArrayFromImage(pet_img)
+        origin = mask_img.GetOrigin()
+        spacing = mask_img.GetSpacing()
+        direction = tuple(mask_img.GetDirection())
+        mask_array = sitk.GetArrayFromImage(mask_img) #[z,y,x,C]
+        pet_array = sitk.GetArrayFromImage(pet_img) #[z,y,x]
 
         # get 3D meta information
         if len(mask_array.shape) == 3:
-            mask_array = np.expand_dims(mask_array, axis=0)
+            mask_array = np.expand_dims(mask_array, axis=0) #[1,z,y,x]
+        else : 
+            mask_array = np.transpose(mask_array, (3,0,1,2)) #[C,z,y,x]
 
-            origin = mask_img.GetOrigin()
-            spacing = mask_img.GetSpacing()
-            direction = tuple(mask_img.GetDirection())
-            # size = mask_img.GetSize()
-        else:
-
-            # convert false-4d meta information to 3d information
-            #origin = mask_img.GetOrigin()[:-1]
-            #spacing = mask_img.GetSpacing()[:-1]
-            #direction = tuple(el for i, el in enumerate(mask_img.GetDirection()[:12]) if not (i + 1) % 4 == 0)
-            origin = mask_img.GetOrigin()
-            spacing = mask_img.GetSpacing()
-            direction = tuple(mask_img.GetDirection())
-            # size = mask_img.GetSize()[:-1]
-
-        new_mask = np.zeros(mask_array.shape[1:], dtype=np.int8)
+        new_mask = np.zeros(mask_array.shape[1:], dtype=np.int8) #[z,y,x]
 
         for num_slice in range(mask_array.shape[0]):
             mask_slice = mask_array[num_slice] #ROI 3D MATRIX
@@ -175,7 +164,6 @@ class Roi2Mask(object):
                 continue
             try:
                 threshold = self.calculate_threshold(roi)
-
                 # apply threshold
                 new_mask[np.where((pet_array >= threshold) & (mask_slice > 0))] = 1
 
@@ -191,19 +179,118 @@ class Roi2Mask(object):
 
         return new_mask
 
-
 class Roi2MaskProbs(object):
     """
-    Apply threshold-based method to calculate the non-binary (probs) segmentation from the ROI
+    Apply threshold-based method to calculate the non-binary (probs) segmentation from the ROI, with otsu seg, 41%, 2.5 and 4 threhsold
     """
 
-    def __init__(self, keys=('pet_img', 'mask_img'),mode = ['probs'], method=['otsu'],
-                 new_key_name='mask_img'):
+    def __init__(self, keys=('pet_img', 'mask_img'), new_key_name=None):
         """
         :param keys: (pet_img, roi_img) : (3D SimpleITK img, 4D SimpleITK img)
         :param method: method to use for calculate the threshold
                 Must be one of 'absolute', 'relative', 'otsu', 'adaptative'
         """
+        self.keys = (keys,) if isinstance(keys, str) else keys
+
+        self.keys = keys
+        self.new_key_name = new_key_name if new_key_name is not None else keys[1]
+
+
+    def __call__(self, img_dict):
+        pet_key = self.keys[0]
+        roi_key = self.keys[1]
+
+        img_dict[self.new_key_name] = self.roi2mask(img_dict[roi_key], img_dict[pet_key])
+        return img_dict
+
+
+    def __roi_seg(self, mask_array:np.ndarray, pet_array:np.ndarray, threshold:str='0.41'): 
+        """otsu segmentation of mask_array np.ndarray
+
+        Args:
+            mask_array (np.ndarray): [shape [c,z,y,x]]
+            pet_array (np.ndarray): [shape [z,y,x]]
+            threshold (str): ['otsu', '0.41', '2.5', and '4.0']
+
+        Returns:
+            [np.ndarray]: [shape [z,y,x]]
+        """
+        new_mask = np.zeros(mask_array.shape[1:], dtype=np.uint8)
+        for num_slice in range(mask_array.shape[0]):
+            mask_slice = mask_array[num_slice]  # R.O.I
+            roi = pet_array[mask_slice > 0]
+            if len(roi) == 0:
+                continue
+            try:
+                        # apply threshold
+                if threshold == 'otsu' : 
+                    t = filters.threshold_otsu(roi)
+                if threshold == '0.41' : 
+                    t = np.max(roi) * float(threshold)
+                if threshold == '2.5' or threshold == '4.0' : 
+                    t = float(threshold)
+                new_mask[np.where((pet_array >= t) & (mask_slice > 0))] = 1
+            except Exception as e:
+                        print(e)
+                        print(sys.exc_info()[0])
+        return new_mask
+
+
+    def roi2mask(self, mask_img, pet_img):
+        """
+        Generate the mask from the ROI of the pet scan
+        Args:
+            :param mask_img: sitk image, raw mask (i.e ROI)
+            :param pet_img: sitk image, the corresponding pet scan
+
+        :return: sitk image, the ground truth segmentation
+        """
+        # transform to numpy
+        origin = mask_img.GetOrigin()
+        spacing = mask_img.GetSpacing()
+        direction = tuple(mask_img.GetDirection())
+        mask_array = sitk.GetArrayFromImage(mask_img)
+        pet_array = sitk.GetArrayFromImage(pet_img)
+
+        # get 3D meta information
+        if len(mask_array.shape) == 3:
+            mask_array = np.expand_dims(mask_array, axis=0)
+        else:
+            mask_array = np.transpose(mask_array, (3,0,1,2))
+
+        new_masks = []
+        #otsu 
+        new_masks.append(self.__roi_seg(mask_array, pet_array, threshold='otsu'))
+        #41%
+        new_masks.append(self.__roi_seg(mask_array, pet_array, threshold='0.41'))
+        #2.5
+        new_masks.append(self.__roi_seg(mask_array, pet_array, threshold='2.5'))
+        #4.0
+        new_masks.append(self.__roi_seg(mask_array, pet_array, threshold='4.0'))
+
+        new_mask = np.mean(np.array(new_masks), axis=0)
+
+        # reconvert to sitk and restore 3D meta-information
+        new_mask = sitk.GetImageFromArray(new_mask)
+        new_mask.SetOrigin(origin)
+        new_mask.SetDirection(direction)
+        new_mask.SetSpacing(spacing)
+
+        return new_mask
+
+"""
+class Roi2MaskProbs(object):
+   
+    #Apply threshold-based method to calculate the non-binary (probs) segmentation from the ROI
+    
+
+    def __init__(self, keys=('pet_img', 'mask_img'),mode = ['probs'], method=['otsu'],
+                 new_key_name='mask_img'):
+        
+        #:param keys: (pet_img, roi_img) : (3D SimpleITK img, 4D SimpleITK img)
+        #:param method: method to use for calculate the threshold
+        #        Must be one of 'absolute', 'relative', 'otsu', 'adaptative'
+        
         self.keys = (keys,) if isinstance(keys, str) else keys
 
         self.keys = keys
@@ -225,8 +312,8 @@ class Roi2MaskProbs(object):
         return img_dict
 
     def relative_seg(self, roi):
-        """Return a truncated mask array 
-        """
+        #Return a truncated mask array 
+        
         # lower, upper = 0.33, 0.60
         # mu, std = 0.42, 0.06
 
@@ -244,8 +331,8 @@ class Roi2MaskProbs(object):
         # return uniform.cdf(roi / np.max(roi), loc=lower, scale=upper - lower)
 
     def absolute_seg(self, roi):
-        """Return a truncated mask array 
-        """
+        #Return a truncated mask array 
+        
         # lower, upper = 2.0, 4.0
         # mu, std = 2.5, 0.5
 
@@ -274,14 +361,14 @@ class Roi2MaskProbs(object):
                 ['absolute', 'relative', 'otsu', 'otsu_abs'])))
 
     def roi2mask(self, mask_img, pet_img):
-        """
-        Generate the mask from the ROI of the pet scan
-        Args:
-            :param mask_img: sitk image, raw mask (i.e ROI)
-            :param pet_img: sitk image, the corresponding pet scan
+        
+        #Generate the mask from the ROI of the pet scan
+        #Args:
+        #    :param mask_img: sitk image, raw mask (i.e ROI)
+        #    :param pet_img: sitk image, the corresponding pet scan
 
-        :return: sitk image, the ground truth segmentation
-        """
+        #:return: sitk image, the ground truth segmentation
+        
         # transform to numpy
         mask_array = sitk.GetArrayFromImage(mask_img)
         mask_array = np.transpose(mask_array, (3,0,1,2))
@@ -370,12 +457,11 @@ class Roi2MaskProbs(object):
             new_mask.SetSpacing(spacing)
 
             return new_mask
+""" 
 
 class ResampleReshapeAlign(object):
     """
-    1) resample, reshape align PT and CT 
-       2) resample reshape align MASK and PT 
-
+    resample reshape and align PET CT and MASK
     Args:
         object ([type]): [description]
     """

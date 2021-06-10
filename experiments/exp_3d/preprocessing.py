@@ -54,9 +54,10 @@ def get_transform(subset, modalities, mode, method, tval, target_size, target_sp
         
         subset ([str]): [train, val or test]
         modalities ([tuple]): [('pet_img, ct_img') or ('pet_img')]
-        mode ([list]): [binary, probs or mean_props] !!!!!
-        method ([list]): [relative, absolute, otsu, otsu_abs] !!!!!! CHECK HERE 
-        tval ([dict]) : [if mode = binary & method = relative : 0.42
+        mode ([str]): [binary or probs]
+        method ([str]): [ if binary, choose between : relative, absolute or otsu
+                            else : method = []  ]
+        tval ([float]) : [if mode = binary & method = relative : 0.41
                           if mode = binary & method = absolute : 2.5, 
                           else : don't need tval, tval = 0.0 ]
 
@@ -66,15 +67,13 @@ def get_transform(subset, modalities, mode, method, tval, target_size, target_sp
     transformers = [LoadNifti(keys=keys)]  # Load NIFTI file from path
 
     if not from_pp:
-       
         # Generate ground-truth from PET and ROIs
         if mode == 'binary':
             transformers.append(Roi2Mask(keys=('pet_img', 'mask_img'),
                                          method=method, tval=tval))
         else : 
             transformers.append(
-                Roi2MaskProbs(keys=('pet_img', 'mask_img'), mode=mode, method=method,
-                              new_key_name='mask_img'))
+                Roi2MaskProbs(keys=('pet_img', 'mask_img'), new_key_name='mask_img'))
 
         transformers.append(ResampleReshapeAlign(target_size, target_spacing, target_direction, target_origin=None, keys=("pet_img", "ct_img", "mask_img"), test = False))
         #transformers.append(ResampleReshapeAlign(target_size, target_spacing, keys=('pet_img', 'ct_img', 'mask_img'), origin='head', origin_key='pet_img', interpolator = None, default_value=None, add_meta_info=True))
@@ -82,8 +81,6 @@ def get_transform(subset, modalities, mode, method, tval, target_size, target_sp
     if cache_pp:
         transformers = Compose(transformers)
         return transformers
-
-
 
     # Add Data augmentation
     
