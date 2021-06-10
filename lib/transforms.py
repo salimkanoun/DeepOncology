@@ -165,10 +165,10 @@ class Roi2Mask(object):
             direction = tuple(mask_img.GetDirection())
             # size = mask_img.GetSize()[:-1]
 
-        new_mask = np.zeros(mask_array.shape[0:3], dtype=np.int8)
+        new_mask = np.zeros(mask_array.shape[1:], dtype=np.int8)
 
-        for num_slice in range(mask_array.shape[-1]):
-            mask_slice = mask_array[:,:,:,num_slice] #ROI 3D MATRIX
+        for num_slice in range(mask_array.shape[0]):
+            mask_slice = mask_array[num_slice] #ROI 3D MATRIX
             roi = pet_array[mask_slice > 0]
             if len(roi) == 0:
                 # R.O.I is empty
@@ -312,10 +312,10 @@ class Roi2MaskProbs(object):
             
             new_masks = []
             for method in ['otsu', 'absolute']:
-                new_mask = np.zeros(mask_array.shape[0:3], dtype=np.float64)
+                new_mask = np.zeros(mask_array.shape[1:], dtype=np.float64)
 
-                for num_slice in range(mask_array.shape[-1]):
-                    mask_slice = mask_array[:,:,:,num_slice]  # R.O.I
+                for num_slice in range(mask_array.shape[0]):
+                    mask_slice = mask_array[num_slice]  # R.O.I
                     roi = pet_array[mask_slice > 0]
                     if len(roi) == 0:
                         continue
@@ -342,10 +342,10 @@ class Roi2MaskProbs(object):
             #mask_array (z,y,x,c)
             new_masks = []
             for method in self.method:
-                new_mask = np.zeros(mask_array.shape[0:3], dtype=np.float64) #len(new_mask.shape) = 3
+                new_mask = np.zeros(mask_array.shape[1:], dtype=np.float64) #len(new_mask.shape) = 3
 
-                for num_slice in range(mask_array.shape[-1]):
-                    mask_slice = mask_array[:,:,:,num_slice]  # R.O.I #matrix 3D
+                for num_slice in range(mask_array.shape[0]):
+                    mask_slice = mask_array[num_slice]  # R.O.I #matrix 3D
                     roi = pet_array[mask_slice > 0] #vecteur 
                     if len(roi) == 0:
                         continue
