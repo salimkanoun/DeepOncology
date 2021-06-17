@@ -12,6 +12,7 @@ import time
 
 from .utils import get_study_uid
 from dicom_to_cnn.model.fusion.Fusion import Fusion 
+from dicom_to_cnn.model.post_processing.mip.MIP_Generator import MIP_Generator
 
 """Classes for pre-processing : read NIFTI, threshold mask, reshape PET/CT/mask, 
     scale intensity, concatenate PET/CT ... 
@@ -46,19 +47,19 @@ class LoadNifti(object):
         if dtypes is None:
             dtypes = {'pet_img': sitk.sitkFloat32,
                       'ct_img': sitk.sitkFloat32,
-                      'mask_img': sitk.sitkUInt8}
+                      'mask_img': sitk.sitkVectorUInt8}
         self.keys = keys
         self.image_only = image_only
 
         self.dtypes = dtypes
 
     def __call__(self, img_dict):
-        
         output = dict()
         output['image_id'] = get_study_uid(img_dict[self.keys[0]])
         for key in self.keys:
             # check img_dict[key] == str
-            output[key] = sitk.ReadImage(img_dict[key], self.dtypes[key])
+            #output[key] = sitk.ReadImage(img_dict[key], self.dtypes[key])
+            output[key] = sitk.ReadImage(img_dict[key])
             if self.image_only:
                 output[key] = sitk.GetArrayFromImage(output[key])
         
@@ -85,7 +86,7 @@ class Roi2Mask(object):
     Apply threshold-based method to determine the segmentation from the ROI
     """
 
-    def __init__(self, keys=('pet_img', 'mask_img'), method='otsu', tval=0.41, new_key_name=None):
+    def __init__(self, keys=('pet_img', 'mask_img'), method='otsu', tval=0.41, new_key_name='mask_img'):
         """
         :param keys: 'pet_img' must be a 3D simpleITK image
                      'mask_img' must be a 3D simpleITK Vector Pixel image. shape = (x,y,z)
@@ -184,7 +185,7 @@ class Roi2MaskProbs(object):
     Apply threshold-based method to calculate the non-binary (probs) segmentation from the ROI, with otsu seg, 41%, 2.5 and 4 threhsold
     """
 
-    def __init__(self, keys=('pet_img', 'mask_img'), new_key_name=None):
+    def __init__(self, keys=('pet_img', 'mask_img'), new_key_name='mask_img'):
         """
         :param keys: (pet_img, roi_img) : (3D SimpleITK img, 4D SimpleITK img)
         :param method: method to use for calculate the threshold
@@ -199,7 +200,6 @@ class Roi2MaskProbs(object):
     def __call__(self, img_dict):
         pet_key = self.keys[0]
         roi_key = self.keys[1]
-
         img_dict[self.new_key_name] = self.roi2mask(img_dict[roi_key], img_dict[pet_key])
         return img_dict
 
@@ -215,7 +215,7 @@ class Roi2MaskProbs(object):
         Returns:
             [np.ndarray]: [shape [z,y,x]]
         """
-        new_mask = np.zeros(mask_array.shape[1:], dtype=np.uint8)
+        new_mask = np.zeros(mask_array.shape[1:], dtype=np.float64)
         for num_slice in range(mask_array.shape[0]):
             mask_slice = mask_array[num_slice]  # R.O.I
             roi = pet_array[mask_slice > 0]
@@ -225,9 +225,9 @@ class Roi2MaskProbs(object):
                         # apply threshold
                 if threshold == 'otsu' : 
                     t = filters.threshold_otsu(roi)
-                if threshold == '0.41' : 
+                elif threshold == '0.41' : 
                     t = np.max(roi) * float(threshold)
-                if threshold == '2.5' or threshold == '4.0' : 
+                elif threshold == '2.5' or threshold == '4.0' : 
                     t = float(threshold)
                 new_mask[np.where((pet_array >= t) & (mask_slice > 0))] = 1
             except Exception as e:
@@ -260,22 +260,34 @@ class Roi2MaskProbs(object):
 
         new_masks = []
         #otsu 
+        #print('otsu')
         new_masks.append(self.__roi_seg(mask_array, pet_array, threshold='otsu'))
-        #41%
+        #print('41%')
         new_masks.append(self.__roi_seg(mask_array, pet_array, threshold='0.41'))
         #2.5
+        #print('2.5')
         new_masks.append(self.__roi_seg(mask_array, pet_array, threshold='2.5'))
         #4.0
+        #print('4.0')
         new_masks.append(self.__roi_seg(mask_array, pet_array, threshold='4.0'))
-
         new_mask = np.mean(np.array(new_masks), axis=0)
+        #print(np.unique(new_mask))
+
+        #objet = MIP_Generator(new_mask)
+        #objet.project(angle = 0)
+        #n = random.random()
+        #objet.save_as_png('mask_test'+str(n), '/media/oncopole/DD 2To/SEGMENTATION/training', vmin=None, vmax=None)
+
+        #objet = MIP_Generator(pet_array)
+        #objet.project(angle = 0)
+        #objet.save_as_png('pet_test'+str(n), '/media/oncopole/DD 2To/SEGMENTATION/training', vmin=0, vmax=7)
 
         # reconvert to sitk and restore 3D meta-information
         new_mask = sitk.GetImageFromArray(new_mask)
         new_mask.SetOrigin(origin)
         new_mask.SetDirection(direction)
         new_mask.SetSpacing(spacing)
-
+    
         return new_mask
 
 """
@@ -371,7 +383,6 @@ class Roi2MaskProbs(object):
         
         # transform to numpy
         mask_array = sitk.GetArrayFromImage(mask_img)
-        mask_array = np.transpose(mask_array, (3,0,1,2))
         pet_array = sitk.GetArrayFromImage(pet_img)
 
         # get 3D meta information
@@ -391,6 +402,7 @@ class Roi2MaskProbs(object):
             spacing = mask_img.GetSpacing()
             direction = tuple(mask_img.GetDirection())
             # size = mask_img.GetSize()[:-1]
+            mask_array = np.transpose(mask_array, (3,0,1,2))
 
 
         #len(mask_array.shape) = 4 ! 
@@ -457,7 +469,7 @@ class Roi2MaskProbs(object):
             new_mask.SetSpacing(spacing)
 
             return new_mask
-""" 
+"""
 
 class ResampleReshapeAlign(object):
     """
@@ -466,7 +478,7 @@ class ResampleReshapeAlign(object):
         object ([type]): [description]
     """
 
-    #import Fusion and FusionMask from DicomToCNN
+    #import Fusion from DicomToCNN
     def __init__(self,target_size, target_spacing, target_direction, target_origin=None, keys=("pet_img", "ct_img", "mask_img"), test = False):
         self.keys = (keys,) if isinstance(keys, str) else keys
         self.target_size = target_size
@@ -502,7 +514,6 @@ class ResampleReshapeAlign(object):
         img_dict['meta_info']['new_spacing'] = img_dict['pet_img'].GetSpacing()
         img_dict['meta_info']['new_origin'] = img_dict['pet_img'].GetOrigin()
         img_dict['meta_info']['new_direction'] = img_dict['pet_img'].GetDirection()
-        
         return img_dict 
 
 class AverageImage(object):

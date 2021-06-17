@@ -76,8 +76,7 @@ def get_transform(subset, modalities, mode, method, tval, target_size, target_sp
                 Roi2MaskProbs(keys=('pet_img', 'mask_img'), new_key_name='mask_img'))
 
         transformers.append(ResampleReshapeAlign(target_size, target_spacing, target_direction, target_origin=None, keys=("pet_img", "ct_img", "mask_img"), test = False))
-        #transformers.append(ResampleReshapeAlign(target_size, target_spacing, keys=('pet_img', 'ct_img', 'mask_img'), origin='head', origin_key='pet_img', interpolator = None, default_value=None, add_meta_info=True))
-        
+
     if cache_pp:
         transformers = Compose(transformers)
         return transformers
@@ -90,9 +89,9 @@ def get_transform(subset, modalities, mode, method, tval, target_size, target_sp
         rotation = (np.pi / 60, np.pi / 30, np.pi / 60)
         transformers.append(RandAffine(keys=('pet_img', 'ct_img', 'mask_img'), translation=translation, scaling=scaling, rotation=rotation))
     
+
     # Convert Simple ITK image into numpy 3d-array
     transformers.append(Sitk2Numpy(keys=('pet_img', 'ct_img', 'mask_img')))
-
     # Normalize input values
     
     for modality in modalities:
@@ -103,7 +102,6 @@ def get_transform(subset, modalities, mode, method, tval, target_size, target_sp
 
         transformers.append(ScaleIntensityRanged(keys = modality,
                                                  a_min =modal_pp['a_min'], a_max = modal_pp['a_max'], b_min=modal_pp['b_min'], b_max=modal_pp['b_max'], clip=modal_pp['clip']))
-
 
     # Concatenate modalities if necessary
     if len(modalities) > 1:

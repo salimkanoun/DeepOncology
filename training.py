@@ -22,7 +22,7 @@ from library_dicom.dicom_processor.tools.folders import *
 
 
 
-csv_path = '/media/oncopole/DD 2To/SEGMENTATION/SEG_NIFTI_PATH_V2.csv'
+csv_path = '/media/oncopole/DD 2To/SEGMENTATION/SEG_NIFTI_PATH_V3.csv'
 pp_dir = None 
 
 #### PRE PROCESSING #####
@@ -36,6 +36,7 @@ modalities = ('pet_img', 'ct_img')
 
 #ELSE mode == probs
 mode = 'probs'
+method = ['relative', 'absolute', 'otsu']
 # automatically calcul the segmentation mask with method : otsu, 41%, 2.5 and 4.0
 
 
@@ -56,7 +57,7 @@ training_model_folder_name = '/media/oncopole/DD 2To/SEGMENTATION/training'
 
 #training paramaters
 epochs = 100
-batch_size = 2
+batch_size = 1
 shuffle = True 
 
 #callbacks
@@ -112,7 +113,7 @@ def main() :
 
         # Get Data path and transforms
         #get_data function from exp_3D/preprocessing 
-    dataset, train_transforms, val_transforms = get_data(pp_dir, csv_path, modalities, mode, None, None , target_size, target_spacing, target_direction, target_origin=None , data_augmentation=True, from_pp=from_pp, cache_pp=cache_pp, pp_flag=pp_flag)
+    dataset, train_transforms, val_transforms = get_data(pp_dir, csv_path, modalities, mode, method, None , target_size, target_spacing, target_direction, target_origin=None , data_augmentation=True, from_pp=from_pp, cache_pp=cache_pp, pp_flag=pp_flag)
         #dataset = dict('train' : [{ct pet mask}, {},] 
         #                'test' : [{ct pet mask}, {},] 
         #                 'val' : [{ct pet mask}, {}, ])
