@@ -1,5 +1,4 @@
 import os
-from lib.utils import read_cfg
 
 import numpy as np
 import tensorflow as tf
@@ -9,26 +8,37 @@ from lib.transforms import PostCNNResampler
 
 class Pipeline(object):
 
-    def __init__(self, cfg, model_path=None):
-        self.cfg_path = cfg
-        self.load_cfg()
-
-        self.build_transformers()
+    def __init__(self, target_size, target_spacing, target_direction, model_path=None, target_origin=None, from_pp = False):
+        #self.cfg_path = cfg
+        #self.load_cfg()
         self.model_path = model_path
         self.load_model()
 
-    def load_cfg(self):
-        self.cfg = read_cfg(self.cfg_path)
+        self.target_size = target_size
+        self.target_spacing = target_spacing
+        self.target_direction = target_direction
+        self.target_origin = target_origin
+        self.from_pp = from_pp 
+        self.build_transformers()
+
+    #def load_cfg(self):
+    #    self.cfg = read_cfg(self.cfg_path)
 
     def load_model(self):
         if self.model_path is None:
-            folder_path = os.path.dirname(self.cfg_path)
-            self.model_path = os.path.join(folder_path, 'model_weights.h5')
-
+            #folder_path = os.path.dirname(self.cfg_path)
+            try : 
+                self.model = tf.keras.models.load_model(self.model_path, compile=False)
+            except Exception as err : 
+                print(err)
+                print('No model to load') #alerte #return
+            #self.model_path = os.path.join(folder_path, 'model_weights.h5')
+        
         self.model = tf.keras.models.load_model(self.model_path, compile=False)
 
     def build_transformers(self):
-        self.pre_transforms = get_transform_test(self.cfg, from_pp=False)
+        modalities = ('pet_img', 'ct_img')
+        self.pre_transforms = get_transform_test(modalities, self.target_size, self.target_spacing, self.target_direction, target_origin=None, from_pp = False)
         self.post_transforms = PostCNNResampler(0.5)
 
     def __call__(self, img_path):

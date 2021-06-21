@@ -79,12 +79,14 @@ def get_transform_cache(cfg):
     if cfg['mode'] == 'binary':
         transformers.append(Roi2Mask(keys=('pet_img', 'mask_img'),
                                      method=cfg['method'], tval=cfg['tvals_binary'].get(cfg['method'], 0.0)))
-    elif cfg['mode'] == 'probs' and cfg['method'] == 'otsu_abs':
-        transformers.append(Roi2MaskOtsuAbsolute(keys=('pet_img', 'mask_img'), tvals_probs=cfg['tvals_probs'],
-                                                 new_key_name='mask_img'))
-    elif cfg['mode'] == 'probs' or cfg['mode'] == 'mean_probs':
+    #elif cfg['mode'] == 'probs' and cfg['method'] == 'otsu_abs':
+    #    transformers.append(Roi2MaskOtsuAbsolute(keys=('pet_img', 'mask_img'), tvals_probs=cfg['tvals_probs'],
+    #                                             new_key_name='mask_img'))
+    #elif cfg['mode'] == 'probs' or cfg['mode'] == 'mean_probs':
+    else : 
+    
         transformers.append(
-            Roi2MaskProbs(keys=('pet_img', 'mask_img'), method=cfg['method'], tvals_probs=cfg['tvals_probs'],
+            Roi2MaskProbs(keys=('pet_img', 'mask_img'),mode=cfg['mode'], method=cfg['method'], tvals_probs=cfg['tvals_probs'],
                           new_key_name='mask_img'))
 
     transformers.append(Roi2Mask(keys=('pet_img', 'mask_img'),
