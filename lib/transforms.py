@@ -215,7 +215,7 @@ class Roi2MaskProbs(object):
         Returns:
             [np.ndarray]: [shape [z,y,x]]
         """
-        new_mask = np.zeros(mask_array.shape[1:], dtype=np.float64)
+        new_mask = np.zeros(mask_array.shape[1:], dtype=np.uint8)
         for num_slice in range(mask_array.shape[0]):
             mask_slice = mask_array[num_slice]  # R.O.I
             roi = pet_array[mask_slice > 0]
@@ -233,7 +233,7 @@ class Roi2MaskProbs(object):
             except Exception as e:
                         print(e)
                         print(sys.exc_info()[0])
-        return new_mask
+        return new_mask.astype('uint8')
 
 
     def roi2mask(self, mask_img, pet_img):
@@ -270,7 +270,8 @@ class Roi2MaskProbs(object):
         #4.0
         #print('4.0')
         new_masks.append(self.__roi_seg(mask_array, pet_array, threshold='4.0'))
-        new_mask = np.mean(np.array(new_masks), axis=0)
+        new_mask = np.stack(new_masks, axis=3)
+        new_mask = np.mean(new_mask, axis=3)
         #print(np.unique(new_mask))
 
         #objet = MIP_Generator(new_mask)

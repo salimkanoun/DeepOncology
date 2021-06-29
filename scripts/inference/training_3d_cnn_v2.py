@@ -10,7 +10,7 @@ from experiments.exp_3d.preprocessing import *
 
 import tensorflow as tf
 import tensorflow_addons as tfa
-from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping, TensorBoard
+from tensorflow.keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping, TensorBoard
 from networks.Vnet import VNet
 
 from losses.Loss import custom_robust_loss, loss_dice
@@ -22,7 +22,7 @@ from library_dicom.dicom_processor.tools.folders import *
 
 
 
-csv_path = '/media/oncopole/DD 2To/SEGMENTATION/SEG_NIFTI_PATH_V3.csv'
+csv_path = '/media/oncopole/d508267f-cc7d-45e2-ae24-9456e005a01f/SEGMENTATION/SEG_NIFTI_PATH_V6.csv'
 pp_dir = None 
 
 #### PRE PROCESSING #####
@@ -36,7 +36,6 @@ modalities = ('pet_img', 'ct_img')
 
 #ELSE mode == probs
 mode = 'probs'
-method = ['relative', 'absolute', 'otsu']
 # automatically calcul the segmentation mask with method : otsu, 41%, 2.5 and 4.0
 
 
@@ -52,12 +51,12 @@ pp_flag=''
 ##### TENSORFLOW #####
 
 
-trained_model_path = '/media/oncopole/DD 2To/RUDY_WEIGTH/training/20201113-09:54:23/model_weights.h5' #If None, train from scratch 
-training_model_folder_name = '/media/oncopole/DD 2To/SEGMENTATION/training'
+trained_model_path = '/media/oncopole/d508267f-cc7d-45e2-ae24-9456e005a01f/RUDY_WEIGTH/training/20201113-09:54:23/model_weights.h5' #If None, train from scratch 
+training_model_folder_name = '/media/oncopole/d508267f-cc7d-45e2-ae24-9456e005a01f/SEGMENTATION/training'
 
 #training paramaters
 epochs = 100
-batch_size = 1
+batch_size = 2
 shuffle = True 
 
 #callbacks
@@ -113,7 +112,7 @@ def main() :
 
         # Get Data path and transforms
         #get_data function from exp_3D/preprocessing 
-    dataset, train_transforms, val_transforms = get_data(pp_dir, csv_path, modalities, mode, method, None , target_size, target_spacing, target_direction, target_origin=None , data_augmentation=True, from_pp=from_pp, cache_pp=cache_pp, pp_flag=pp_flag)
+    dataset, train_transforms, val_transforms = get_data(pp_dir, csv_path, modalities, mode, None, None , target_size, target_spacing, target_direction, target_origin=None , data_augmentation=True, from_pp=from_pp, cache_pp=cache_pp, pp_flag=pp_flag)
         #dataset = dict('train' : [{ct pet mask}, {},] 
         #                'test' : [{ct pet mask}, {},] 
         #                 'val' : [{ct pet mask}, {}, ])
@@ -248,6 +247,7 @@ def main() :
         
         # whole model saving
     model.save(os.path.join(training_model_folder, 'trained_model_{}.h5'.format(now)))
+    model.save(os.path.join(training_model_folder, 'trained_model_{}'.format(now)))
         
 if __name__ == "__main__":
     main()

@@ -1,10 +1,10 @@
 import SimpleITK as sitk 
 import matplotlib.pyplot as plt 
 
-from library_dicom.dicom_processor.tools.threshold_mask import * 
-from library_dicom.post_processing.WatershedModel import WatershedModel
+#from dicom_to_cnn.tools.pre_processing.threshold_mask import * 
+#from dicom_to_cnn.model.post_processing.clustering.Watershed import Watershed
 from losses.Metrics import * 
-
+import numpy as np
 
 def get_array_from_nifti(nifti_path): 
     img = sitk.ReadImage(nifti_path)
@@ -14,42 +14,11 @@ def get_array_from_nifti(nifti_path):
     return array, spacing
 
 def applied_watershed_on_inference(mask_nifti_path, pet_nifti_path):
-    model = WatershedModel(mask_nifti_path, pet_nifti_path, type = '3d')
-    ws_array, label_number = model.watershed_model(0.5)
-    return ws_array 
-
-def applied_threshold_on_matrix(mask_array, pet_array, thresh = 0.41):
-    """threshold mask 
-
-    Args:
-        mask_array ([ndarray]): [(z,x,y,c) or (z,x,y)]
-        pet_array ([ndarray]): [(z,x,y)]
-        thresh (float, optional): [description]. Defaults to 0.41.
-    """
-    if len(mask_array.shape) == 3 : 
-        number_of_roi = 1 
-    else : 
-        number_of_roi = mask_array.shape[3]
-    for i in range(number_of_roi):
-        if len(mask_array.shape) == 3 : 
-            roi = mask_array
-        else : 
-            roi = mask_array[:,:,:,i]
-        roi_copy = np.copy(roi)
-        pet_copy = np.copy(pet_array)
-        pet_copy[roi == 0] = 0 
-        if thresh < 1.0 : 
-            seuil = thresh * np.max(pet_copy)
-        else : seuil = thresh 
-        roi_copy[np.where(pet_copy < seuil)] = 0
-
-        if len(mask_array.shape) == 3 : 
-            mask_array = roi_copy 
-        else : 
-            mask_array[:,:,:,i] = roi_copy 
-    return mask_array
-
-
+    mask_img = sitk.ReadImage(mask_nifti_path)
+    pet_img = sitk.ReadImage(pet_nifti_path)
+    model = Watershed(mask_img, pet_img)
+    ws_img = model.applied_watershed_model()
+    return ws_img
 
 def calcul_dice(pred_array, true_array, pet_array, thresh = 0.41):
     """[summary]
@@ -59,14 +28,16 @@ def calcul_dice(pred_array, true_array, pet_array, thresh = 0.41):
         true_array ([type]): [(z,x,y,c)]
         thresh (float, optional): [description]. Defaults to 0.41.
     """
-
+ 
     pred_array = threshold_matrix(pred_array, pet_array, thresh)
+    #print('thresh pred ')
     pred_array[np.where(pred_array != 0)] = 1
    
     pred_array = np.expand_dims(pred_array, axis=-1)
     pred_array = np.expand_dims(pred_array, axis=0)
     
     true_array = threshold_matrix(true_array, pet_array, thresh)
+    #print('thresh true')
     #true_array = applied_threshold_on_matrix(true_array, pet_array, thresh = thresh)
     if len(true_array.shape) == 4 : 
         true_array = np.sum(true_array, axis=-1)
@@ -84,7 +55,7 @@ def calcul_dice(pred_array, true_array, pet_array, thresh = 0.41):
     pred_array=np.sum(pred_array, axis=0)
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 15))
-    axis = 2
+    axis = 1
     MIP_pet = np.amax(pet_array, axis = axis)
     MIP_true = np.amax(true_array,axis=axis) 
     MIP_pred = np.amax(pred_array,axis=axis)
@@ -97,8 +68,8 @@ def calcul_dice(pred_array, true_array, pet_array, thresh = 0.41):
         
     ax2.axis('off')
     plt.show()
-    
     """
+    
     return dice 
 
 def calcul_tmtv(pred_array, true_array, pet_array, spacing, thresh = 0.41):
