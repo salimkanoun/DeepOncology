@@ -1,100 +1,121 @@
-import SimpleITK as sitk 
-import numpy as np 
-import matplotlib.pyplot as plt 
-import json 
-import csv 
 import os 
-import pandas as pd 
-import tensorflow as tf 
-import datetime
-from sklearn.model_selection import train_test_split 
-from classification.tools.prepare_csv_from_json import *
-from classification.pre_process.Preprocessing import Preprocessing 
-from networks.classification import *
-from classification.tools.generate_2d_image import *
+import csv 
+import json 
+from datetime import datetime
+from classification.dataset import DataManager
+from classification.preprocessing import * 
+from dicom_to_cnn.tools.cleaning_dicom.folders import *
+from networks.classification import classification
+import tensorflow as tf
+import numpy as np
+#training paramaters
+epochs = 12
+batch_size = 256
+shuffle = True 
 
 
-json_path = '/media/deeplearning/78ca2911-9e9f-4f78-b80a-848024b95f92/result.json'
-image_directory = 'path/to/directory/image_png'
-model_directory = 'path/save/model'
+csv_path = '/media/oncopole/d508267f-cc7d-45e2-ae24-9456e005a01f/CLASSIFICATION/classification_dataset_NIFTI_V3.csv'
+training_model_folder_name = '/media/oncopole/d508267f-cc7d-45e2-ae24-9456e005a01f/CLASSIFICATION/training/train_2'
+def main() : 
+    
+    now = datetime.now().strftime("%Y%m%d-%H:%M:%S")
 
-objet = JSON_TO_CSV(json_path)
-csv_path = objet.result_csv(image_directory, model_directory)
-print(objet.dataset)
-
-preprocessing_objet = Preprocessing(csv_path)
-X, y = preprocessing_objet.normalize_encoding_dataset()
-
-X_train, X_test, y_train, y_test = train_test_split(X,y, random_state = 42, test_size = 0.15) #random state 
-X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, random_state = 42, test_size = 0.15)
-print("size of X_train : ", X_train.shape)
-print("size of y_train : ",y_train.shape)
-print("")
-print("size of X_test : ", X_test.shape)
-print("size of y_test : ",y_test.shape)
-print("")
-print("size of X_val : ", X_val.shape)
-print("size of y_val : ",y_val.shape)
-
-
-model = classification(input_shape=(503, 136, 1))
-model.summary()
-
-optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3) #param
-model.compile(optimizer = optimizer, 
-        loss={'left_arm' : 'sparse_categorical_crossentropy', 
-            'right_arm' : 'sparse_categorical_crossentropy', 
-             'head' : 'sparse_categorical_crossentropy', 
-             'leg' : 'sparse_categorical_crossentropy'}, 
-        loss_weights ={'left_arm': 0.25, 'right_arm' : 0.25, 
-                        'head' : 0.25, 
-                        'leg': 0.25}, 
-        metrics = {'left_arm': ['accuracy'], #'SparseCategoricalCrossentropy'
-                    'right_arm' : ['accuracy'], 
-                    'head' : ['accuracy'], 
-                    'leg':['accuracy']}) #a voir pour loss
-
-
-now = datetime.now().strftime("%Y%m%d-%H:%M:%S")
-training_model_folder = os.path.join(model_directory, now)  # '/path/to/folder'
-if not os.path.exists(training_model_folder):
-    os.makedirs(training_model_folder)
+    training_model_folder = os.path.join(training_model_folder_name, now)  # '/path/to/folder'
+    if not os.path.exists(training_model_folder):
+        os.makedirs(training_model_folder)
             
-log_dir = os.path.join(training_model_folder, 'logs')
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
+    logdir = os.path.join(training_model_folder, 'logs')
+    if not os.path.exists(logdir):
+        os.makedirs(logdir)
+
+       # multi gpu training strategy
+    strategy = tf.distribute.MirroredStrategy()
+
+    dataset = get_data(csv_path)
+    train_idx, val_idx, test_idx = dataset['train'], dataset['val'], dataset['test']
+    print("TRAIN :", len(train_idx))
+    print('VAL :', len(val_idx))
+    print('TEST :', len(test_idx))
+   #write_json_file(training_model_folder, 'test_dataset', test_idx)
+
+    #TRAIN DATASET 
+    train_path = '/media/oncopole/d508267f-cc7d-45e2-ae24-9456e005a01f/CLASSIFICATION/training/train_2/train'
+    liste = os.listdir(train_path) 
+    all_liste = []
+    for x in liste : 
+        all_liste.append(os.path.join(train_path, x))
+    sorted_train = sorted(all_liste)
+    print(len(sorted_train)//2)
+
+    #VAL DATASET
+    val_path = '/media/oncopole/d508267f-cc7d-45e2-ae24-9456e005a01f/CLASSIFICATION/training/train_2/val'
+    liste = os.listdir(val_path) 
+    all_liste = []
+    for x in liste : 
+        all_liste.append(os.path.join(val_path, x))
+    sorted_val = sorted(all_liste)
+    print(len(sorted_val)//2)
+
+    X_train = []
+    y_train = []
+    X_val = []
+    y_val = []
+
+    for i in range(0, len(sorted_train),2) : 
+        X_train.append(sitk.GetArrayFromImage(sitk.ReadImage(sorted_train[i+1])))
+        y_train.append(get_label_from_json(sorted_train[i]))
+
+    for i in range(0, len(sorted_val),2) : 
+        X_val.append(sitk.GetArrayFromImage(sitk.ReadImage(sorted_val[i+1])))
+        y_val.append(get_label_from_json(sorted_val[i]))
+
+    X_train, y_train, X_val, y_val = np.asarray(X_train), np.asarray(y_train), np.asarray(X_val), np.asarray(y_val)
+    print(X_train.shape)
+    print(y_train.shape)
+    print(X_val.shape)
+    print(y_val.shape)
+    
+    callbacks = []
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=logdir, update_freq='epoch', write_graph=True, write_images=True)
+    callbacks.append(tensorboard_callback)
+    with strategy.scope(): 
+        model = classification(input_shape=(1024, 256, 1))
+    model.summary()
+    
+    with strategy.scope():
+        optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3) #param
+        model.compile(optimizer = optimizer, 
+                loss={'left_arm' : 'sparse_categorical_crossentropy', 
+                    'right_arm' : 'sparse_categorical_crossentropy', 
+                    'head' : 'sparse_categorical_crossentropy', 
+                    'legs' : 'sparse_categorical_crossentropy'}, 
+                loss_weights ={'left_arm': 0.25, 'right_arm' : 0.25, 
+                                'head' : 0.25, 
+                                'legs': 0.25}, 
+                metrics = {'left_arm': ['accuracy'], #'SparseCategoricalCrossentropy'
+                            'right_arm' : ['accuracy'], 
+                            'head' : ['accuracy'], 
+                            'legs':['accuracy']}) #a voir pour loss
+
+    print(model.summary())
 
 
-tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, update_freq='epoch', write_graph=True, write_images=True)
-
-#fit 
-
-history = model.fit(X_train, {'head': y_train[:,0], 
-                                    'leg': y_train[:,1],
+    history = model.fit(X_train, {'head': y_train[:,0], 
+                                    'legs': y_train[:,1],
                                     'right_arm' : y_train[:,2],
-                                    'left_arm' : y_train[:,3] ,
-                                    }, 
-                                    
-                        epochs = 20, 
-                        batch_size = 256, 
-                        verbose = 1, 
-                        validation_data = (X_val, {'head': y_val[:,0], 
-                                    'leg': y_val[:,1],
+                                    'left_arm' : y_train[:,3], }, 
+                            validation_data = (X_val, {'head': y_val[:,0], 
+                                    'legs': y_val[:,1],
                                     'right_arm' : y_val[:,2],
                                     'left_arm' : y_val[:,3] ,
                                     }),
-                        callbacks=[tensorboard_callback])
-
-
-
-hist_df = pd.DataFrame(history.history)
-hist_json_file = 'history.json'
-with open(model_directory+'/'+hist_json_file, mode = 'w') as f : 
-    hist_df.to_json(f)
-print("history saved")
-
-#save 
-model.save(model_directory + '/' + 'classification_model', save_format='h5')
-print('model saved as .h5')
-model.save(model_directory+'/'+ 'classification_model_fold')
-print('model saved')
+                            epochs=epochs,
+                            callbacks=callbacks,  # initial_epoch=0,
+                            verbose=1
+                            )
+    model.save(os.path.join(training_model_folder, 'trained_model_{}.h5'.format(now)))
+    model.save(os.path.join(training_model_folder, 'trained_model_{}'.format(now)))
+    
+    
+if __name__ == "__main__":
+    main()

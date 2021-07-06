@@ -1,5 +1,5 @@
 #METHODE SPECIFIQUES A MA CLASSIFICATION
-
+import os
 import numpy as np 
 import matplotlib.pyplot as plt 
 
@@ -103,23 +103,29 @@ def affichage(liste_array, liste_pred_label, liste_true_label, directory):
         liste_true_label ([list]): [description]
         directory ([str]): [description]
     """
+
+    true = directory+'/predictions/true'
+    false = directory+'/predictions/false'
+    os.makedirs(false)
+    os.makedirs(true)
     for i in range(len(liste_array)):
-        image = liste_array[i][:,:,0]
-        f = plt.figure(figsize=(5,8))
+        image = liste_array[i][:,:,0] #2D
+        image = np.rot90(image, k=2)
+        f = plt.figure(figsize=(10,16))
         axes = plt.gca()
         axes.set_axis_off()
         plt.imshow(image, cmap='gray')
         plt.title("pred : {}, truth : {}".format(liste_pred_label[i], liste_true_label[i]))
-        plt.show()
+        #plt.show()
 
         if liste_pred_label[i] == liste_true_label[i] : 
-            filename = directory + '/predictions/true'+'/'+str(i)+'.png'
-            f.savefig(filename, bbox_inches='tight') 
+            filename = true+'/'+str(i)+'.jpeg'
+            f.savefig(filename, bbox_inches='tight', origin='lower') 
             plt.close()
 
         else : 
-            filename = directory + '/predictions/false'+'/'+str(i)+'.png'
-            f.savefig(filename, bbox_inches='tight') 
+            filename = false+'/'+str(i)+'.jpeg'
+            f.savefig(filename, bbox_inches='tight', origin='lower') 
             plt.close()
 
 

@@ -16,7 +16,7 @@ class DataManager:
     def get_train_val_test(self):
         df = pd.read_csv(self.csv_path)
 
-        key_split = 'PATIENT_ID'  # unique id
+        key_split = 'STUDY_UID'  # unique id
         idx = np.arange(df[key_split].nunique()) #0 to number of PET0
         split = np.empty(df[key_split].nunique(), dtype="<U6")
 
@@ -41,9 +41,9 @@ class DataManager:
     @staticmethod
     def wrap_in_list_of_dict(df):
         """
-        :return: [ {'ct_img': ct_img0_path, 'right_arm' : value, 'left_arm':value, 'head': value, 'legs':value  }
-                    {'ct_img': ct_img1_path, 'right_arm' : value, 'left_arm':value, 'head': value, 'legs':value }
-                    {'ct_img': ct_img2_path, 'right_arm' : value, 'left_arm':value, 'head': value, 'legs':value  ...]
+        :return: [ {'ct_img': ct_img0_path, 'upper_limit': value, 'lower_limit':value ,'right_arm' : value, 'left_arm':value, }
+                    {'ct_img': ct_img1_path, 'upper_limit': value, 'lower_limit':value ,'right_arm' : value, 'left_arm':value, }
+                    {'ct_img': ct_img2_path, 'upper_limit': value, 'lower_limit':value ,'right_arm' : value, 'left_arm':value, }  ...]
         """
-        mapper = {'NIFTI_CT': 'ct_img', 'RIGHT_ARM': 'right_arm', 'LEFT_ARM':'left_arm', 'HEAD':'head', 'LEGS':'leg'}
-        return df[['NIFTI_CT', 'RIGHT_ARM', 'LEFT_ARM', 'HEAD', 'LEGS']].rename(columns=mapper).to_dict('records')
+        mapper = {'STUDY_UID':'study_id', 'NIFTI_CT': 'ct_img', 'UPPER_LIMIT':'upper_limit', 'LOWER_LIMIT':'lower_limit', 'RIGHT_ARM': 'right_arm', 'LEFT_ARM':'left_arm'}
+        return df[['STUDY_UID', 'NIFTI_CT', 'UPPER_LIMIT', 'LOWER_LIMIT', 'RIGHT_ARM', 'LEFT_ARM']].rename(columns=mapper).to_dict('records')

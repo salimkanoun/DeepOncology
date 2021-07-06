@@ -16,7 +16,7 @@ from tensorflow.keras.layers import Dropout
 from tensorflow.keras.models import Model
 
 
-def classification(input_shape=(503, 136, 1)):
+def classification(input_shape=(1024, 256, 1)):
     x_input = Input(input_shape)
 
     x = Conv2D(32, (7,7), name='conv1', activation='relu')(x_input)
@@ -43,7 +43,7 @@ def classification(input_shape=(503, 136, 1)):
     right_arm = Dense(2, activation='softmax', name = 'right_arm')(x)
 
     head = Dense(2, activation='softmax', name='head')(x)
-    leg = Dense(3, activation='softmax', name='leg')(x)
+    legs = Dense(3, activation='softmax', name='legs')(x)
 
-    model = Model(inputs = x_input, outputs = [head, leg, right_arm, left_arm], name='classic_model')
+    model = Model(inputs = x_input, outputs = [head, legs, right_arm, left_arm], name='classic_model')
     return model 
