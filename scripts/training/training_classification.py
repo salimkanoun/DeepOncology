@@ -36,45 +36,41 @@ def main() :
     print("TRAIN :", len(train_idx))
     print('VAL :', len(val_idx))
     print('TEST :', len(test_idx))
-   #write_json_file(training_model_folder, 'test_dataset', test_idx)
+    write_json_file(training_model_folder, 'test_dataset', test_idx)
 
-    #TRAIN DATASET 
-    train_path = '/media/oncopole/d508267f-cc7d-45e2-ae24-9456e005a01f/CLASSIFICATION/training/train_2/train'
-    liste = os.listdir(train_path) 
-    all_liste = []
-    for x in liste : 
-        all_liste.append(os.path.join(train_path, x))
-    sorted_train = sorted(all_liste)
-    print(len(sorted_train)//2)
+    #NEED CSV : [STUDY ID, MIP IMAGE 2D PATH, LABEL1, LABEL2, LABEL3, LABEL4] with encoded label 
+    #X_train = []
+    #y_train = []
+    #for img_dict in train_idx : 
+        #X_train.append(sitk.getArrayFromImage(sitk.ReadImage(img_dict['ct_img'])))
+        #sub = []
+        #sub.append(img_dict['label1])
+        #sub.append(img_dict['label2])
+        #sub.append(img_dict['label3])
+        #sub.append(img_dict['label4])
+        #y_train.append(sub)
 
-    #VAL DATASET
-    val_path = '/media/oncopole/d508267f-cc7d-45e2-ae24-9456e005a01f/CLASSIFICATION/training/train_2/val'
-    liste = os.listdir(val_path) 
-    all_liste = []
-    for x in liste : 
-        all_liste.append(os.path.join(val_path, x))
-    sorted_val = sorted(all_liste)
-    print(len(sorted_val)//2)
+    #X_val = []
+    #y_val = []
+    #for img_dict in val_idx : 
+        #X_val.append(sitk.getArrayFromImage(sitk.ReadImage(img_dict['ct_img'])))
+        #sub = []
+        #sub.append(img_dict['label1])
+        #sub.append(img_dict['label2])
+        #sub.append(img_dict['label3])
+        #sub.append(img_dict['label4])
+        #y_val.append(sub)
 
-    X_train = []
-    y_train = []
-    X_val = []
-    y_val = []
 
-    for i in range(0, len(sorted_train),2) : 
-        X_train.append(sitk.GetArrayFromImage(sitk.ReadImage(sorted_train[i+1])))
-        y_train.append(get_label_from_json(sorted_train[i]))
+    #X_train, y_train, X_val, y_val = np.asarray(X_train), np.asarray(y_train), np.asarray(X_val), np.asarray(y_val)
+    #print(X_train.shape)
+    #print(y_train.shape)
+    #print(X_val.shape)
+    #print(y_val.shape)
 
-    for i in range(0, len(sorted_val),2) : 
-        X_val.append(sitk.GetArrayFromImage(sitk.ReadImage(sorted_val[i+1])))
-        y_val.append(get_label_from_json(sorted_val[i]))
+    #PREPARE THE TRAIN VAL TEST DATASET 
 
-    X_train, y_train, X_val, y_val = np.asarray(X_train), np.asarray(y_train), np.asarray(X_val), np.asarray(y_val)
-    print(X_train.shape)
-    print(y_train.shape)
-    print(X_val.shape)
-    print(y_val.shape)
-    
+
     callbacks = []
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=logdir, update_freq='epoch', write_graph=True, write_images=True)
     callbacks.append(tensorboard_callback)

@@ -6,6 +6,8 @@ from sklearn.model_selection import train_test_split
 
 
 class DataManager:
+    """A class to manage data and prepare train, val and test dataset in list of dict
+    """
 
     def __init__(self, csv_path):
         self.csv_path = csv_path
