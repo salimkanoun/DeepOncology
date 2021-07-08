@@ -45,8 +45,6 @@ def generate_inference_pet_projection_pdf(liste_paths_images, directory, pdf_fil
         pdf.add_page()
         pdf.image(mip, w=190, h = 230)
         os.remove(mip)
-
-
     pdf.output(os.path.join(directory, pdf_filename))
 
     return None 

@@ -30,45 +30,17 @@ def calcul_dice(pred_array, true_array, pet_array, thresh = 0.41):
     """
  
     pred_array = threshold_matrix(pred_array, pet_array, thresh)
-    #print('thresh pred ')
     pred_array[np.where(pred_array != 0)] = 1
-   
     pred_array = np.expand_dims(pred_array, axis=-1)
     pred_array = np.expand_dims(pred_array, axis=0)
-    
     true_array = threshold_matrix(true_array, pet_array, thresh)
-    #print('thresh true')
-    #true_array = applied_threshold_on_matrix(true_array, pet_array, thresh = thresh)
     if len(true_array.shape) == 4 : 
         true_array = np.sum(true_array, axis=-1)
     
     true_array[np.where(true_array != 0)] = 1
     true_array = np.expand_dims(true_array, axis=-1)
     true_array = np.expand_dims(true_array, axis=0)
-
-
     dice = metric_dice(true_array, pred_array, axis=(1, 2, 3, 4))
-    """
-    true_array=np.sum(true_array, axis=-1)
-    true_array=np.sum(true_array, axis=0)
-    pred_array=np.sum(pred_array, axis=-1)
-    pred_array=np.sum(pred_array, axis=0)
-    
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 15))
-    axis = 1
-    MIP_pet = np.amax(pet_array, axis = axis)
-    MIP_true = np.amax(true_array,axis=axis) 
-    MIP_pred = np.amax(pred_array,axis=axis)
-    ax1.imshow(MIP_pet, cmap = 'gray', vmin = 0, vmax = 10, origin='lower')
-    ax1.imshow(np.where(MIP_true, 0, np.nan), cmap='Set1', alpha = 0.5, origin='lower')
-    ax1.axis('off')
-
-    ax2.imshow(MIP_pet, cmap = 'gray', vmin = 0, vmax = 10, origin='lower')
-    ax2.imshow(np.where(MIP_pred, 0, np.nan), cmap='Set1', alpha = 0.5, origin='lower')
-        
-    ax2.axis('off')
-    plt.show()
-    """
     
     return dice 
 
