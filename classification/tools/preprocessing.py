@@ -66,6 +66,8 @@ def prepare_batch(img_dict):
 
     return mip, label
 
+
+#move to tools
 def get_label_from_json(json_path):
     with open(json_path) as json_file : 
         reader = json.load(json_file)
