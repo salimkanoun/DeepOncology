@@ -567,7 +567,7 @@ class RandAffine(object):
 
 
 
-class PostCNNResampler(object):
+class PostCNNResampler_thresh(object):
     """ A class to generate sitk Image of predicted mask
 
     """
@@ -610,5 +610,29 @@ class PostCNNResampler(object):
                                                   insideValue=0, outsideValue=1)
         return mask_img_final
 
+
+class PostCNNResampler(object):
+
+    def __init__(self):
+        self.mode = 'Linear'
+
+    def __call__(self, img_dict):
+        mask_img = sitk.GetImageFromArray(img_dict['mask_pred'])
+        
+        mask_img.SetOrigin(img_dict['meta_info']['new_origin'])
+        mask_img.SetDirection(img_dict['meta_info']['new_direction'])
+        mask_img.SetSpacing(img_dict['meta_info']['new_spacing'])
+
+        # resample to orginal shape, spacing, direction and origin
+        transformation = sitk.ResampleImageFilter()
+        transformation.SetOutputDirection(img_dict['meta_info']['original_direction'])
+        transformation.SetOutputOrigin(img_dict['meta_info']['original_origin'])
+        transformation.SetOutputSpacing(img_dict['meta_info']['original_spacing'])
+        transformation.SetSize(img_dict['meta_info']['original_size'])
+        transformation.SetDefaultPixelValue(0.0)
+        if self.mode == 'Linear' : 
+            transformation.SetInterpolator(sitk.sitkLinear)
+        mask_img_final = transformation.Execute(mask_img)
+        return mask_img_final
 
 

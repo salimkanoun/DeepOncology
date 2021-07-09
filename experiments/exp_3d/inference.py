@@ -39,7 +39,7 @@ class Pipeline(object):
     def build_transformers(self):
         modalities = ('pet_img', 'ct_img')
         self.pre_transforms = get_transform_test(modalities, self.target_size, self.target_spacing, self.target_direction, target_origin=None, from_pp = False)
-        self.post_transforms = PostCNNResampler(0.5)
+        self.post_transforms = PostCNNResampler()
 
     def __call__(self, img_path):
         return self.predict(img_path)
