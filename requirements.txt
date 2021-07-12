@@ -1,0 +1,14 @@
+pandas==1.2.3
+fpdf==1.7.2
+tensorflow_addons==0.12.1
+dicomtocnn==1
+scipy==1.6.3
+tensorflow_gpu==2.4.1
+numpy==1.19.5
+scikit_image==0.17.2
+matplotlib==3.4.2
+dicom_to_cnn==0.75
+scikit_learn==0.24.2
+SimpleITK==2.0.2
+skimage==0.0
+tensorflow==2.5.0
