@@ -49,7 +49,7 @@ class DataGeneratorFromDict(tf.keras.utils.Sequence):
         Y4_batch = []
         for idx in indexes:
             img_dict = self.images_paths[idx]
-            X_batch.append(sitk.GetArrayFromImage(sitk.ReadImage(img_dict[self.x_key])))
+            X_batch.append(sitk.GetArrayFromImage(sitk.ReadImage(img_dict[self.x_keys])))
             encoded_instance = encoding_instance(img_dict)
             Y1_batch.append([encoded_instance[0]])
             Y2_batch.append([encoded_instance[1]])

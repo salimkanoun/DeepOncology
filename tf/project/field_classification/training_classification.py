@@ -1,11 +1,11 @@
-from tf.project.field_classification.data_loader import DataGeneratorFromDict
 import os 
 from datetime import datetime
 import tensorflow as tf
 from tf.project.field_classification.lib.datasets import * 
 from dicom_to_cnn.tools.cleaning_dicom.folders import *
 from tf.networks.classification import classification
-import tensorflow as tf
+from tf.project.field_classification.data_loader import DataGeneratorFromDict
+import tensorflow as tfw
 
 
 #training paramaters
@@ -31,7 +31,7 @@ def main() :
         os.makedirs(logdir)
 
        # multi gpu training strategy
-    strategy = tf.distribute.MirroredStrategy()
+    strategy = tfw.distribute.MirroredStrategy()
 
     dataset = get_data(csv_path)
     train_idx, val_idx, test_idx = dataset['train'], dataset['val'], dataset['test']
@@ -45,14 +45,14 @@ def main() :
 
    
     callbacks = []
-    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=logdir, update_freq='epoch', write_graph=True, write_images=True)
+    tensorboard_callback = tfw.keras.callbacks.TensorBoard(log_dir=logdir, update_freq='epoch', write_graph=True, write_images=True)
     callbacks.append(tensorboard_callback)
     with strategy.scope(): 
         model = classification(input_shape=(1024, 256, 1))
     model.summary()
     
     with strategy.scope():
-        optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3) #param
+        optimizer = tfw.keras.optimizers.Adam(learning_rate=1e-3) #param
         model.compile(optimizer = optimizer, 
                 loss={'left_arm' : 'sparse_categorical_crossentropy', 
                     'right_arm' : 'sparse_categorical_crossentropy', 
