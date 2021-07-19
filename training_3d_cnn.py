@@ -7,8 +7,7 @@ import tensorflow as tf
 import tensorflow_addons as tfa
 from tensorflow.keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping, TensorBoard
 from tf.networks.Vnet import VNet
-from tf.loss.Loss import loss_dice
-from tf.loss.Metrics import metric_dice 
+from tf.loss.Loss import loss_dice, metric_dice
 
 from library_dicom.dicom_processor.tools.folders import *
 

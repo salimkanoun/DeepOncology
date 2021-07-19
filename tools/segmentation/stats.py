@@ -2,7 +2,7 @@ import SimpleITK as sitk
 import matplotlib.pyplot as plt 
 from dicom_to_cnn.tools.pre_processing.threshold_mask import * 
 from dicom_to_cnn.model.post_processing.clustering.Watershed import Watershed
-from losses.Metrics import * 
+from tf.loss.Metrics import * 
 import numpy as np
 from skimage import filters
 

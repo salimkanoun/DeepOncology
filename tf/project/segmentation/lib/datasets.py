@@ -13,8 +13,8 @@ class DataManager(object):
     def __init__(self, csv_path=None):
         self.csv_path = csv_path
         self.seed = 42  # random state
-        self.test_size = 0.15
-        self.val_size = 0.15
+        self.test_size = 0.40
+        self.val_size = 0.50
 
 
     def get_train_val_test(self, wrap_with_dict=False, subset = None):
@@ -33,12 +33,12 @@ class DataManager(object):
         if 'subset' not in df.columns:
             key_split = 'PATIENT_ID'  # unique id
             idx = np.arange(df[key_split].nunique()) #0 to number of PET0
+            print('NUMBER TOTAL OF DATA :', len(idx))
             split = np.empty(df[key_split].nunique(), dtype="<U6")
 
             idx_train, idx_test = train_test_split(idx, test_size=self.test_size, random_state=self.seed) #index 
 
-            size = self.val_size / (1 - self.test_size)
-            idx_train, idx_val = train_test_split(idx_train, test_size=size, random_state=self.seed) #index 
+            idx_test, idx_val = train_test_split(idx_test, test_size=self.val_size, random_state=self.seed) #index 
 
             split[idx_train] = 'train'
             split[idx_val] = 'val'
