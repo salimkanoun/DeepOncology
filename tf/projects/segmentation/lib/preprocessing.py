@@ -49,7 +49,6 @@ def get_transform(subset, modalities, mode, method, tval, target_size, target_sp
     # Convert Simple ITK image into numpy 3d-array
     transformers.append(DictSitk2Numpy(keys=('pet_img', 'ct_img', 'mask_img')))
     # Normalize input values
-    
     for modality in modalities:
         if modality == 'pet_img' : 
             modal_pp = dict(a_min=0.0, a_max=25.0, b_min=0.0, b_max=1.0, clip=True)
@@ -90,7 +89,6 @@ def get_transform_test(modalities, target_size, target_spacing, target_direction
             modal_pp = dict(a_min=0.0, a_max=25.0, b_min=0.0, b_max=1.0, clip=True)
         else : 
             modal_pp = dict(a_min=-1000.0, a_max=1000.0, b_min=0.0, b_max=1.0, clip=True)
-        #A METTRE EN PARAMETRES
 
         transformers.append(ScaleIntensityRanged(keys = modality,
                                                  a_min =modal_pp['a_min'], a_max = modal_pp['a_max'], b_min=modal_pp['b_min'], b_max=modal_pp['b_max'], clip=modal_pp['clip']))
@@ -102,13 +100,11 @@ def get_transform_test(modalities, target_size, target_spacing, target_direction
         transformers.append(AddChannel(keys=modalities, channel_first=False))
         transformers.append(RenameDict(keys=modalities, keys2='input'))
 
-    #transformers.append(AddChannel(keys='mask_img', channel_first=False))
     transformers = Compose(transformers)
     return transformers
 
 
 
-#FUNCTION USE IN TRAINING SCRIPT TO GET DATA 
 def get_data(pp_dir, csv_path, modalities, mode, method, tval, target_size, target_spacing, target_direction, target_origin=None , data_augmentation=True):
     """Save or not the pre processed data at nifti format
 
