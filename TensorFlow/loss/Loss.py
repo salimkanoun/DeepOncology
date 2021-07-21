@@ -184,3 +184,93 @@ def transform_to_onehot(y_true, y_pred):
     indices = tf.cast(y_true, dtype=tf.int32)
     onehot_labels = tf.one_hot(indices=indices, depth=num_classes, dtype=tf.float32, name='onehot_labels')
     return onehot_labels, y_pred
+
+############ LOSS SURVIVAL 
+
+def get_logLikelihood_LOSS(time, event, time_horizon_dim, y_pred):
+    '''
+    for uncensored : log of the probabilitie predicted to experience the event at the true time t
+    for censored : log of the sum of probabilities predicted to experience the event after the true censoring time t
+    '''
+    #mask for the log-likelihood loss
+    #mask size is [N, time_horizon_dim]
+    #    if not censored : one element = 1 (0 elsewhere)
+    #    if censored     : fill elements with 1 after the censoring time (for all events)
+    #mask = np.zeros([len(time), time_horizon_dim]) 
+
+    mask_uncensored = tf.one_hot(time, time_horizon_dim, dtype=tf.float32)
+    mask_censored = tf.one_hot(time+1, time_horizon_dim, dtype= tf.float32)
+    
+    for i in range(time_horizon_dim):
+        mask_censored = mask_censored + tf.one_hot(time+2+i, time_horizon_dim, dtype= tf.float32)
+    mask= tf.transpose([event])*mask_uncensored + tf.transpose([1-event])*mask_censored
+    #for uncensored: 
+    mask=tf.cast(mask, tf.float32) 
+    preds= tf.reduce_sum(mask * y_pred, 1)
+    tmp1 = event*log(preds)
+    #for censored: log \sum P(T>t|x)
+    tmp2=(1-event)*log(preds)
+    loss=-tf.reduce_sum(tf.reduce_sum(tmp1)+tf.reduce_sum(tmp2))/tf.reduce_sum(tf.where(event==-1., 0., 1.))
+    return loss
+
+def get_ranking_LOSS(time, event, time_horizon_dim, y_pred):
+    '''
+    for pairs acceptables (careful with censored events):
+    loss  function η(P(x),P(y)) = exp(−(P(x)−P(y))/σ)
+    where P(x) is the sum of probabilities for x to experience the event on time t <= tx -- (true time of x) --
+    and P(y) is the sum of probabilities for y to experience the event on time t <= tx
+    translated to : a patient who dies at a time s should have a higher risk at time s than a patient who survived longer than s
+    '''
+    #    mask is required calculate the ranking loss (for pair-wise comparision)
+    #    mask size is [N, time_horizon_dim].
+    #         1's from start to the event time(inclusive)
+
+    mask = tf.one_hot(time, time_horizon_dim)
+    for i in range(time_horizon_dim):
+        mask= mask + tf.one_hot(time-i-1, time_horizon_dim)
+
+    sigma = tf.constant(0.1, dtype=tf.float32)
+    one_vector = tf.ones_like([time], dtype=tf.float32)
+    #event_tf = tf.cast(event, tf.float32)
+    time_tf = tf.cast([time],tf.float32)
+
+    mask=tf.cast(tf.transpose(mask),tf.float32)
+    I_2 = tf.linalg.diag(event)
+    
+    #R : r_{ij} = risk of i-th pat based on j-th time-condition (last meas. time ~ event time) , i.e. r_i(T_{j})
+    R = tf.linalg.matmul(y_pred, mask)
+    diag_R = tf.linalg.diag_part(R)
+    diag_R = tf.reshape(diag_R, [-1, 1]) # R_{ij} = r_{j}(T_{j}) - r_{i}(T_{j})
+    R2 = tf.transpose(tf.transpose(diag_R)-R)
+    # diag_R-R : R_{ij} = r_{j}(T_{j}) - r_{i}(T_{j})
+    # transpose : R_{ij} (i-th row j-th column) = r_{i}(T_{i}) - r_{j}(T_{i})
+
+    T = tf.nn.relu(tf.sign(tf.matmul(tf.transpose(one_vector), time_tf)-tf.matmul(tf.transpose(time_tf), one_vector)))
+    # T_{ij}=1 if t_i < t_j  and T_{ij}=0 if t_i >= t_j
+
+    T2 = tf.matmul(I_2, T)
+    loss = tf.reduce_sum(T2 * tf.exp(-R2/sigma))/tf.reduce_sum(T2)
+    return loss
+
+def get_loss_survival(time_horizon_dim, alpha, beta, gamma):
+    ''' 
+    time_horizon_dim : output dimension of the output layer of the model
+    loss_survival : returns the loss of the model (log_likelihood loss + ranking loss)
+    '''
+    def loss_survival(y_true, y_pred):
+        y_true = tf.transpose(y_true)
+        time = tf.math.abs(y_true[0])
+        event = tf.where(y_true[0]> 0, 1,0)
+        event = tf.cast(event, tf.float32)
+        loss_logLikelihood= get_logLikelihood_LOSS(time, event, time_horizon_dim, y_pred)
+        
+        loss_ranking=get_ranking_LOSS(time, event, time_horizon_dim, y_pred)
+        loss_ranking =  tf.where(tf.math.is_nan(loss_ranking),0.,loss_ranking)
+        loss= alpha*loss_logLikelihood + beta*loss_ranking #+gamma*loss_brier
+
+        return loss
+
+    return loss_survival
+
+    def log(x):
+        return tf.math.log(x+10**(-4))

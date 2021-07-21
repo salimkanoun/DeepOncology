@@ -12,7 +12,7 @@ class Transformed_dataset():
     def __init__(self, list_data, transform=None):
         """
         Args:
-            csv_file (string): Path to the csv file with annotations.
+            list_data: list of path images and corresponding annotations            
             root_dir (string): Directory with all the images.
             transform (callable, optional): Optional transform to be applied
                 on a sample.
@@ -26,9 +26,6 @@ class Transformed_dataset():
 
     def __getitem__(self, idx):
         self.i+=1
-        #print("Chargement image", self.i, " ...")
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
         labels = encoding_instance(self.list_data[idx])
         sample = {'image': self.list_data[idx][1], 'head': labels[0], 'leg' : labels[1], 'right_arm': labels[2], 'left_arm': labels[3]}
         if self.transform:
@@ -37,6 +34,9 @@ class Transformed_dataset():
         return sample
 
 class Rescale_transform_array(object):
+    """
+    Apply transformation to the images 
+    """
     def __init__(self, output_shape=(256,256,1024), angle = 0):
         self.output_shape = output_shape
         self.angle = angle
