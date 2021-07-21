@@ -66,20 +66,6 @@ class LoadNifti(object):
         return output
 
 
-class LoadNumpy(object):
-    """
-    Load .npy files and return ndimage
-    """
-
-    def __init__(self, keys):
-        self.keys = (keys,) if isinstance(keys, str) else keys
-
-    def __call__(self, img_dict):
-        for key in self.keys:
-            img_dict[key] = np.load(img_dict[key])
-
-        return img_dict
-
 
 class Roi2Mask(object):
     """
@@ -328,24 +314,6 @@ class ResampleReshapeAlign(object):
         img_dict['meta_info']['new_direction'] = img_dict['pet_img'].GetDirection()
         return img_dict 
 
-class AverageImage(object):
-    """A class to applied average on several ndarray
-
-    """
-
-    def __init__(self, keys, new_key_name, weights=None):
-        self.keys = (keys,) if isinstance(keys, str) else keys
-        self.weights = weights
-        self.new_key_name = new_key_name
-
-    def __call__(self, img_dict):
-        imgs = np.array([img_dict.pop(key) for key in self.keys])
-        if self.weights is None:
-            img_dict[self.new_key_name] = np.mean(imgs, axis=0)
-        else:
-            img_dict[self.new_key_name] = np.average(imgs, axis=0, weights=self.weights)
-
-        return img_dict
 
 
 class Sitk2Numpy(object):
@@ -359,9 +327,6 @@ class Sitk2Numpy(object):
         
         for key in self.keys:
             img_dict[key] = sitk.GetArrayFromImage(img_dict.pop(key))
-            # img = sitk.GetArrayFromImage(img_dict[key])
-            # img = np.transpose(img, (2, 1, 0))  # (z, y, x) to (x, y, z)
-            # img_dict[key] = img
         
         return img_dict
 
