@@ -145,7 +145,7 @@ def main() :
 
         loss_object = loss_dice(dim=3, vnet=True)
         optimizer = tf.optimizers.SGD(learning_rate = 0.001, momentum = 0.9)
-        dsc = metric_dice(dim=3, vnet=True)
+        dsc = metric_dice(dim=3, squared=True)
         metrics = [dsc, 'Recall', 'Precision']  # [dsc]
 
 
