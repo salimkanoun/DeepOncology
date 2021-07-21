@@ -2,9 +2,10 @@ import tensorflow as tf
 
 
 #DICE metric
-def metric_dice(dim, vnet = True):
+def metric_dice(dim, square = True):
     """
     :param dim: Must be 2 or 3
+    https://mediatum.ub.tum.de/doc/1395260/1395260.pdf
     """
     axis = tuple(i for i in range(1, dim+1))
 
@@ -18,7 +19,7 @@ def metric_dice(dim, vnet = True):
         smooth = 0.1
         #y_true = tf.cast(y_true, tf.float32)
         numerator = 2.0 * tf.math.reduce_sum(y_true * y_pred, axis=axis)
-        if vnet : 
+        if square : 
             #denominator = tf.math.reduce_sum(tf.math.square(y_true) + tf.math.square(y_pred), axis=axis)
             denominator = tf.math.reduce_sum(tf.math.square(y_true), axis=axis) + tf.math.reduce_sum(tf.math.square(y_pred), axis=axis)
         else : 
@@ -36,7 +37,16 @@ def metric_dice(dim, vnet = True):
 
 
 #DICE loss
-def loss_dice(dim, vnet=True):
+def loss_dice(dim, square=True):
+    """[summary]
+
+    Args:
+        dim ([type]): [description]
+        square (bool, optional): [https://mediatum.ub.tum.de/doc/1395260/1395260.pdf]. Defaults to True.
+
+    Returns:
+        [type]: [description]
+    """
     axis = tuple(i for i in range(1, dim + 1))
 
     def dice_similarity_coefficient(y_true, y_pred):
@@ -45,7 +55,7 @@ def loss_dice(dim, vnet=True):
         y_true = tf.cast(y_true, tf.float32)
 
         numerator = 2.0 * tf.math.reduce_sum(y_true * y_pred, axis=axis)
-        if vnet:
+        if square:
             #denominator = tf.math.reduce_sum(tf.math.square(y_true) + tf.math.square(y_pred), axis=axis)
             denominator = tf.math.reduce_sum(tf.math.square(y_true), axis=axis) + tf.math.reduce_sum(tf.math.square(y_pred), axis=axis)
         else:
@@ -155,7 +165,7 @@ def custom_robust_loss(dim):
 
         numerator = 2.0 * tf.math.reduce_sum(y_true * y_pred, axis=axis)
         denominator = tf.math.reduce_sum(tf.math.square(y_true) + tf.math.square(y_pred), axis=(1, 2, 3, 4))
-        vnet_dice = tf.reduce_mean((numerator + smooth) / (denominator + smooth))
+        squared_dice = tf.reduce_mean((numerator + smooth) / (denominator + smooth))
 
         # CE
         ce_loss = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
@@ -163,7 +173,7 @@ def custom_robust_loss(dim):
         # L1
         mae = tf.keras.losses.MeanAbsoluteError(reduction=tf.keras.losses.Reduction.NONE)
 
-        return 1.0 - vnet_dice + tf.reduce_mean(ce_loss(y_true, y_pred) + mae(y_true, y_pred))
+        return 1.0 - squared_dice + tf.reduce_mean(ce_loss(y_true, y_pred) + mae(y_true, y_pred))
 
     return loss 
 
