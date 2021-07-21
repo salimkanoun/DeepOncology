@@ -1,36 +1,34 @@
-import tensorflow as tf
-import numpy as np
 
-class DataGeneratorFromDict(tf.keras.utils.Sequence):
-    """A class to create a DataGenerator object for model.fit()
-    
+import numpy as np 
 
-    
-    """
+class DataGeneratorSurvival(tf.keras.utils.Sequence):
+    """A class to create a DataGenerator object for model.fit()"""
 
     def __init__(self,
-                 images_paths,
+                 images_paths, 
+                 struct_data,
+                 y_train,
                  transforms,
-                 batch_size=1,
-                 shuffle=True,
-                 x_key='input',
-                 y_key='output'):
+                 x_key,
+                 batch_size,
+                 shuffle=True):
         """
         :param images_paths: list[dict] or dict[dict]
         :param transforms: transformer to apply to data
         :param batch_size: batch size
         :param shuffle: bool. If set to true, indexes will be suffled at each end of epoch.
         :param x_key: key corresponding to input of neural network
-        :param y_key: key correspond to output of neural network
+
         """
 
         self.images_paths = images_paths
+        self.struct_data = struct_data
+        self.y_train = y_train
         self.transforms = transforms
         self.batch_size = batch_size
         self.shuffle = shuffle
-        self.on_epoch_end()
         self.x_key = x_key
-        self.y_key = y_key
+        self.on_epoch_end()
 
     def __len__(self):
         """
@@ -50,27 +48,28 @@ class DataGeneratorFromDict(tf.keras.utils.Sequence):
         :param index: int, position of the batch in the Sequence
         :return: tuple of numpy array, (X_batch, Y_batch) of shape (batch_size, ...)
         """
-
         # select indices of data for next batch
         indexes = self.indexes[index * self.batch_size: (index + 1) * self.batch_size]
-        #print('PREPARE THE BATCH')
-        #start_time = time.time()
         # prepare the batch
         X_batch = []
-        Y_batch = []
+        X_batch_struct_data = []
+        Y_batch = [[]]
         for idx in indexes:
             img_dict = self.images_paths[idx]
             if self.transforms is not None:
                 img_dict = self.transforms(img_dict)
-
             # add it to the batch
             X_batch.append(img_dict[self.x_key])
-            Y_batch.append(img_dict[self.y_key])
-
+            Y_batch[0].append(self.y_train[idx])
+            #Y_batch_test[0].append(self.y_train[idx][0])
+            #Y_batch_test[1].append(self.y_train[idx][1])
+            if len(self.struct_data)!=0:
+                X_batch_struct_data.append(self.struct_data[idx])
         X_batch = np.array(X_batch)
-        Y_batch = np.array(Y_batch)
-        #print("END BATCH --- %s seconds ---" % (time.time() - start_time))
+        
+        Y_batch = np.asarray(Y_batch).astype('int32')
+        if len(self.struct_data)!=0: 
+            X_batch_struct_data = np.array(X_batch_struct_data)
+            X_batch= [X_batch_struct_data, X_batch]
         return X_batch, Y_batch
-
-
 

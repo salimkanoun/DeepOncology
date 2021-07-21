@@ -1,7 +1,45 @@
-
 import tensorflow as tf
-from .Layers import convolution, down_convolution, up_convolution, get_num_channels
+from tools.tensortools import get_num_channels
 
+def prelu(x):
+    return tf.keras.layers.PReLU(input_shape=x.shape)(x)
+
+
+def convolution(x, filters, kernel_size=(5, 5, 5), padding='same', strides=(1, 1, 1)):
+    initializer = tf.keras.initializers.GlorotNormal()
+    return tf.keras.layers.Conv3D(filters=filters,
+                                  kernel_size=kernel_size,
+                                  padding=padding,
+                                  strides=strides,
+                                  kernel_initializer=initializer
+                                  )(x)
+
+
+def deconvolution(x, filters, kernel_size, strides, padding='same'):
+    initializer = tf.keras.initializers.GlorotNormal()
+    return tf.keras.layers.Conv3DTranspose(filters=filters,
+                                           kernel_size=kernel_size,
+                                           padding=padding,
+                                           strides=strides,
+                                           kernel_initializer=initializer
+                                           )(x)
+
+
+
+def down_convolution(x, factor, kernel_size):
+    num_channels = get_num_channels(x)
+    strides = 3 * [factor]
+    filters = num_channels * factor
+    x = convolution(x, filters, kernel_size=kernel_size, strides=strides)
+    return x
+
+
+def up_convolution(x, factor, kernel_size):
+    num_channels = get_num_channels(x)
+    strides = 3 * [factor]
+    filters = num_channels // factor
+    x = deconvolution(x, filters, kernel_size=kernel_size, strides=strides)
+    return x
 
 def dropout(x, keep_prob):
     # tf.keras.layers.Dropout(1.0 - keep_prob)(x)
