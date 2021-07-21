@@ -315,21 +315,6 @@ class ResampleReshapeAlign(object):
         return img_dict 
 
 
-
-class Sitk2Numpy(object):
-    """
-    Convert SimpleITK image into Numpy ndarray
-    """
-    def __init__(self, keys=('pet_img', 'ct_img', 'mask_img')):
-        self.keys = (keys,) if isinstance(keys, str) else keys
-
-    def __call__(self, img_dict):
-        
-        for key in self.keys:
-            img_dict[key] = sitk.GetArrayFromImage(img_dict.pop(key))
-        
-        return img_dict
-
 class ScaleIntensityRanged(object):
     """
     #Linearly Scale value between [a_min, a_max] to [b_min, b_max]. 

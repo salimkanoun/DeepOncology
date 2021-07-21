@@ -34,10 +34,6 @@ target_size = (128, 128, 256)
 target_spacing = (4.0, 4.0, 4.0)
 target_direction = (1,0,0,0,1,0,0,0,1)
 
-from_pp=False
-cache_pp=False
-pp_flag=''
-
 ##### TENSORFLOW #####
 
 
@@ -102,7 +98,7 @@ def main() :
 
         # Get Data path and transforms
         #get_data function from exp_3D/preprocessing 
-    dataset, train_transforms, val_transforms = get_data(pp_dir, csv_path, modalities, mode, None, None , target_size, target_spacing, target_direction, target_origin=None , data_augmentation=True, from_pp=from_pp, cache_pp=cache_pp, pp_flag=pp_flag)
+    dataset, train_transforms, val_transforms = get_data(pp_dir, csv_path, modalities, mode, None, None , target_size, target_spacing, target_direction, target_origin=None , data_augmentation=True)
         #dataset = dict('train' : [{ct pet mask}, {},] 
         #                'test' : [{ct pet mask}, {},] 
         #                 'val' : [{ct pet mask}, {}, ])
@@ -141,8 +137,7 @@ def main() :
     val_dataset = val_dataset.cache(cachedir_val).repeat()
 
     with strategy.scope():
-            # definition of loss, optimizer and metrics
-
+            # definition of loss, optimizer and metric
         loss_object = loss_dice(dim=3, vnet=True)
         optimizer = tf.optimizers.SGD(learning_rate = 0.001, momentum = 0.9)
         dsc = metric_dice(dim=3, squared=True)
