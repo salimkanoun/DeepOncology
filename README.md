@@ -4,7 +4,7 @@ This provides some deep Learning tools for automatic segmentation of 3D medical 
 
 ### Models
 Model used for segmentation is [V-Net](https://arxiv.org/abs/1606.04797). <br/>
-Model used for segmentation is a simply CNN. 
+Model used for classification is a simply CNN. 
 
 ### Segmentation of tumour on PET/CT scan
 
